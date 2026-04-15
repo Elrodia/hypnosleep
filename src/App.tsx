@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { TabBar, TabId } from './components/TabBar'
+import { Header } from './components/Header'
 import { HomePage } from './components/pages/HomePage'
 import { LibraryPage } from './components/pages/LibraryPage'
 import { CreatePage } from './components/pages/CreatePage'
@@ -28,7 +29,8 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20">
+    <div className="min-h-screen bg-background text-foreground pb-20 pt-14">
+      <Header />
       <AnimatePresence mode="wait">
         <motion.div
           key={activeTab}
