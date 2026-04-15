@@ -33,12 +33,29 @@ This is a shell application with multiple navigation sections and basic state ma
 - Progression: Tab tap → Current view fades out → New view fades in → Content ready
 - Success criteria: Transitions feel smooth and quick (200-300ms), no layout shift or flash
 
+**Slide-Up Modal**
+- Functionality: Reusable bottom sheet modal with drag-to-dismiss capability
+- Purpose: Presents secondary content and forms without leaving current context
+- Trigger: User taps button to open modal or completes an action requiring input
+- Progression: Button tap → Backdrop blur appears → Modal slides up with spring animation → User interacts → Drag down or tap backdrop → Modal dismisses
+- Success criteria: Spring animation feels natural, backdrop blur creates depth, drag gesture is responsive
+
+**Toast Notification System**
+- Functionality: Non-blocking pill-shaped notifications at top-center with auto-dismiss
+- Purpose: Provides instant feedback for actions without disrupting user flow
+- Trigger: Success/error/info event occurs in the app
+- Progression: Event fires → Toast springs in from top → Displays for 3 seconds → Auto-dismisses with fade → Stacks up to 3 toasts vertically
+- Success criteria: Toasts are noticeable but don't block content, variants are clearly distinguishable, multiple toasts stack gracefully
+
 ## Edge Case Handling
 
 - **Rapid Tab Switching**: Debounce or queue transitions to prevent animation overlap/jank
 - **Deep Link Navigation**: App handles direct URLs to specific tabs and sets correct active state
 - **Orientation Change**: Layout adapts gracefully between portrait and landscape modes
 - **Small Screens**: Tab bar remains accessible on very small devices (320px width)
+- **Modal Scroll Overflow**: Long modal content scrolls internally while handle remains accessible
+- **Toast Stacking**: Maximum of 3 toasts displayed, oldest is removed when limit exceeded
+- **Background Interaction**: Modal backdrop prevents interaction with underlying content
 
 ## Design Direction
 
@@ -76,18 +93,24 @@ Animations should enhance the calming atmosphere - slow fades for transitions (2
 
 - **Components**: 
   - Custom bottom tab bar (no direct shadcn equivalent) with TouchableOpacity-style feedback
+  - SlideUpModal component with framer-motion spring animations and drag gestures
+  - ToastProvider context with AnimatePresence for toast management
   - Layout wrappers using flex/grid for responsive structure
-  - No dialogs or heavy components needed for initial shell
   
 - **Customizations**: 
   - Custom TabBar component with glow effect using box-shadow and CSS filters
   - Custom page transition wrapper using framer-motion AnimatePresence
+  - SlideUpModal with backdrop blur overlay (backdrop-filter) and drag handle
+  - Toast pills with variant-specific colors (green success, red error, purple info)
   - Tab icons sized at 24px for main tabs, 32px for center Create button
   
 - **States**: 
   - Tab buttons: default (muted gray), hover (lighter gray), active (purple with glow), pressed (slight scale down)
   - Transitions: 250ms opacity fade for page content
   - Active glow: soft purple shadow with subtle animated pulse
+  - Modal: slide-up animation with spring physics (damping: 30, stiffness: 300)
+  - Toast: spring entrance animation with auto-dismiss fade after 3s
+  - Backdrop: blur(12px) with semi-transparent overlay
   
 - **Icon Selection**: 
   - Home: Moon (representing sleep/night)

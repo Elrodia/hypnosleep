@@ -10,6 +10,7 @@ import { ProfilePage } from './components/pages/ProfilePage'
 import { SplashScreen } from './components/SplashScreen'
 import { MiniPlayer } from './components/MiniPlayer'
 import { AudioPlayerProvider, useAudioPlayer } from './contexts/AudioPlayerContext'
+import { ToastProvider } from './contexts/ToastContext'
 import { toast } from 'sonner'
 
 function AppContent() {
@@ -88,9 +89,11 @@ function AppContent() {
 
 function App() {
   return (
-    <AudioPlayerProvider>
-      <AppContent />
-    </AudioPlayerProvider>
+    <ToastProvider>
+      <AudioPlayerProvider>
+        <AppContent />
+      </AudioPlayerProvider>
+    </ToastProvider>
   )
 }
 
