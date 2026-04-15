@@ -8,10 +8,14 @@ import { CreatePage } from './components/pages/CreatePage'
 import { ProgressPage } from './components/pages/ProgressPage'
 import { ProfilePage } from './components/pages/ProfilePage'
 import { SplashScreen } from './components/SplashScreen'
+import { MiniPlayer } from './components/MiniPlayer'
+import { AudioPlayerProvider, useAudioPlayer } from './contexts/AudioPlayerContext'
+import { toast } from 'sonner'
 
-function App() {
+function AppContent() {
   const [activeTab, setActiveTab] = useState<TabId>('home')
   const [showSplash, setShowSplash] = useState(true)
+  const { player, togglePlayPause } = useAudioPlayer()
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -20,6 +24,10 @@ function App() {
 
     return () => clearTimeout(timer)
   }, [])
+
+  const handleExpand = () => {
+    toast.info('Full player view coming soon!')
+  }
 
   const renderPage = () => {
     switch (activeTab) {
@@ -58,10 +66,31 @@ function App() {
               {renderPage()}
             </motion.div>
           </AnimatePresence>
+          
+          <AnimatePresence>
+            {player.isActive && (
+              <MiniPlayer
+                isPlaying={player.isPlaying}
+                sessionTitle={player.sessionTitle}
+                progress={player.progress}
+                onPlayPause={togglePlayPause}
+                onExpand={handleExpand}
+              />
+            )}
+          </AnimatePresence>
+          
           <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
       )}
     </>
+  )
+}
+
+function App() {
+  return (
+    <AudioPlayerProvider>
+      <AppContent />
+    </AudioPlayerProvider>
   )
 }
 
