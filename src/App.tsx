@@ -8,6 +8,7 @@ import { CreatePage } from './components/pages/CreatePage'
 import { ProgressPage } from './components/pages/ProgressPage'
 import { ProfilePage } from './components/pages/ProfilePage'
 import { LoginPage } from './components/pages/LoginPage'
+import { QuizPage } from './components/pages/QuizPage'
 import { SplashScreen } from './components/SplashScreen'
 import { MiniPlayer } from './components/MiniPlayer'
 import { OnboardingCarousel } from './components/OnboardingCarousel'
@@ -20,8 +21,10 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<TabId>('home')
   const [showSplash, setShowSplash] = useState(true)
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useKV<boolean>('has-completed-onboarding', false)
+  const [hasCompletedQuiz, setHasCompletedQuiz] = useKV<boolean>('has-completed-quiz', false)
   const [isLoggedIn, setIsLoggedIn] = useKV<boolean>('is-logged-in', false)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [showQuiz, setShowQuiz] = useState(false)
   const { player, togglePlayPause } = useAudioPlayer()
 
   useEffect(() => {
@@ -32,11 +35,13 @@ function AppContent() {
       }
       if (!hasCompletedOnboarding) {
         setShowOnboarding(true)
+      } else if (!hasCompletedQuiz) {
+        setShowQuiz(true)
       }
     }, 2500)
 
     return () => clearTimeout(timer)
-  }, [hasCompletedOnboarding, isLoggedIn])
+  }, [hasCompletedOnboarding, hasCompletedQuiz, isLoggedIn])
 
   const handleExpand = () => {
     toast.info('Full player view coming soon!')
@@ -45,12 +50,22 @@ function AppContent() {
   const handleOnboardingComplete = () => {
     setShowOnboarding(false)
     setHasCompletedOnboarding(true)
+    if (!hasCompletedQuiz) {
+      setShowQuiz(true)
+    }
+  }
+
+  const handleQuizComplete = (selectedGoals: string[]) => {
+    setShowQuiz(false)
+    setHasCompletedQuiz(true)
   }
 
   const handleLogin = () => {
     setIsLoggedIn(true)
     if (!hasCompletedOnboarding) {
       setShowOnboarding(true)
+    } else if (!hasCompletedQuiz) {
+      setShowQuiz(true)
     }
   }
 
@@ -86,8 +101,14 @@ function AppContent() {
           <OnboardingCarousel onComplete={handleOnboardingComplete} />
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {showQuiz && !showSplash && !showOnboarding && (
+          <QuizPage onComplete={handleQuizComplete} />
+        )}
+      </AnimatePresence>
       
-      {!showSplash && !showOnboarding && (
+      {!showSplash && !showOnboarding && !showQuiz && (
         <div className="min-h-screen bg-background text-foreground pb-20 pt-14">
           <Header />
           <AnimatePresence mode="wait">
