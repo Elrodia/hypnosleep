@@ -12,6 +12,7 @@ import { QuizPage } from './components/pages/QuizPage'
 import { ResultsPage } from './components/pages/ResultsPage'
 import { SplashScreen } from './components/SplashScreen'
 import { MiniPlayer } from './components/MiniPlayer'
+import { FullScreenPlayer } from './components/FullScreenPlayer'
 import { OnboardingCarousel } from './components/OnboardingCarousel'
 import { AudioPlayerProvider, useAudioPlayer } from './contexts/AudioPlayerContext'
 import { ToastProvider } from './contexts/ToastContext'
@@ -27,12 +28,13 @@ function AppContent() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showQuiz, setShowQuiz] = useState(false)
   const [showResults, setShowResults] = useState(false)
+  const [showFullPlayer, setShowFullPlayer] = useState(false)
   const [quizData, setQuizData] = useKV<{
     selectedGoals: string[]
     preferredTime: string
     sessionDuration: number
   } | null>('quiz-data', null)
-  const { player, togglePlayPause } = useAudioPlayer()
+  const { player, togglePlayPause, setProgress } = useAudioPlayer()
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -64,7 +66,15 @@ function AppContent() {
   }, [])
 
   const handleExpand = () => {
-    toast.info('Full player view coming soon!')
+    setShowFullPlayer(true)
+  }
+
+  const handleCloseFullPlayer = () => {
+    setShowFullPlayer(false)
+  }
+
+  const handleSeek = (newProgress: number) => {
+    setProgress(newProgress)
   }
 
   const handleOnboardingComplete = () => {
@@ -171,7 +181,7 @@ function AppContent() {
           </AnimatePresence>
           
           <AnimatePresence>
-            {player.isActive && (
+            {player.isActive && !showFullPlayer && (
               <MiniPlayer
                 isPlaying={player.isPlaying}
                 sessionTitle={player.sessionTitle}
@@ -181,6 +191,18 @@ function AppContent() {
               />
             )}
           </AnimatePresence>
+
+          <FullScreenPlayer
+            isOpen={showFullPlayer}
+            isPlaying={player.isPlaying}
+            sessionTitle={player.sessionTitle}
+            category={player.category}
+            progress={player.progress}
+            duration={player.duration}
+            onClose={handleCloseFullPlayer}
+            onPlayPause={togglePlayPause}
+            onSeek={handleSeek}
+          />
           
           <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
         </div>

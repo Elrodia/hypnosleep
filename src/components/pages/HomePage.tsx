@@ -18,6 +18,7 @@ interface QuickSession {
   id: string
   title: string
   duration: string
+  category: string
   icon: typeof Leaf
   gradient: string
 }
@@ -27,6 +28,7 @@ const quickSessions: QuickSession[] = [
     id: 'calm',
     title: '5-min Calm',
     duration: '5 min',
+    category: 'Calm',
     icon: Leaf,
     gradient: 'from-purple-600 via-purple-500 to-purple-600',
   },
@@ -34,6 +36,7 @@ const quickSessions: QuickSession[] = [
     id: 'confidence',
     title: '10-min Confidence',
     duration: '10 min',
+    category: 'Confidence',
     icon: Star,
     gradient: 'from-blue-600 via-blue-500 to-blue-600',
   },
@@ -41,6 +44,7 @@ const quickSessions: QuickSession[] = [
     id: 'sleep',
     title: '10-min Sleep',
     duration: '10 min',
+    category: 'Sleep',
     icon: Cloud,
     gradient: 'from-teal-600 via-teal-500 to-teal-600',
   },
@@ -48,6 +52,7 @@ const quickSessions: QuickSession[] = [
     id: 'focus',
     title: '15-min Focus',
     duration: '15 min',
+    category: 'Focus',
     icon: Eye,
     gradient: 'from-indigo-600 via-indigo-500 to-indigo-600',
   },
@@ -55,6 +60,7 @@ const quickSessions: QuickSession[] = [
     id: 'anxiety',
     title: '5-min Anxiety Relief',
     duration: '5 min',
+    category: 'Anxiety',
     icon: Heart,
     gradient: 'from-violet-600 via-violet-500 to-violet-600',
   },
@@ -136,20 +142,20 @@ export function HomePage() {
   }, [])
 
   const handlePlaySession = () => {
-    play('Deep Sleep Journey - Full Relaxation', 100)
+    play('Deep Sleep Journey - Full Relaxation', 'Sleep', 600)
   }
 
   const handleQuickSession = (session: QuickSession) => {
-    play(`${session.title} Session`, 100)
+    play(`${session.title} Session`, session.category, 300)
   }
 
   const handlePopularSession = (session: PopularSession) => {
-    play(session.title, 100)
+    play(session.title, session.category, 600)
   }
 
   const handleResumeSession = () => {
     if (unfinishedSession) {
-      play(unfinishedSession.sessionTitle, 100)
+      play(unfinishedSession.sessionTitle, unfinishedSession.category, 600)
     }
   }
 

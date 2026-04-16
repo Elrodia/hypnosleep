@@ -94,7 +94,7 @@ export function LibraryPage() {
     })
 
   const handlePlaySession = (session: LibrarySession) => {
-    play(session.title, 100)
+    play(session.title, session.category, 600)
   }
 
   const handleToggleFavorite = (id: string, isFavorited: boolean) => {
@@ -124,7 +124,7 @@ export function LibraryPage() {
   const handlePlayFromDetail = () => {
     const session = sessions?.find(s => s.id === selectedSessionId)
     if (session) {
-      play(session.title, 100)
+      play(session.title, session.category, 600)
     }
   }
 

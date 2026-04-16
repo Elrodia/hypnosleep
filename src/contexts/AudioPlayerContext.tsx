@@ -4,13 +4,14 @@ interface AudioPlayerState {
   isActive: boolean
   isPlaying: boolean
   sessionTitle: string
+  category: string
   progress: number
   duration: number
 }
 
 interface AudioPlayerContextType {
   player: AudioPlayerState
-  play: (title: string, duration?: number) => void
+  play: (title: string, category?: string, duration?: number) => void
   pause: () => void
   resume: () => void
   stop: () => void
@@ -25,15 +26,17 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     isActive: false,
     isPlaying: false,
     sessionTitle: '',
+    category: '',
     progress: 0,
     duration: 0,
   })
 
-  const play = (title: string, duration = 0) => {
+  const play = (title: string, category = 'Session', duration = 600) => {
     setPlayer({
       isActive: true,
       isPlaying: true,
       sessionTitle: title,
+      category,
       progress: 0,
       duration,
     })
@@ -52,6 +55,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       isActive: false,
       isPlaying: false,
       sessionTitle: '',
+      category: '',
       progress: 0,
       duration: 0,
     })
