@@ -1,13 +1,155 @@
+import { useState, useEffect } from 'react'
+import { User, PencilSimple, Moon, Headphones, Flame, CaretRight, SlidersHorizontal, UserCircle, CreditCard, Question, Info } from '@phosphor-icons/react'
+import { useKV } from '@github/spark/hooks'
+
+interface UserProfile {
+  name: string
+  email: string
+  memberSince: string
+  avatarInitials: string
+}
+
 export function ProfilePage() {
+  const [profile] = useKV<UserProfile>('user-profile', {
+    name: 'Alex Morgan',
+    email: 'alex.morgan@email.com',
+    memberSince: '2024-01-15',
+    avatarInitials: 'AM'
+  })
+
+  const [totalSessions] = useKV<number>('total-sessions-completed', 42)
+  const [totalListened] = useKV<number>('total-minutes-listened', 1080)
+  const [currentStreak] = useKV<number>('current-streak', 12)
+
+  const safeProfile = profile || {
+    name: 'Alex Morgan',
+    email: 'alex.morgan@email.com',
+    memberSince: '2024-01-15',
+    avatarInitials: 'AM'
+  }
+
+  const safeTotalSessions = totalSessions ?? 42
+  const safeTotalListened = totalListened ?? 1080
+  const safeCurrentStreak = currentStreak ?? 12
+
+  const formatMemberSince = (dateString: string) => {
+    const date = new Date(dateString)
+    const month = date.toLocaleDateString('en-US', { month: 'short' })
+    const year = date.getFullYear()
+    return `${month} ${year}`
+  }
+
+  const formatListenedTime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60)
+    return `${hours}h`
+  }
+
+  const settingsCategories = [
+    { id: 'preferences', label: 'Preferences', icon: SlidersHorizontal },
+    { id: 'account', label: 'Account', icon: UserCircle },
+    { id: 'subscription', label: 'Subscription', icon: CreditCard },
+    { id: 'help', label: 'Help & Support', icon: Question },
+    { id: 'about', label: 'About', icon: Info },
+  ]
+
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-semibold tracking-tight mb-6">Profile</h1>
-      <div className="space-y-4">
-        <div className="bg-card border border-border rounded-lg p-6">
-          <h2 className="text-lg font-medium mb-2">Your Profile</h2>
-          <p className="text-muted-foreground">
-            Manage your settings and preferences.
-          </p>
+    <div className="min-h-screen">
+      <div className="p-6 space-y-6">
+        <div className="flex flex-col items-center text-center space-y-4 pb-6">
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary via-primary/80 to-primary/60 flex items-center justify-center">
+              <span className="text-3xl font-semibold text-primary-foreground">
+                {safeProfile.avatarInitials}
+              </span>
+            </div>
+            <button 
+              className="absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-card border-2 border-background flex items-center justify-center hover:bg-accent transition-colors"
+              aria-label="Edit profile"
+            >
+              <PencilSimple className="w-4 h-4 text-foreground" weight="bold" />
+            </button>
+          </div>
+
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {safeProfile.name}
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              {safeProfile.email}
+            </p>
+            <p className="text-xs text-muted-foreground/80 pt-1">
+              Member since {formatMemberSince(safeProfile.memberSince)}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-card border border-border rounded-xl p-4 flex flex-col items-center justify-center space-y-2">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Headphones className="w-5 h-5 text-primary" weight="bold" />
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-semibold tracking-tight">
+                {safeTotalSessions}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Sessions
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-4 flex flex-col items-center justify-center space-y-2">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Moon className="w-5 h-5 text-primary" weight="bold" />
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-semibold tracking-tight">
+                {formatListenedTime(safeTotalListened)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Listened
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-4 flex flex-col items-center justify-center space-y-2">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Flame className="w-5 h-5 text-primary" weight="fill" />
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-semibold tracking-tight">
+                {safeCurrentStreak}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Day Streak
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          {settingsCategories.map((category, index) => {
+            const Icon = category.icon
+            return (
+              <button
+                key={category.id}
+                className="w-full flex items-center justify-between p-4 hover:bg-accent/50 transition-colors active:scale-[0.99]"
+                style={{
+                  borderBottom: index < settingsCategories.length - 1 ? '1px solid hsl(var(--border))' : 'none'
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Icon className="w-5 h-5 text-primary" weight="bold" />
+                  </div>
+                  <span className="font-medium">
+                    {category.label}
+                  </span>
+                </div>
+                <CaretRight className="w-5 h-5 text-muted-foreground" weight="bold" />
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>
