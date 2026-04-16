@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { PlusCircle, MagnifyingGlass, X } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { SessionCard } from '@/components/SessionCard'
+import { SessionDetailPage } from './SessionDetailPage'
 
 type FilterCategory = 'All' | 'Sleep' | 'Confidence' | 'Fears' | 'Habits' | 'Focus' | 'Custom'
 
@@ -26,6 +27,7 @@ export function LibraryPage() {
   const [activeFilter, setActiveFilter] = useState<FilterCategory>('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [sessions, setSessions] = useKV<LibrarySession[]>('library-sessions', [])
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
   const { play } = useAudioPlayer()
 
   const filteredSessions = (sessions || [])
@@ -46,6 +48,31 @@ export function LibraryPage() {
       (currentSessions || []).map((session) =>
         session.id === id ? { ...session, isFavorited } : session
       )
+    )
+  }
+
+  const handleSessionClick = (sessionId: string) => {
+    setSelectedSessionId(sessionId)
+  }
+
+  const handleBackFromDetail = () => {
+    setSelectedSessionId(null)
+  }
+
+  const handlePlayFromDetail = () => {
+    const session = sessions?.find(s => s.id === selectedSessionId)
+    if (session) {
+      play(session.title, 100)
+    }
+  }
+
+  if (selectedSessionId) {
+    return (
+      <SessionDetailPage
+        sessionId={selectedSessionId}
+        onBack={handleBackFromDetail}
+        onPlay={handlePlayFromDetail}
+      />
     )
   }
 
@@ -176,6 +203,7 @@ export function LibraryPage() {
                 isFavorited={session.isFavorited}
                 onPlay={() => handlePlaySession(session)}
                 onToggleFavorite={handleToggleFavorite}
+                onClick={() => handleSessionClick(session.id)}
                 searchQuery={searchQuery}
               />
             </motion.div>

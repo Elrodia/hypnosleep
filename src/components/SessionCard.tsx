@@ -12,6 +12,7 @@ interface SessionCardProps {
   isFavorited?: boolean
   onPlay: () => void
   onToggleFavorite?: (id: string, isFavorited: boolean) => void
+  onClick?: () => void
   className?: string
   searchQuery?: string
 }
@@ -35,6 +36,7 @@ export function SessionCard({
   isFavorited = false,
   onPlay,
   onToggleFavorite,
+  onClick,
   className,
   searchQuery = '',
 }: SessionCardProps) {
@@ -87,7 +89,10 @@ export function SessionCard({
       onPointerUp={() => setIsPressed(false)}
       onPointerLeave={() => setIsPressed(false)}
     >
-      <div className="bg-card rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <div 
+        className="bg-card rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer"
+        onClick={onClick}
+      >
         <div
           className={cn(
             'relative h-32 bg-gradient-to-br flex items-center justify-center',
