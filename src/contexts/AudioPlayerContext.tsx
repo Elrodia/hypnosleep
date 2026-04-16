@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react'
+import { useMediaSession } from '@/hooks/use-media-session'
 
 interface AudioPlayerState {
   isActive: boolean
@@ -71,6 +72,54 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const togglePlayPause = () => {
     setPlayer((prev) => ({ ...prev, isPlaying: !prev.isPlaying }))
   }
+
+  const seekBackward = () => {
+    setPlayer((prev) => ({
+      ...prev,
+      progress: Math.max(0, prev.progress - 15),
+    }))
+  }
+
+  const seekForward = () => {
+    setPlayer((prev) => ({
+      ...prev,
+      progress: Math.min(prev.duration, prev.progress + 15),
+    }))
+  }
+
+  useMediaSession(
+    {
+      title: player.sessionTitle,
+      artist: 'HypnoSleep',
+      album: player.category,
+      duration: player.duration,
+      position: player.progress,
+      playbackState: player.isPlaying ? 'playing' : 'paused',
+    },
+    {
+      onPlay: resume,
+      onPause: pause,
+      onSeekBackward: seekBackward,
+      onSeekForward: seekForward,
+      onStop: stop,
+    },
+    player.isActive
+  )
+
+  useEffect(() => {
+    if (!player.isPlaying || !player.isActive) return
+
+    const interval = setInterval(() => {
+      setPlayer((prev) => {
+        if (prev.progress >= prev.duration) {
+          return { ...prev, isPlaying: false }
+        }
+        return { ...prev, progress: prev.progress + 1 }
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [player.isPlaying, player.isActive])
 
   return (
     <AudioPlayerContext.Provider
