@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
-import { User, PencilSimple, Moon, Headphones, Flame, CaretRight, SlidersHorizontal, UserCircle, CreditCard, Question, Info } from '@phosphor-icons/react'
+import { useState } from 'react'
+import { PencilSimple, Moon, Headphones, Flame, CaretRight, SlidersHorizontal, UserCircle, CreditCard, Question, Info } from '@phosphor-icons/react'
 import { useKV } from '@github/spark/hooks'
+import { PreferencesPage } from './PreferencesPage'
 
 interface UserProfile {
   name: string
@@ -10,6 +11,7 @@ interface UserProfile {
 }
 
 export function ProfilePage() {
+  const [showPreferences, setShowPreferences] = useState(false)
   const [profile] = useKV<UserProfile>('user-profile', {
     name: 'Alex Morgan',
     email: 'alex.morgan@email.com',
@@ -51,6 +53,16 @@ export function ProfilePage() {
     { id: 'help', label: 'Help & Support', icon: Question },
     { id: 'about', label: 'About', icon: Info },
   ]
+
+  const handleCategoryClick = (categoryId: string) => {
+    if (categoryId === 'preferences') {
+      setShowPreferences(true)
+    }
+  }
+
+  if (showPreferences) {
+    return <PreferencesPage onBack={() => setShowPreferences(false)} />
+  }
 
   return (
     <div className="min-h-screen">
@@ -133,6 +145,7 @@ export function ProfilePage() {
             return (
               <button
                 key={category.id}
+                onClick={() => handleCategoryClick(category.id)}
                 className="w-full flex items-center justify-between p-4 hover:bg-accent/50 transition-colors active:scale-[0.99]"
                 style={{
                   borderBottom: index < settingsCategories.length - 1 ? '1px solid hsl(var(--border))' : 'none'
