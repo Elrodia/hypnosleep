@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Play, Pause, CaretDown, DotsThree, ArrowCounterClockwise, ArrowClockwise, Clock } from '@phosphor-icons/react'
+import { Play, Pause, CaretDown, DotsThree, ArrowCounterClockwise, ArrowClockwise, Clock, Waves } from '@phosphor-icons/react'
 import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
 import {
@@ -10,6 +10,7 @@ import {
 } from './ui/dropdown-menu'
 import { toast } from 'sonner'
 import { SleepTimerModal } from './SleepTimerModal'
+import { SoundsModal } from './SoundsModal'
 
 interface FullScreenPlayerProps {
   isOpen: boolean
@@ -37,6 +38,7 @@ export function FullScreenPlayer({
   const [isDragging, setIsDragging] = useState(false)
   const [localProgress, setLocalProgress] = useState(progress)
   const [showTimerModal, setShowTimerModal] = useState(false)
+  const [showSoundsModal, setShowSoundsModal] = useState(false)
   const [timerMinutes, setTimerMinutes] = useState<number | null>(null)
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null)
 
@@ -158,6 +160,13 @@ export function FullScreenPlayer({
               </button>
 
               <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowSoundsModal(true)}
+                  className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+                >
+                  <Waves weight="bold" className="w-6 h-6 text-white" />
+                </button>
+
                 <button
                   onClick={() => setShowTimerModal(true)}
                   className="relative w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
@@ -303,6 +312,11 @@ export function FullScreenPlayer({
             onCancelTimer={handleCancelTimer}
             activeTimer={timerMinutes}
             remainingSeconds={remainingSeconds}
+          />
+
+          <SoundsModal
+            isOpen={showSoundsModal}
+            onClose={() => setShowSoundsModal(false)}
           />
         </motion.div>
       )}
