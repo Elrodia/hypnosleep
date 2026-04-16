@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { PencilSimple, Moon, Headphones, Flame, CaretRight, SlidersHorizontal, UserCircle, CreditCard, Question, Info } from '@phosphor-icons/react'
 import { useKV } from '@github/spark/hooks'
 import { PreferencesPage } from './PreferencesPage'
+import { AccountPage } from './AccountPage'
 
 interface UserProfile {
   name: string
@@ -12,6 +13,7 @@ interface UserProfile {
 
 export function ProfilePage() {
   const [showPreferences, setShowPreferences] = useState(false)
+  const [showAccount, setShowAccount] = useState(false)
   const [profile] = useKV<UserProfile>('user-profile', {
     name: 'Alex Morgan',
     email: 'alex.morgan@email.com',
@@ -57,11 +59,17 @@ export function ProfilePage() {
   const handleCategoryClick = (categoryId: string) => {
     if (categoryId === 'preferences') {
       setShowPreferences(true)
+    } else if (categoryId === 'account') {
+      setShowAccount(true)
     }
   }
 
   if (showPreferences) {
     return <PreferencesPage onBack={() => setShowPreferences(false)} />
+  }
+
+  if (showAccount) {
+    return <AccountPage onBack={() => setShowAccount(false)} />
   }
 
   return (
