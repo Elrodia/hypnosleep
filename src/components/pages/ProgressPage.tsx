@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { AnimatedCounter } from '@/components/AnimatedCounter'
 import { GoalsSection } from '@/components/GoalsSection'
 import { MoodTrend } from '@/components/MoodTrend'
+import { AIInsightCard } from '@/components/AIInsightCard'
 
 interface SessionData {
   [date: string]: number
@@ -139,6 +140,8 @@ export function ProgressPage() {
   return (
     <div className="p-4 pb-8">
       <h1 className="text-2xl font-semibold tracking-tight mb-6">Progress</h1>
+
+      <AIInsightCard />
 
       <div className="bg-card border border-border rounded-2xl p-5 mb-4">
         <div className="flex items-center justify-between mb-6">
