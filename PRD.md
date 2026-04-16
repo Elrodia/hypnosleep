@@ -8,7 +8,7 @@ HypnoSleep is a mobile-first progressive web app designed to help users access s
 3. **Immersive** - Dark theme reduces eye strain and creates a cocoon-like environment perfect for evening/bedtime use
 
 **Complexity Level**: Light Application (multiple features with basic state)
-This is a shell application with multiple navigation sections and basic state management for tab navigation, establishing the foundation for future sleep content features.
+This is a shell application with multiple navigation sections and basic state management for tab navigation, onboarding flow, and splash screen, establishing the foundation for future sleep content features.
 
 ## Essential Features
 
@@ -47,6 +47,13 @@ This is a shell application with multiple navigation sections and basic state ma
 - Progression: Event fires → Toast springs in from top → Displays for 3 seconds → Auto-dismisses with fade → Stacks up to 3 toasts vertically
 - Success criteria: Toasts are noticeable but don't block content, variants are clearly distinguishable, multiple toasts stack gracefully
 
+**Onboarding Carousel**
+- Functionality: 3-step swipeable welcome carousel introducing app features with animated visuals
+- Purpose: Educates first-time users about key app benefits and value proposition
+- Trigger: First app launch after splash screen (tracked via persistent storage)
+- Progression: Splash dismisses → Carousel appears → User swipes or taps dots to navigate slides → Final slide shows "Get Started" button → Tap button → Carousel dismisses → Main app appears → Preference saved to skip on future launches
+- Success criteria: Smooth spring animations between slides, drag gestures feel responsive, animations are engaging without being distracting, only shows once per user
+
 ## Edge Case Handling
 
 - **Rapid Tab Switching**: Debounce or queue transitions to prevent animation overlap/jank
@@ -56,6 +63,8 @@ This is a shell application with multiple navigation sections and basic state ma
 - **Modal Scroll Overflow**: Long modal content scrolls internally while handle remains accessible
 - **Toast Stacking**: Maximum of 3 toasts displayed, oldest is removed when limit exceeded
 - **Background Interaction**: Modal backdrop prevents interaction with underlying content
+- **Onboarding Persistence**: User preference stored in KV to prevent repeated onboarding on subsequent launches
+- **Swipe Gesture Conflicts**: Onboarding carousel drag gestures don't interfere with browser navigation swipes
 
 ## Design Direction
 
@@ -87,7 +96,7 @@ Typography should feel modern and calming with excellent readability in low-ligh
 
 ## Animations
 
-Animations should enhance the calming atmosphere - slow fades for transitions (250ms ease-in-out), gentle glows for active states with subtle pulse, smooth scaling on touch interactions. All animations serve functional purposes: confirming interactions, guiding attention, and maintaining spatial continuity.
+Animations should enhance the calming atmosphere - slow fades for transitions (250ms ease-in-out), gentle glows for active states with subtle pulse, smooth scaling on touch interactions. All animations serve functional purposes: confirming interactions, guiding attention, and maintaining spatial continuity. The onboarding carousel features playful icon animations (brain with sparkles, rotating moon with stars, ascending graph) that are engaging without being overwhelming, using spring physics for natural-feeling slide transitions.
 
 ## Component Selection
 
@@ -95,6 +104,7 @@ Animations should enhance the calming atmosphere - slow fades for transitions (2
   - Custom bottom tab bar (no direct shadcn equivalent) with TouchableOpacity-style feedback
   - SlideUpModal component with framer-motion spring animations and drag gestures
   - ToastProvider context with AnimatePresence for toast management
+  - OnboardingCarousel component with framer-motion drag gestures and spring transitions
   - Layout wrappers using flex/grid for responsive structure
   
 - **Customizations**: 
@@ -102,6 +112,7 @@ Animations should enhance the calming atmosphere - slow fades for transitions (2
   - Custom page transition wrapper using framer-motion AnimatePresence
   - SlideUpModal with backdrop blur overlay (backdrop-filter) and drag handle
   - Toast pills with variant-specific colors (green success, red error, purple info)
+  - OnboardingCarousel with swipeable slides, animated icons (Brain, Moon, TrendUp from Phosphor), and clickable dot indicators
   - Tab icons sized at 24px for main tabs, 32px for center Create button
   
 - **States**: 
@@ -111,6 +122,8 @@ Animations should enhance the calming atmosphere - slow fades for transitions (2
   - Modal: slide-up animation with spring physics (damping: 30, stiffness: 300)
   - Toast: spring entrance animation with auto-dismiss fade after 3s
   - Backdrop: blur(12px) with semi-transparent overlay
+  - Carousel slides: spring animation (stiffness: 300, damping: 30), drag-responsive with elastic constraints
+  - Carousel dots: width animates from 8px (inactive) to 32px (active) with color change
   
 - **Icon Selection**: 
   - Home: Moon (representing sleep/night)
@@ -118,12 +131,14 @@ Animations should enhance the calming atmosphere - slow fades for transitions (2
   - Create: PlusCircle (emphasized center action)
   - Progress: ChartBar or TrendUp (tracking/analytics)
   - Profile: User (personal settings)
+  - Onboarding: Brain (AI-powered), Moon (sleep), TrendUp (transformation), Sparkle (magic/AI), Star (night/quality)
   
 - **Spacing**: 
   - Tab bar: h-16 (64px) with safe-area-inset-bottom for notched devices
   - Icon spacing: gap-1 (4px) between icon and label
   - Tab bar padding: px-2 (8px) horizontal, pb-safe
   - Content area: p-4 (16px) on mobile, p-6 (24px) on tablet+
+  - Carousel: px-8 (32px) horizontal padding for slide content, pb-16 (64px) for dots area
   
 - **Mobile**: 
   - Bottom tab bar is mobile-first, always visible and fixed
@@ -131,3 +146,4 @@ Animations should enhance the calming atmosphere - slow fades for transitions (2
   - Content area has bottom padding equal to tab bar height to prevent overlap
   - Touch targets minimum 48px (using p-3 around 24px icons)
   - Landscape mode: tab bar remains bottom-fixed, content scrolls
+  - Carousel: full-screen overlay with swipe gestures optimized for touch, elastic drag constraints prevent over-scrolling

@@ -9,25 +9,37 @@ import { ProgressPage } from './components/pages/ProgressPage'
 import { ProfilePage } from './components/pages/ProfilePage'
 import { SplashScreen } from './components/SplashScreen'
 import { MiniPlayer } from './components/MiniPlayer'
+import { OnboardingCarousel } from './components/OnboardingCarousel'
 import { AudioPlayerProvider, useAudioPlayer } from './contexts/AudioPlayerContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { toast } from 'sonner'
+import { useKV } from '@github/spark/hooks'
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<TabId>('home')
   const [showSplash, setShowSplash] = useState(true)
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useKV<boolean>('has-completed-onboarding', false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const { player, togglePlayPause } = useAudioPlayer()
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false)
+      if (!hasCompletedOnboarding) {
+        setShowOnboarding(true)
+      }
     }, 2500)
 
     return () => clearTimeout(timer)
-  }, [])
+  }, [hasCompletedOnboarding])
 
   const handleExpand = () => {
     toast.info('Full player view coming soon!')
+  }
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false)
+    setHasCompletedOnboarding(true)
   }
 
   const renderPage = () => {
@@ -52,8 +64,14 @@ function AppContent() {
       <AnimatePresence>
         {showSplash && <SplashScreen />}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {showOnboarding && !showSplash && (
+          <OnboardingCarousel onComplete={handleOnboardingComplete} />
+        )}
+      </AnimatePresence>
       
-      {!showSplash && (
+      {!showSplash && !showOnboarding && (
         <div className="min-h-screen bg-background text-foreground pb-20 pt-14">
           <Header />
           <AnimatePresence mode="wait">
