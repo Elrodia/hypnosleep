@@ -3,6 +3,7 @@ import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
 import { useKV } from '@github/spark/hooks'
 import { Play, Leaf, Star, Cloud, Eye, Heart, CaretRight } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
+import { StreakWidget } from '@/components/StreakWidget'
 
 function getTimeOfDay(): string {
   const hour = new Date().getHours()
@@ -190,6 +191,11 @@ export function HomePage() {
             })}
           </div>
         </div>
+      </div>
+
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold mb-4">Your Streak</h2>
+        <StreakWidget />
       </div>
     </div>
   )
