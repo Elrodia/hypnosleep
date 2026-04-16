@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react'
-import { CaretLeft, CaretRight } from '@phosphor-icons/react'
+import { CaretLeft, CaretRight, Clock, Headphones, Fire, Trophy } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { useKV } from '@github/spark/hooks'
 import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatedCounter } from '@/components/AnimatedCounter'
 
 interface SessionData {
   [date: string]: number
@@ -106,6 +107,33 @@ export function ProgressPage() {
     return totalSessions * 15
   }, [totalSessions])
 
+  const thisWeekStats = useMemo(() => {
+    const todayDate = new Date()
+    const todayDayOfWeek = todayDate.getDay()
+    const startOfWeek = new Date(todayDate)
+    startOfWeek.setDate(todayDate.getDate() - todayDayOfWeek)
+    
+    let weekSessions = 0
+    let weekMinutes = 0
+    
+    for (let i = 0; i < 7; i++) {
+      const checkDate = new Date(startOfWeek)
+      checkDate.setDate(startOfWeek.getDate() + i)
+      const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`
+      const sessions = sessionData?.[dateStr] || 0
+      weekSessions += sessions
+      weekMinutes += sessions * 15
+    }
+    
+    return {
+      sessions: weekSessions,
+      minutes: weekMinutes,
+    }
+  }, [sessionData])
+
+  const [currentStreak] = useKV<number>('current-streak', 5)
+  const [bestStreak] = useKV<number>('best-streak', 12)
+
   return (
     <div className="p-4 pb-8">
       <h1 className="text-2xl font-semibold tracking-tight mb-6">Progress</h1>
@@ -185,6 +213,75 @@ export function ProgressPage() {
             </div>
             <span className="text-xs text-muted-foreground">More</span>
           </div>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold mb-3">This Week</h2>
+        <div className="grid grid-cols-2 gap-3">
+          <motion.div 
+            className="bg-card border border-border rounded-xl p-4 relative overflow-hidden"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+          >
+            <div className="absolute top-0 right-0 w-20 h-20 bg-primary/5 rounded-full blur-2xl" />
+            <div className="relative">
+              <Clock className="text-primary mb-2" size={24} weight="duotone" />
+              <div className="text-2xl font-bold text-foreground mb-1">
+                <AnimatedCounter value={thisWeekStats.minutes} />
+              </div>
+              <div className="text-sm text-muted-foreground">Total Minutes</div>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            className="bg-card border border-border rounded-xl p-4 relative overflow-hidden"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.2 }}
+          >
+            <div className="absolute top-0 right-0 w-20 h-20 bg-primary/5 rounded-full blur-2xl" />
+            <div className="relative">
+              <Headphones className="text-primary mb-2" size={24} weight="duotone" />
+              <div className="text-2xl font-bold text-foreground mb-1">
+                <AnimatedCounter value={thisWeekStats.sessions} />
+              </div>
+              <div className="text-sm text-muted-foreground">Sessions</div>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            className="bg-card border border-border rounded-xl p-4 relative overflow-hidden"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.3 }}
+          >
+            <div className="absolute top-0 right-0 w-20 h-20 bg-primary/5 rounded-full blur-2xl" />
+            <div className="relative">
+              <Fire className="text-primary mb-2" size={24} weight="duotone" />
+              <div className="text-2xl font-bold text-foreground mb-1">
+                <AnimatedCounter value={currentStreak ?? 0} suffix=" days" />
+              </div>
+              <div className="text-sm text-muted-foreground">Current Streak</div>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            className="bg-card border border-border rounded-xl p-4 relative overflow-hidden"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.4 }}
+          >
+            <div className="absolute top-0 right-0 w-20 h-20 bg-primary/5 rounded-full blur-2xl" />
+            <div className="relative">
+              <Trophy className="text-primary mb-2" size={24} weight="duotone" />
+              <div className="text-2xl font-bold text-foreground mb-1">
+                <AnimatedCounter value={bestStreak ?? 0} />
+              </div>
+              <div className="text-sm text-muted-foreground">Best Streak</div>
+            </div>
+          </motion.div>
         </div>
       </div>
 
