@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GenerationLoadingOverlay } from '@/components/GenerationLoadingOverlay'
 import { SessionPreviewScreen } from '@/components/SessionPreviewScreen'
+import { ScriptEditorModal } from '@/components/ScriptEditorModal'
 
 interface LibrarySession {
   id: string
@@ -67,6 +68,8 @@ export function CreatePage() {
   const [wakeUpEnding, setWakeUpEnding] = useState(true)
   const [showPreview, setShowPreview] = useState(false)
   const [generatedSession, setGeneratedSession] = useState<LibrarySession | null>(null)
+  const [showScriptEditor, setShowScriptEditor] = useState(false)
+  const [scriptText, setScriptText] = useState('')
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -132,8 +135,21 @@ export function CreatePage() {
   }
 
   const handleEditScript = () => {
+    setScriptText(generateScriptPreview())
     setShowPreview(false)
-    toast.info('Edit functionality coming soon!')
+    setShowScriptEditor(true)
+  }
+
+  const handleSaveScript = (editedScript: string, modifiedSections: Set<number>) => {
+    setScriptText(editedScript)
+    setShowScriptEditor(false)
+    setShowPreview(true)
+    toast.success(`Script updated! ${modifiedSections.size} section${modifiedSections.size !== 1 ? 's' : ''} regenerated with AI.`)
+  }
+
+  const handleCloseEditor = () => {
+    setShowScriptEditor(false)
+    setShowPreview(true)
   }
 
   const handleRegenerate = () => {
@@ -439,17 +455,26 @@ When you're ready, you'll return to full awareness, feeling refreshed and renewe
       <GenerationLoadingOverlay isOpen={isGenerating} onCancel={handleCancelGeneration} />
 
       {generatedSession && (
-        <SessionPreviewScreen
-          isOpen={showPreview}
-          sessionTitle={generatedSession.title}
-          category={generatedSession.category}
-          duration={generatedSession.duration}
-          scriptText={generateScriptPreview()}
-          onListenNow={handleListenNow}
-          onEditScript={handleEditScript}
-          onRegenerate={handleRegenerate}
-          onClose={handleClosePreview}
-        />
+        <>
+          <SessionPreviewScreen
+            isOpen={showPreview}
+            sessionTitle={generatedSession.title}
+            category={generatedSession.category}
+            duration={generatedSession.duration}
+            scriptText={scriptText || generateScriptPreview()}
+            onListenNow={handleListenNow}
+            onEditScript={handleEditScript}
+            onRegenerate={handleRegenerate}
+            onClose={handleClosePreview}
+          />
+          
+          <ScriptEditorModal
+            isOpen={showScriptEditor}
+            onClose={handleCloseEditor}
+            initialScript={scriptText || generateScriptPreview()}
+            onSave={handleSaveScript}
+          />
+        </>
       )}
     </>
   )
