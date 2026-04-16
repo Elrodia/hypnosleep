@@ -52,6 +52,17 @@ function AppContent() {
     return () => clearTimeout(timer)
   }, [hasCompletedOnboarding, hasCompletedQuiz, isLoggedIn, quizData, showResults])
 
+  useEffect(() => {
+    const handleNavigateToTab = (event: CustomEvent<TabId>) => {
+      setActiveTab(event.detail)
+    }
+
+    window.addEventListener('navigate-to-tab', handleNavigateToTab as EventListener)
+    return () => {
+      window.removeEventListener('navigate-to-tab', handleNavigateToTab as EventListener)
+    }
+  }, [])
+
   const handleExpand = () => {
     toast.info('Full player view coming soon!')
   }

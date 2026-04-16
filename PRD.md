@@ -61,6 +61,13 @@ This is a shell application with multiple navigation sections and basic state ma
 - Progression: Splash dismisses → Carousel appears → User swipes or taps dots to navigate slides → Final slide shows "Get Started" button → Tap button → Carousel dismisses → Main app appears → Preference saved to skip on future launches
 - Success criteria: Smooth spring animations between slides, drag gestures feel responsive, animations are engaging without being distracting, only shows once per user
 
+**Library Tab**
+- Functionality: Displays user's saved/created hypnosis sessions with horizontal scrollable category filters and responsive grid layout
+- Purpose: Provides organized access to all saved sessions with efficient filtering by category
+- Trigger: User navigates to Library tab from bottom navigation
+- Progression: Tap Library tab → Page loads → Filter chips displayed at top → Session grid renders below → User taps filter chip → Grid updates to show filtered results → User taps session card play button → Audio player activates
+- Success criteria: Filters scroll smoothly horizontally, active filter shows filled purple style, grid adapts to screen size (2 columns mobile, 3 tablet), empty state shows bookshelf illustration with CTA to Create tab, session cards display gradient thumbnail with category tag and play button
+
 ## Edge Case Handling
 
 - **Rapid Tab Switching**: Debounce or queue transitions to prevent animation overlap/jank
@@ -112,6 +119,7 @@ Animations should enhance the calming atmosphere - slow fades for transitions (2
   - SlideUpModal component with framer-motion spring animations and drag gestures
   - ToastProvider context with AnimatePresence for toast management
   - OnboardingCarousel component with framer-motion drag gestures and spring transitions
+  - LibraryPage with horizontal scrollable filter chips and responsive grid
   - Layout wrappers using flex/grid for responsive structure
   
 - **Customizations**: 
@@ -120,6 +128,9 @@ Animations should enhance the calming atmosphere - slow fades for transitions (2
   - SlideUpModal with backdrop blur overlay (backdrop-filter) and drag handle
   - Toast pills with variant-specific colors (green success, red error, purple info)
   - OnboardingCarousel with swipeable slides, animated icons (Brain, Moon, TrendUp from Phosphor), and clickable dot indicators
+  - Library filter chips: filled purple for active, outlined for inactive with hover states
+  - Session cards with gradient thumbnails, glassmorphic play buttons, and smooth hover scale effects
+  - Empty state with large emoji illustration and navigation CTA
   - Tab icons sized at 24px for main tabs, 32px for center Create button
   
 - **States**: 
@@ -146,6 +157,8 @@ Animations should enhance the calming atmosphere - slow fades for transitions (2
   - Tab bar padding: px-2 (8px) horizontal, pb-safe
   - Content area: p-4 (16px) on mobile, p-6 (24px) on tablet+
   - Carousel: px-8 (32px) horizontal padding for slide content, pb-16 (64px) for dots area
+  - Library filters: gap-2 (8px) between chips, px-4 py-2 chip padding
+  - Session grid: gap-4 (16px) between cards
   
 - **Mobile**: 
   - Bottom tab bar is mobile-first, always visible and fixed
@@ -154,3 +167,4 @@ Animations should enhance the calming atmosphere - slow fades for transitions (2
   - Touch targets minimum 48px (using p-3 around 24px icons)
   - Landscape mode: tab bar remains bottom-fixed, content scrolls
   - Carousel: full-screen overlay with swipe gestures optimized for touch, elastic drag constraints prevent over-scrolling
+  - Library: 2-column grid on mobile (grid-cols-2), 3-column on tablet+ (md:grid-cols-3), horizontal filter scroll with snap points
