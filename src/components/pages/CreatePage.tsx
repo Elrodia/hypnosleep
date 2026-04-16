@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Sparkle } from '@phosphor-icons/react'
+import { Slider } from '@/components/ui/slider'
+import { Sparkle, Play, Drop, Waves, Tree, Wind, SpeakerSlash } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -25,11 +26,30 @@ const PLACEHOLDER_EXAMPLES = [
 
 const MAX_CHARS = 500
 
+const VOICE_OPTIONS = [
+  { id: 'calm-female', label: 'Calm Female' },
+  { id: 'deep-male', label: 'Deep Male' },
+  { id: 'soft-whisper', label: 'Soft Whisper' },
+  { id: 'gentle-british', label: 'Gentle British' },
+  { id: 'warm-australian', label: 'Warm Australian' },
+]
+
+const BACKGROUND_SOUNDS = [
+  { id: 'rain', label: 'Rain', icon: Drop },
+  { id: 'ocean', label: 'Ocean', icon: Waves },
+  { id: 'forest', label: 'Forest', icon: Tree },
+  { id: 'wind', label: 'Wind', icon: Wind },
+  { id: 'silence', label: 'Silence', icon: SpeakerSlash },
+]
+
 export function CreatePage() {
   const [sessions, setSessions] = useKV<LibrarySession[]>('library-sessions', [])
   const [inputValue, setInputValue] = useState('')
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [selectedVoice, setSelectedVoice] = useState('calm-female')
+  const [sessionLength, setSessionLength] = useState([15])
+  const [backgroundSound, setBackgroundSound] = useState('rain')
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -110,6 +130,85 @@ export function CreatePage() {
             }`}
           >
             {charCount}/{MAX_CHARS}
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-foreground">Voice</h3>
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+              {VOICE_OPTIONS.map((voice) => (
+                <button
+                  key={voice.id}
+                  onClick={() => setSelectedVoice(voice.id)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-full whitespace-nowrap transition-all shrink-0 ${
+                    selectedVoice === voice.id
+                      ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                      : 'bg-card/50 text-foreground hover:bg-card border border-border'
+                  }`}
+                >
+                  <span className="text-sm font-medium">{voice.label}</span>
+                  <Play
+                    weight="fill"
+                    size={14}
+                    className={selectedVoice === voice.id ? 'opacity-100' : 'opacity-50'}
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-foreground">Session Length</h3>
+            <div className="relative pt-8 pb-2">
+              <Slider
+                value={sessionLength}
+                onValueChange={setSessionLength}
+                min={5}
+                max={30}
+                step={5}
+                className="[&_[data-slot=slider-track]]:h-2 [&_[data-slot=slider-thumb]]:size-7 [&_[data-slot=slider-thumb]]:border-4"
+              />
+              <div
+                className="absolute -top-1 text-2xl font-bold text-primary transition-all duration-200 pointer-events-none"
+                style={{
+                  left: `calc(${((sessionLength[0] - 5) / (30 - 5)) * 100}% - 20px)`,
+                }}
+              >
+                {sessionLength[0]} min
+              </div>
+            </div>
+            <div className="flex justify-between text-xs text-muted-foreground px-1">
+              <span>5 min</span>
+              <span>30 min</span>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-foreground">Background Sound</h3>
+            <div className="flex gap-3 justify-between">
+              {BACKGROUND_SOUNDS.map((sound) => {
+                const Icon = sound.icon
+                return (
+                  <button
+                    key={sound.id}
+                    onClick={() => setBackgroundSound(sound.id)}
+                    className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl transition-all aspect-square flex-1 ${
+                      backgroundSound === sound.id
+                        ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                        : 'bg-card/50 text-foreground hover:bg-card border border-border'
+                    }`}
+                    title={sound.label}
+                  >
+                    <Icon
+                      weight={backgroundSound === sound.id ? 'fill' : 'regular'}
+                      size={24}
+                    />
+                    <span className="text-xs font-medium">{sound.label}</span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
 
