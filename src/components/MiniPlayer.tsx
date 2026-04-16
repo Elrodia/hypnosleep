@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Play, Pause } from '@phosphor-icons/react'
+import { useKV } from '@github/spark/hooks'
 
 interface MiniPlayerProps {
   isPlaying: boolean
@@ -10,6 +11,8 @@ interface MiniPlayerProps {
 }
 
 export function MiniPlayer({ isPlaying, sessionTitle, progress, onPlayPause, onExpand }: MiniPlayerProps) {
+  const [fadeOutEnabled] = useKV<boolean>('player-fadeout-enabled', false)
+
   return (
     <motion.div
       initial={{ y: 100, opacity: 0 }}
@@ -23,10 +26,21 @@ export function MiniPlayer({ isPlaying, sessionTitle, progress, onPlayPause, onE
         className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
       >
         <div className="flex items-center gap-4 px-4 py-3">
-          <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
+          <div className="flex-1 min-w-0 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
             <p className="text-sm font-medium text-foreground truncate">
               {sessionTitle}
             </p>
+            {fadeOutEnabled && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ type: 'spring', damping: 15, stiffness: 300 }}
+                className="flex-shrink-0 px-2 py-0.5 rounded-md bg-gradient-to-r from-purple-500/20 to-indigo-500/20 border border-purple-400/30"
+              >
+                <span className="text-xs font-medium text-purple-300">fade</span>
+              </motion.div>
+            )}
           </div>
 
           <Equalizer isPlaying={isPlaying} />

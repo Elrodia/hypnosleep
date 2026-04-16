@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Play, Pause, CaretDown, DotsThree, ArrowCounterClockwise, ArrowClockwise, Clock, Waves } from '@phosphor-icons/react'
+import { Play, Pause, CaretDown, DotsThree, ArrowCounterClockwise, ArrowClockwise, Clock, Waves, Repeat, TrendDown, Speedometer, Check } from '@phosphor-icons/react'
 import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
 import {
@@ -7,10 +7,16 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from './ui/dropdown-menu'
 import { toast } from 'sonner'
 import { SleepTimerModal } from './SleepTimerModal'
 import { SoundsModal } from './SoundsModal'
+import { useKV } from '@github/spark/hooks'
 
 interface FullScreenPlayerProps {
   isOpen: boolean
@@ -41,6 +47,10 @@ export function FullScreenPlayer({
   const [showSoundsModal, setShowSoundsModal] = useState(false)
   const [timerMinutes, setTimerMinutes] = useState<number | null>(null)
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null)
+  
+  const [loopEnabled, setLoopEnabled] = useKV<boolean>('player-loop-enabled', false)
+  const [fadeOutEnabled, setFadeOutEnabled] = useKV<boolean>('player-fadeout-enabled', false)
+  const [playbackSpeed, setPlaybackSpeed] = useKV<number>('player-playback-speed', 1)
 
   useEffect(() => {
     if (!isDragging) {
@@ -138,6 +148,27 @@ export function FullScreenPlayer({
     return `${hours}h${remainingMins > 0 ? ` ${remainingMins}m` : ''}`
   }
 
+  const handleToggleLoop = () => {
+    setLoopEnabled((current) => {
+      const newValue = !current
+      toast.success(newValue ? 'Loop enabled' : 'Loop disabled')
+      return newValue
+    })
+  }
+
+  const handleToggleFadeOut = () => {
+    setFadeOutEnabled((current) => {
+      const newValue = !current
+      toast.success(newValue ? 'Fade out enabled' : 'Fade out disabled')
+      return newValue
+    })
+  }
+
+  const handleSetPlaybackSpeed = (speed: number) => {
+    setPlaybackSpeed(speed)
+    toast.success(`Playback speed set to ${speed}x`)
+  }
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -190,7 +221,57 @@ export function FullScreenPlayer({
                       <DotsThree weight="bold" className="w-6 h-6 text-white" />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuItem onClick={handleToggleLoop} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Repeat weight="bold" className="w-4 h-4" />
+                        <span>Loop Session</span>
+                      </div>
+                      {loopEnabled && <Check weight="bold" className="w-4 h-4 text-primary" />}
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuItem onClick={handleToggleFadeOut} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <TrendDown weight="bold" className="w-4 h-4" />
+                        <span>Fade Out</span>
+                      </div>
+                      {fadeOutEnabled && <Check weight="bold" className="w-4 h-4 text-primary" />}
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <div className="flex items-center gap-2">
+                          <Speedometer weight="bold" className="w-4 h-4" />
+                          <span>Playback Speed</span>
+                        </div>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        <DropdownMenuItem 
+                          onClick={() => handleSetPlaybackSpeed(0.75)}
+                          className="flex items-center justify-between"
+                        >
+                          <span>0.75x</span>
+                          {playbackSpeed === 0.75 && <Check weight="bold" className="w-4 h-4 text-primary" />}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleSetPlaybackSpeed(1)}
+                          className="flex items-center justify-between"
+                        >
+                          <span>1x (Normal)</span>
+                          {playbackSpeed === 1 && <Check weight="bold" className="w-4 h-4 text-primary" />}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleSetPlaybackSpeed(1.25)}
+                          className="flex items-center justify-between"
+                        >
+                          <span>1.25x</span>
+                          {playbackSpeed === 1.25 && <Check weight="bold" className="w-4 h-4 text-primary" />}
+                        </DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+
+                    <DropdownMenuSeparator />
+                    
                     <DropdownMenuItem onClick={() => toast.success('Shared!')}>
                       Share
                     </DropdownMenuItem>
@@ -219,9 +300,22 @@ export function FullScreenPlayer({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.3 }}
-                className="inline-block px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-sm"
+                className="flex items-center gap-2"
               >
-                <span className="text-sm font-medium text-white/90">{category}</span>
+                <div className="px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-sm">
+                  <span className="text-sm font-medium text-white/90">{category}</span>
+                </div>
+                {fadeOutEnabled && (
+                  <motion.div
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0, opacity: 0 }}
+                    transition={{ type: 'spring', damping: 15, stiffness: 300 }}
+                    className="px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/30 to-indigo-500/30 backdrop-blur-sm border border-purple-400/30"
+                  >
+                    <span className="text-xs font-medium text-purple-200">fade</span>
+                  </motion.div>
+                )}
               </motion.div>
             </div>
 
