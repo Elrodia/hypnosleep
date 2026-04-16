@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { useKV } from '@github/spark/hooks'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AnimatedCounter } from '@/components/AnimatedCounter'
+import { GoalsSection } from '@/components/GoalsSection'
 
 interface SessionData {
   [date: string]: number
@@ -284,6 +285,8 @@ export function ProgressPage() {
           </motion.div>
         </div>
       </div>
+
+      <GoalsSection />
 
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-card border border-border rounded-xl p-4">
