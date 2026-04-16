@@ -8,6 +8,7 @@ import { Sparkle, Play, Drop, Waves, Tree, Wind, SpeakerSlash, CaretDown } from 
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GenerationLoadingOverlay } from '@/components/GenerationLoadingOverlay'
+import { SessionPreviewScreen } from '@/components/SessionPreviewScreen'
 
 interface LibrarySession {
   id: string
@@ -64,6 +65,8 @@ export function CreatePage() {
   const [inductionStyle, setInductionStyle] = useState('progressive')
   const [depthLevel, setDepthLevel] = useState<DepthLevel>('medium')
   const [wakeUpEnding, setWakeUpEnding] = useState(true)
+  const [showPreview, setShowPreview] = useState(false)
+  const [generatedSession, setGeneratedSession] = useState<LibrarySession | null>(null)
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -79,27 +82,82 @@ export function CreatePage() {
     setIsGenerating(true)
 
     setTimeout(() => {
+      const categoryMap: Record<string, LibrarySession['category']> = {
+        sleep: 'Sleep',
+        confidence: 'Confidence',
+        fear: 'Fears',
+        habit: 'Habits',
+        focus: 'Focus',
+      }
+      
+      let detectedCategory: LibrarySession['category'] = 'Custom'
+      const lowerInput = inputValue.toLowerCase()
+      for (const [key, value] of Object.entries(categoryMap)) {
+        if (lowerInput.includes(key)) {
+          detectedCategory = value
+          break
+        }
+      }
+
+      const words = inputValue.trim().split(' ')
+      const titleWords = words.slice(0, 6).join(' ')
+      const generatedTitle = titleWords.charAt(0).toUpperCase() + titleWords.slice(1)
+
       const newSession: LibrarySession = {
         id: `session-${Date.now()}`,
-        title: inputValue.slice(0, 50),
-        category: 'Custom',
-        duration: '15 min',
+        title: generatedTitle,
+        category: detectedCategory,
+        duration: `${sessionLength[0]} min`,
         gradient: 'from-purple-600 to-indigo-600',
         playCount: 0,
         createdAt: Date.now(),
         isFavorited: false,
       }
 
+      setGeneratedSession(newSession)
       setSessions((currentSessions) => [newSession, ...(currentSessions || [])])
-      toast.success('Session created successfully!')
-      setInputValue('')
       setIsGenerating(false)
+      setShowPreview(true)
     }, 28000)
   }
 
   const handleCancelGeneration = () => {
     setIsGenerating(false)
     toast.info('Session generation cancelled')
+  }
+
+  const handleListenNow = () => {
+    setShowPreview(false)
+    toast.success('Starting your session...')
+  }
+
+  const handleEditScript = () => {
+    setShowPreview(false)
+    toast.info('Edit functionality coming soon!')
+  }
+
+  const handleRegenerate = () => {
+    setShowPreview(false)
+    handleGenerate()
+  }
+
+  const handleClosePreview = () => {
+    setShowPreview(false)
+    setInputValue('')
+  }
+
+  const generateScriptPreview = () => {
+    return `Welcome to your personalized session. Find a comfortable position and allow yourself to relax completely.
+
+Take a deep breath in... and slowly let it out. With each breath, you're becoming more and more relaxed.
+
+Your body is becoming heavy and comfortable. Any tension is melting away like ice under warm sunshine.
+
+You are safe, you are calm, and you are in control. Each moment brings you deeper into this peaceful state.
+
+As you continue to relax, positive changes are taking root in your subconscious mind. You are capable, confident, and ready to embrace the transformation you seek.
+
+When you're ready, you'll return to full awareness, feeling refreshed and renewed.`
   }
 
   const charCount = inputValue.length
@@ -379,6 +437,20 @@ export function CreatePage() {
       </div>
 
       <GenerationLoadingOverlay isOpen={isGenerating} onCancel={handleCancelGeneration} />
+
+      {generatedSession && (
+        <SessionPreviewScreen
+          isOpen={showPreview}
+          sessionTitle={generatedSession.title}
+          category={generatedSession.category}
+          duration={generatedSession.duration}
+          scriptText={generateScriptPreview()}
+          onListenNow={handleListenNow}
+          onEditScript={handleEditScript}
+          onRegenerate={handleRegenerate}
+          onClose={handleClosePreview}
+        />
+      )}
     </>
   )
 }
