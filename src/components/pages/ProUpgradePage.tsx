@@ -48,6 +48,11 @@ export function ProUpgradePage({ onBack }: ProUpgradePageProps) {
   const yearlyPrice = 119.99
   const yearlySavings = Math.round(((monthlyPrice * 12 - yearlyPrice) / (monthlyPrice * 12)) * 100)
 
+  const handleStartTrial = () => {
+    window.dispatchEvent(new CustomEvent('show-payment-success'))
+    onBack()
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
@@ -181,6 +186,7 @@ export function ProUpgradePage({ onBack }: ProUpgradePageProps) {
         <div className="space-y-3 pt-2">
           <Button
             size="lg"
+            onClick={handleStartTrial}
             className="w-full bg-gradient-to-r from-primary via-purple-600 to-primary bg-[length:200%_100%] hover:bg-[position:100%_0] transition-all duration-500 shadow-xl shadow-primary/30 text-lg font-bold h-14"
           >
             <Sparkle size={24} weight="fill" className="mr-2" />

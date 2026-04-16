@@ -15,6 +15,7 @@ import { MiniPlayer } from './components/MiniPlayer'
 import { FullScreenPlayer } from './components/FullScreenPlayer'
 import { OnboardingCarousel } from './components/OnboardingCarousel'
 import { FeedbackModal } from './components/FeedbackModal'
+import { PaymentSuccessScreen } from './components/PaymentSuccessScreen'
 import { AudioPlayerProvider, useAudioPlayer } from './contexts/AudioPlayerContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { toast } from 'sonner'
@@ -30,6 +31,7 @@ function AppContent() {
   const [showQuiz, setShowQuiz] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [showFullPlayer, setShowFullPlayer] = useState(false)
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
   const [quizData, setQuizData] = useKV<{
     selectedGoals: string[]
     preferredTime: string
@@ -60,9 +62,15 @@ function AppContent() {
       setActiveTab(event.detail)
     }
 
+    const handleShowPaymentSuccess = () => {
+      setShowPaymentSuccess(true)
+    }
+
     window.addEventListener('navigate-to-tab', handleNavigateToTab as EventListener)
+    window.addEventListener('show-payment-success', handleShowPaymentSuccess)
     return () => {
       window.removeEventListener('navigate-to-tab', handleNavigateToTab as EventListener)
+      window.removeEventListener('show-payment-success', handleShowPaymentSuccess)
     }
   }, [])
 
@@ -143,6 +151,25 @@ function AppContent() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {showPaymentSuccess && (
+          <PaymentSuccessScreen
+            onNavigateToCreate={() => {
+              setShowPaymentSuccess(false)
+              setActiveTab('create')
+            }}
+            onNavigateToLibrary={() => {
+              setShowPaymentSuccess(false)
+              setActiveTab('library')
+            }}
+            onAutoRedirect={() => {
+              setShowPaymentSuccess(false)
+              setActiveTab('home')
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {showOnboarding && !showSplash && (
           <OnboardingCarousel onComplete={handleOnboardingComplete} />
         )}
@@ -166,7 +193,7 @@ function AppContent() {
         )}
       </AnimatePresence>
       
-      {!showSplash && !showOnboarding && !showQuiz && !showResults && (
+      {!showSplash && !showOnboarding && !showQuiz && !showResults && !showPaymentSuccess && (
         <div className="min-h-screen bg-background text-foreground pb-20 pt-14">
           <Header />
           <AnimatePresence mode="wait">
