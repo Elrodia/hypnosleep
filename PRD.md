@@ -12,6 +12,13 @@ This is a shell application with multiple navigation sections and basic state ma
 
 ## Essential Features
 
+**Login Screen**
+- Functionality: Social authentication screen with Google, GitHub, and Microsoft login options
+- Purpose: Authenticate users before accessing the app content
+- Trigger: Initial app load after splash screen if user is not logged in
+- Progression: App loads → Splash screen displays → Login screen appears → User taps provider button → Login callback fires → Onboarding or main app displays
+- Success criteria: All three login buttons are clearly visible, gradient purple styling is applied, icons are displayed in outlined style, smooth transition to next screen after login
+
 **Tab Navigation System**
 - Functionality: Bottom-mounted tab bar with 5 sections (Home, Library, Create, Progress, Profile)
 - Purpose: Provides quick access to all major app sections with thumb-friendly mobile navigation

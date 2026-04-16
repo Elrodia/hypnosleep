@@ -7,6 +7,7 @@ import { LibraryPage } from './components/pages/LibraryPage'
 import { CreatePage } from './components/pages/CreatePage'
 import { ProgressPage } from './components/pages/ProgressPage'
 import { ProfilePage } from './components/pages/ProfilePage'
+import { LoginPage } from './components/pages/LoginPage'
 import { SplashScreen } from './components/SplashScreen'
 import { MiniPlayer } from './components/MiniPlayer'
 import { OnboardingCarousel } from './components/OnboardingCarousel'
@@ -19,19 +20,23 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<TabId>('home')
   const [showSplash, setShowSplash] = useState(true)
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useKV<boolean>('has-completed-onboarding', false)
+  const [isLoggedIn, setIsLoggedIn] = useKV<boolean>('is-logged-in', false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const { player, togglePlayPause } = useAudioPlayer()
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false)
+      if (!isLoggedIn) {
+        return
+      }
       if (!hasCompletedOnboarding) {
         setShowOnboarding(true)
       }
     }, 2500)
 
     return () => clearTimeout(timer)
-  }, [hasCompletedOnboarding])
+  }, [hasCompletedOnboarding, isLoggedIn])
 
   const handleExpand = () => {
     toast.info('Full player view coming soon!')
@@ -40,6 +45,13 @@ function AppContent() {
   const handleOnboardingComplete = () => {
     setShowOnboarding(false)
     setHasCompletedOnboarding(true)
+  }
+
+  const handleLogin = () => {
+    setIsLoggedIn(true)
+    if (!hasCompletedOnboarding) {
+      setShowOnboarding(true)
+    }
   }
 
   const renderPage = () => {
@@ -57,6 +69,10 @@ function AppContent() {
       default:
         return <HomePage />
     }
+  }
+
+  if (!showSplash && !isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} />
   }
 
   return (
