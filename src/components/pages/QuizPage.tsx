@@ -4,6 +4,7 @@ import { Shield, Moon, Cigarette, Heart, Ghost, Target, Scales, Pencil, Check, S
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
+import { Slider } from '@/components/ui/slider'
 
 interface GoalOption {
   id: string
@@ -36,6 +37,15 @@ const timeOptions: TimeOption[] = [
   { id: 'anytime', label: 'Anytime', icon: Clock },
 ]
 
+const durationDescriptions: Record<number, string> = {
+  5: 'Quick reset',
+  10: 'Light session',
+  15: 'Focused practice',
+  20: 'Deep work',
+  25: 'Extended journey',
+  30: 'Full immersion',
+}
+
 interface QuizPageProps {
   onComplete: (selectedGoals: string[]) => void
 }
@@ -44,6 +54,7 @@ export function QuizPage({ onComplete }: QuizPageProps) {
   const [step, setStep] = useState(1)
   const [selectedGoals, setSelectedGoals] = useState<string[]>([])
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
+  const [duration, setDuration] = useState(15)
 
   const toggleGoal = (goalId: string) => {
     setSelectedGoals((current) => {
@@ -63,11 +74,15 @@ export function QuizPage({ onComplete }: QuizPageProps) {
 
   const handleStep2Continue = () => {
     if (selectedTime) {
-      onComplete(selectedGoals)
+      setStep(3)
     }
   }
 
-  const progress = step === 1 ? 33 : 66
+  const handleStep3Complete = () => {
+    onComplete(selectedGoals)
+  }
+
+  const progress = step === 1 ? 33 : step === 2 ? 66 : 100
 
   return (
     <motion.div
@@ -241,6 +256,108 @@ export function QuizPage({ onComplete }: QuizPageProps) {
                 size="lg"
               >
                 Continue
+              </Button>
+            </motion.div>
+          )}
+
+          {step === 3 && (
+            <motion.div
+              key="step3"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="mb-8">
+                <h1 className="text-3xl font-semibold mb-2 font-serif">
+                  How long should sessions be?
+                </h1>
+              </div>
+
+              <div className="flex flex-col items-center gap-8 mb-12">
+                <motion.div
+                  key={duration}
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className="relative w-48 h-48 flex items-center justify-center"
+                >
+                  <svg className="absolute inset-0 w-full h-full -rotate-90">
+                    <circle
+                      cx="96"
+                      cy="96"
+                      r="80"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      className="text-card"
+                    />
+                    <motion.circle
+                      cx="96"
+                      cy="96"
+                      r="80"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      className="text-primary"
+                      initial={{ strokeDasharray: '0 502' }}
+                      animate={{ 
+                        strokeDasharray: `${(duration / 30) * 502} 502`
+                      }}
+                      transition={{ duration: 0.5, ease: 'easeInOut' }}
+                    />
+                  </svg>
+                  
+                  <div className="flex flex-col items-center justify-center">
+                    <motion.span
+                      key={`duration-${duration}`}
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ duration: 0.2 }}
+                      className="text-5xl font-bold text-primary"
+                    >
+                      {duration}
+                    </motion.span>
+                    <span className="text-lg text-muted-foreground">minutes</span>
+                  </div>
+                </motion.div>
+
+                <div className="w-full max-w-md px-2">
+                  <Slider
+                    value={[duration]}
+                    onValueChange={(value) => setDuration(value[0])}
+                    min={5}
+                    max={30}
+                    step={5}
+                    className="w-full"
+                  />
+                  
+                  <div className="flex justify-between mt-2 px-1">
+                    <span className="text-xs text-muted-foreground">5 min</span>
+                    <span className="text-xs text-muted-foreground">30 min</span>
+                  </div>
+                </div>
+
+                <motion.div
+                  key={`desc-${duration}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-center"
+                >
+                  <span className="text-lg font-medium text-foreground">
+                    {duration} min — {durationDescriptions[duration]}
+                  </span>
+                </motion.div>
+              </div>
+
+              <Button
+                onClick={handleStep3Complete}
+                className="w-full h-12 text-base font-medium"
+                size="lg"
+              >
+                Complete Setup
               </Button>
             </motion.div>
           )}
