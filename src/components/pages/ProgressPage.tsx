@@ -5,6 +5,7 @@ import { useKV } from '@github/spark/hooks'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AnimatedCounter } from '@/components/AnimatedCounter'
 import { GoalsSection } from '@/components/GoalsSection'
+import { MoodTrend } from '@/components/MoodTrend'
 
 interface SessionData {
   [date: string]: number
@@ -285,6 +286,8 @@ export function ProgressPage() {
           </motion.div>
         </div>
       </div>
+
+      <MoodTrend />
 
       <GoalsSection />
 

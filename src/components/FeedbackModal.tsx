@@ -22,12 +22,18 @@ interface FeedbackEntry {
   timestamp: number
 }
 
+interface MoodRating {
+  date: string
+  mood: number
+  sessionName: string
+}
+
 const feelings = [
-  { id: 'worse', emoji: '😫', label: 'Worse' },
-  { id: 'same', emoji: '😐', label: 'Same' },
-  { id: 'better', emoji: '🙂', label: 'Better' },
-  { id: 'great', emoji: '😊', label: 'Great' },
-  { id: 'amazing', emoji: '🤩', label: 'Amazing' },
+  { id: 'worse', emoji: '😫', label: 'Worse', moodValue: 1 },
+  { id: 'same', emoji: '😐', label: 'Same', moodValue: 2 },
+  { id: 'better', emoji: '🙂', label: 'Better', moodValue: 3 },
+  { id: 'great', emoji: '😊', label: 'Great', moodValue: 4 },
+  { id: 'amazing', emoji: '🤩', label: 'Amazing', moodValue: 5 },
 ] as const
 
 export function FeedbackModal({ isOpen, onClose, sessionTitle, sessionDuration }: FeedbackModalProps) {
@@ -35,6 +41,7 @@ export function FeedbackModal({ isOpen, onClose, sessionTitle, sessionDuration }
   const [notes, setNotes] = useState('')
   const [showConfetti, setShowConfetti] = useState(false)
   const [feedbackHistory, setFeedbackHistory] = useKV<FeedbackEntry[]>('feedback-history', [])
+  const [moodRatings, setMoodRatings] = useKV<MoodRating[]>('mood-ratings', [])
 
   useEffect(() => {
     if (!isOpen) {
@@ -50,16 +57,30 @@ export function FeedbackModal({ isOpen, onClose, sessionTitle, sessionDuration }
       return
     }
 
+    const timestamp = Date.now()
+    const date = new Date(timestamp)
+    const dateString = date.toISOString().split('T')[0]
+
     const newEntry: FeedbackEntry = {
-      id: Date.now().toString(),
+      id: timestamp.toString(),
       sessionTitle,
       sessionDuration,
       feeling: selectedFeeling,
       notes,
-      timestamp: Date.now(),
+      timestamp,
+    }
+
+    const selectedFeelingData = feelings.find(f => f.id === selectedFeeling)
+    const moodValue = selectedFeelingData?.moodValue || 3
+
+    const newMoodRating: MoodRating = {
+      date: dateString,
+      mood: moodValue,
+      sessionName: sessionTitle,
     }
 
     setFeedbackHistory((current) => [newEntry, ...(current || [])])
+    setMoodRatings((current) => [newMoodRating, ...(current || [])])
 
     if (selectedFeeling === 'amazing') {
       setShowConfetti(true)
