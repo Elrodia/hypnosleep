@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { PencilSimple, Moon, Headphones, Flame, CaretRight, SlidersHorizontal, UserCircle, CreditCard, Question, Info } from '@phosphor-icons/react'
 import { useKV } from '@github/spark/hooks'
 import { PreferencesPage } from './PreferencesPage'
 import { AccountPage } from './AccountPage'
+import { ProUpgradePage } from './ProUpgradePage'
 import { ReferralCard } from '../ReferralCard'
 
 interface UserProfile {
@@ -15,6 +16,7 @@ interface UserProfile {
 export function ProfilePage() {
   const [showPreferences, setShowPreferences] = useState(false)
   const [showAccount, setShowAccount] = useState(false)
+  const [showSubscription, setShowSubscription] = useState(false)
   const [profile] = useKV<UserProfile>('user-profile', {
     name: 'Alex Morgan',
     email: 'alex.morgan@email.com',
@@ -49,6 +51,17 @@ export function ProfilePage() {
     return `${hours}h`
   }
 
+  useEffect(() => {
+    const handleShowSubscription = () => {
+      setShowSubscription(true)
+    }
+
+    window.addEventListener('show-subscription', handleShowSubscription as EventListener)
+    return () => {
+      window.removeEventListener('show-subscription', handleShowSubscription as EventListener)
+    }
+  }, [])
+
   const settingsCategories = [
     { id: 'preferences', label: 'Preferences', icon: SlidersHorizontal },
     { id: 'account', label: 'Account', icon: UserCircle },
@@ -62,6 +75,8 @@ export function ProfilePage() {
       setShowPreferences(true)
     } else if (categoryId === 'account') {
       setShowAccount(true)
+    } else if (categoryId === 'subscription') {
+      setShowSubscription(true)
     }
   }
 
@@ -71,6 +86,10 @@ export function ProfilePage() {
 
   if (showAccount) {
     return <AccountPage onBack={() => setShowAccount(false)} />
+  }
+
+  if (showSubscription) {
+    return <ProUpgradePage onBack={() => setShowSubscription(false)} />
   }
 
   return (

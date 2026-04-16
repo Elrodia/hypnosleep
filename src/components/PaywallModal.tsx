@@ -153,15 +153,18 @@ export function PaywallModal({ isOpen, onClose, onUpgrade, triggerReason }: Payw
 
                 <div className="space-y-3 pt-2">
                   <Button
-                    onClick={onUpgrade}
+                    onClick={() => {
+                      onClose()
+                      onUpgrade()
+                    }}
                     size="lg"
                     className="w-full bg-gradient-to-r from-primary via-purple-600 to-primary bg-[length:200%_100%] hover:bg-[position:100%_0] transition-all duration-500 shadow-lg shadow-primary/25 text-base font-semibold"
                   >
                     <Lightning size={20} weight="fill" className="mr-2" />
-                    Upgrade to Pro Now
+                    View Pro Features
                   </Button>
                   <p className="text-center text-xs text-muted-foreground">
-                    Cancel anytime • 7-day money-back guarantee
+                    7-day free trial • Cancel anytime
                   </p>
                 </div>
 

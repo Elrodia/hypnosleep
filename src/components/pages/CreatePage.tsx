@@ -269,9 +269,11 @@ export function CreatePage() {
   }
 
   const handleUpgrade = () => {
-    setIsPro(true)
     setShowPaywall(false)
-    toast.success('Welcome to HypnoSleep Pro! 🎉')
+    window.dispatchEvent(new CustomEvent('navigate-to-tab', { detail: 'profile' }))
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('show-subscription'))
+    }, 100)
   }
 
   const handleClosePaywall = () => {
