@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { GenerationLoadingOverlay } from '@/components/GenerationLoadingOverlay'
 import { SessionPreviewScreen } from '@/components/SessionPreviewScreen'
 import { ScriptEditorModal } from '@/components/ScriptEditorModal'
+import { RecentCreations } from '@/components/RecentCreations'
 
 interface LibrarySession {
   id: string
@@ -245,6 +246,33 @@ export function CreatePage() {
     toast.success(`"${template.label}" template applied!`)
   }
 
+  const handlePlaySession = (sessionId: string) => {
+    toast.success('Starting session...')
+  }
+
+  const handleEditSession = (sessionId: string) => {
+    const session = (sessions || []).find(s => s.id === sessionId)
+    if (session) {
+      setGeneratedSession(session)
+      setScriptText(generateScriptPreview())
+      setShowScriptEditor(true)
+    }
+  }
+
+  const handleRegenerateAudio = (sessionId: string) => {
+    toast.info('Regenerating audio...', { duration: 2000 })
+    setTimeout(() => {
+      toast.success('Audio regenerated!')
+    }, 3000)
+  }
+
+  const handleDeleteSession = (sessionId: string) => {
+    setSessions((currentSessions) => 
+      (currentSessions || []).filter(s => s.id !== sessionId)
+    )
+    toast.success('Session deleted')
+  }
+
   const generateScriptPreview = () => {
     return `Welcome to your personalized session. Find a comfortable position and allow yourself to relax completely.
 
@@ -265,8 +293,9 @@ When you're ready, you'll return to full awareness, feeling refreshed and renewe
 
   return (
     <>
-      <div className="min-h-[calc(100vh-14rem)] flex items-center justify-center p-6">
-        <div className="w-full max-w-2xl space-y-6">
+      <div className="space-y-6">
+        <div className="min-h-[calc(100vh-14rem)] flex items-center justify-center p-6">
+          <div className="w-full max-w-2xl space-y-6">
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-foreground">Quick Templates</h3>
             <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
@@ -555,6 +584,15 @@ When you're ready, you'll return to full awareness, feeling refreshed and renewe
           </Button>
         </div>
       </div>
+
+      <RecentCreations
+        sessions={sessions || []}
+        onPlay={handlePlaySession}
+        onEdit={handleEditSession}
+        onRegenerate={handleRegenerateAudio}
+        onDelete={handleDeleteSession}
+      />
+    </div>
 
       <GenerationLoadingOverlay isOpen={isGenerating} onCancel={handleCancelGeneration} />
 
