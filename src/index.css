@@ -77,3 +77,12 @@
 .tab-glow {
   filter: drop-shadow(0 0 8px var(--hypno-accent)) drop-shadow(0 0 16px var(--hypno-accent));
 }
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

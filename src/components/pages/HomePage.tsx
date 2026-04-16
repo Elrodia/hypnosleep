@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
 import { useKV } from '@github/spark/hooks'
-import { Play } from '@phosphor-icons/react'
+import { Play, Leaf, Star, Cloud, Eye, Heart, CaretRight } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 
 function getTimeOfDay(): string {
@@ -10,6 +10,52 @@ function getTimeOfDay(): string {
   if (hour < 18) return 'afternoon'
   return 'evening'
 }
+
+interface QuickSession {
+  id: string
+  title: string
+  duration: string
+  icon: typeof Leaf
+  gradient: string
+}
+
+const quickSessions: QuickSession[] = [
+  {
+    id: 'calm',
+    title: '5-min Calm',
+    duration: '5 min',
+    icon: Leaf,
+    gradient: 'from-purple-600 via-purple-500 to-purple-600',
+  },
+  {
+    id: 'confidence',
+    title: '10-min Confidence',
+    duration: '10 min',
+    icon: Star,
+    gradient: 'from-blue-600 via-blue-500 to-blue-600',
+  },
+  {
+    id: 'sleep',
+    title: '10-min Sleep',
+    duration: '10 min',
+    icon: Cloud,
+    gradient: 'from-teal-600 via-teal-500 to-teal-600',
+  },
+  {
+    id: 'focus',
+    title: '15-min Focus',
+    duration: '15 min',
+    icon: Eye,
+    gradient: 'from-indigo-600 via-indigo-500 to-indigo-600',
+  },
+  {
+    id: 'anxiety',
+    title: '5-min Anxiety Relief',
+    duration: '5 min',
+    icon: Heart,
+    gradient: 'from-violet-600 via-violet-500 to-violet-600',
+  },
+]
 
 export function HomePage() {
   const { play } = useAudioPlayer()
@@ -28,13 +74,17 @@ export function HomePage() {
     play('Deep Sleep Journey - Full Relaxation', 100)
   }
 
+  const handleQuickSession = (session: QuickSession) => {
+    play(`${session.title} Session`, 100)
+  }
+
   return (
     <div className="px-5 py-6">
       <h1 className="text-2xl font-medium tracking-tight mb-8">
         Good {timeOfDay}, {userName}
       </h1>
 
-      <div className="relative overflow-hidden rounded-3xl shadow-2xl shadow-primary/20">
+      <div className="relative overflow-hidden rounded-3xl shadow-2xl shadow-primary/20 mb-10">
         <div className="absolute inset-0 bg-gradient-to-br from-[#5b21b6] via-[#4c1d95] to-[#1e3a8a]" />
         
         <div className="absolute inset-0 opacity-30">
@@ -101,6 +151,44 @@ export function HomePage() {
           </div>
 
           <div className="h-4" />
+        </div>
+      </div>
+
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Quick Sessions</h2>
+          <button className="flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors font-medium">
+            See All
+            <CaretRight weight="bold" size={16} />
+          </button>
+        </div>
+
+        <div className="overflow-x-auto -mx-5 px-5 pb-2 snap-x snap-mandatory scrollbar-hide">
+          <div className="flex gap-3 w-max">
+            {quickSessions.map((session) => {
+              const Icon = session.icon
+              return (
+                <motion.button
+                  key={session.id}
+                  onClick={() => handleQuickSession(session)}
+                  className={`snap-start flex-shrink-0 w-36 p-4 rounded-2xl bg-gradient-to-br ${session.gradient} text-white shadow-lg hover:scale-105 active:scale-95 transition-transform`}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <div className="flex flex-col items-center text-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                      <Icon weight="fill" size={24} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold mb-1.5">{session.title}</p>
+                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-white/20 backdrop-blur-sm border border-white/30">
+                        {session.duration}
+                      </span>
+                    </div>
+                  </div>
+                </motion.button>
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>
