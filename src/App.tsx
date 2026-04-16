@@ -14,6 +14,7 @@ import { SplashScreen } from './components/SplashScreen'
 import { MiniPlayer } from './components/MiniPlayer'
 import { FullScreenPlayer } from './components/FullScreenPlayer'
 import { OnboardingCarousel } from './components/OnboardingCarousel'
+import { FeedbackModal } from './components/FeedbackModal'
 import { AudioPlayerProvider, useAudioPlayer } from './contexts/AudioPlayerContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { toast } from 'sonner'
@@ -34,7 +35,7 @@ function AppContent() {
     preferredTime: string
     sessionDuration: number
   } | null>('quiz-data', null)
-  const { player, togglePlayPause, setProgress } = useAudioPlayer()
+  const { player, togglePlayPause, setProgress, showFeedback, setShowFeedback, completedSession, stop } = useAudioPlayer()
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -202,11 +203,19 @@ function AppContent() {
             onClose={handleCloseFullPlayer}
             onPlayPause={togglePlayPause}
             onSeek={handleSeek}
+            onStop={stop}
           />
           
           <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
       )}
+
+      <FeedbackModal
+        isOpen={showFeedback}
+        onClose={() => setShowFeedback(false)}
+        sessionTitle={completedSession?.title || ''}
+        sessionDuration={completedSession?.duration || 0}
+      />
     </>
   )
 }

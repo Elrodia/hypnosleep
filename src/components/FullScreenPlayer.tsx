@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Play, Pause, CaretDown, DotsThree, ArrowCounterClockwise, ArrowClockwise, Clock, Waves, Repeat, TrendDown, Speedometer, Check } from '@phosphor-icons/react'
+import { Play, Pause, CaretDown, DotsThree, ArrowCounterClockwise, ArrowClockwise, Clock, Waves, Repeat, TrendDown, Speedometer, Check, Stop } from '@phosphor-icons/react'
 import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
 import {
@@ -28,6 +28,7 @@ interface FullScreenPlayerProps {
   onClose: () => void
   onPlayPause: () => void
   onSeek: (newProgress: number) => void
+  onStop?: () => void
 }
 
 export function FullScreenPlayer({
@@ -40,6 +41,7 @@ export function FullScreenPlayer({
   onClose,
   onPlayPause,
   onSeek,
+  onStop,
 }: FullScreenPlayerProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [localProgress, setLocalProgress] = useState(progress)
@@ -269,6 +271,23 @@ export function FullScreenPlayer({
                         </DropdownMenuItem>
                       </DropdownMenuSubContent>
                     </DropdownMenuSub>
+
+                    <DropdownMenuSeparator />
+                    
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        if (onStop) {
+                          onStop()
+                          onClose()
+                        }
+                      }}
+                      className="text-destructive"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Stop weight="bold" className="w-4 h-4" />
+                        <span>Stop Session</span>
+                      </div>
+                    </DropdownMenuItem>
 
                     <DropdownMenuSeparator />
                     

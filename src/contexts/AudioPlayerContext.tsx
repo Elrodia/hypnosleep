@@ -18,6 +18,9 @@ interface AudioPlayerContextType {
   stop: () => void
   setProgress: (progress: number | ((prev: number) => number)) => void
   togglePlayPause: () => void
+  showFeedback: boolean
+  setShowFeedback: (show: boolean) => void
+  completedSession: { title: string; duration: number } | null
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined)
@@ -31,6 +34,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     progress: 0,
     duration: 0,
   })
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [completedSession, setCompletedSession] = useState<{ title: string; duration: number } | null>(null)
 
   const play = (title: string, category = 'Session', duration = 600) => {
     setPlayer({
@@ -52,6 +57,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }
 
   const stop = () => {
+    setCompletedSession({ title: player.sessionTitle, duration: player.duration })
+    setShowFeedback(true)
     setPlayer({
       isActive: false,
       isPlaying: false,
@@ -112,6 +119,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     const interval = setInterval(() => {
       setPlayer((prev) => {
         if (prev.progress >= prev.duration) {
+          setCompletedSession({ title: prev.sessionTitle, duration: prev.duration })
+          setShowFeedback(true)
           return { ...prev, isPlaying: false }
         }
         return { ...prev, progress: prev.progress + 1 }
@@ -123,7 +132,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   return (
     <AudioPlayerContext.Provider
-      value={{ player, play, pause, resume, stop, setProgress, togglePlayPause }}
+      value={{ player, play, pause, resume, stop, setProgress, togglePlayPause, showFeedback, setShowFeedback, completedSession }}
     >
       {children}
     </AudioPlayerContext.Provider>
