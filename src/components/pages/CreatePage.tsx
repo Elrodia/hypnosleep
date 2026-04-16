@@ -11,6 +11,7 @@ import { GenerationLoadingOverlay } from '@/components/GenerationLoadingOverlay'
 import { SessionPreviewScreen } from '@/components/SessionPreviewScreen'
 import { ScriptEditorModal } from '@/components/ScriptEditorModal'
 import { RecentCreations } from '@/components/RecentCreations'
+import { PaywallModal } from '@/components/PaywallModal'
 
 interface LibrarySession {
   id: string
@@ -131,6 +132,9 @@ const INDUCTION_STYLES = [
 
 type DepthLevel = 'light' | 'medium' | 'deep'
 
+const PREMIUM_VOICES = ['gentle-british', 'warm-australian']
+const FREE_SESSION_LIMIT = 3
+
 export function CreatePage() {
   const [sessions, setSessions] = useKV<LibrarySession[]>('library-sessions', [])
   const [inputValue, setInputValue] = useState('')
@@ -147,6 +151,9 @@ export function CreatePage() {
   const [generatedSession, setGeneratedSession] = useState<LibrarySession | null>(null)
   const [showScriptEditor, setShowScriptEditor] = useState(false)
   const [scriptText, setScriptText] = useState('')
+  const [showPaywall, setShowPaywall] = useState(false)
+  const [paywallTrigger, setPaywallTrigger] = useState<'session-limit' | 'premium-voice'>('session-limit')
+  const [isPro, setIsPro] = useKV<boolean>('is-pro-user', false)
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -158,6 +165,12 @@ export function CreatePage() {
 
   const handleGenerate = async () => {
     if (!inputValue.trim()) return
+
+    if (!isPro && (sessions?.length ?? 0) >= FREE_SESSION_LIMIT) {
+      setPaywallTrigger('session-limit')
+      setShowPaywall(true)
+      return
+    }
 
     setIsGenerating(true)
 
@@ -244,6 +257,25 @@ export function CreatePage() {
     setSelectedVoice(template.voice)
     setSessionLength([template.duration])
     toast.success(`"${template.label}" template applied!`)
+  }
+
+  const handleVoiceSelect = (voiceId: string) => {
+    if (!isPro && PREMIUM_VOICES.includes(voiceId)) {
+      setPaywallTrigger('premium-voice')
+      setShowPaywall(true)
+      return
+    }
+    setSelectedVoice(voiceId)
+  }
+
+  const handleUpgrade = () => {
+    setIsPro(true)
+    setShowPaywall(false)
+    toast.success('Welcome to HypnoSleep Pro! 🎉')
+  }
+
+  const handleClosePaywall = () => {
+    setShowPaywall(false)
   }
 
   const handlePlaySession = (sessionId: string) => {
@@ -363,24 +395,34 @@ When you're ready, you'll return to full awareness, feeling refreshed and renewe
             <div className="space-y-3">
               <h3 className="text-sm font-medium text-foreground">Voice</h3>
               <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
-                {VOICE_OPTIONS.map((voice) => (
-                  <button
-                    key={voice.id}
-                    onClick={() => setSelectedVoice(voice.id)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full whitespace-nowrap transition-all shrink-0 ${
-                      selectedVoice === voice.id
-                        ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
-                        : 'bg-card/50 text-foreground hover:bg-card border border-border'
-                    }`}
-                  >
-                    <span className="text-sm font-medium">{voice.label}</span>
-                    <Play
-                      weight="fill"
-                      size={14}
-                      className={selectedVoice === voice.id ? 'opacity-100' : 'opacity-50'}
-                    />
-                  </button>
-                ))}
+                {VOICE_OPTIONS.map((voice) => {
+                  const isPremium = PREMIUM_VOICES.includes(voice.id)
+                  return (
+                    <button
+                      key={voice.id}
+                      onClick={() => handleVoiceSelect(voice.id)}
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-full whitespace-nowrap transition-all shrink-0 relative ${
+                        selectedVoice === voice.id
+                          ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                          : 'bg-card/50 text-foreground hover:bg-card border border-border'
+                      }`}
+                    >
+                      <span className="text-sm font-medium">{voice.label}</span>
+                      {isPremium && !isPro && (
+                        <LockKeyOpen
+                          weight="bold"
+                          size={14}
+                          className="text-primary"
+                        />
+                      )}
+                      <Play
+                        weight="fill"
+                        size={14}
+                        className={selectedVoice === voice.id ? 'opacity-100' : 'opacity-50'}
+                      />
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -618,6 +660,13 @@ When you're ready, you'll return to full awareness, feeling refreshed and renewe
           />
         </>
       )}
+
+      <PaywallModal
+        isOpen={showPaywall}
+        onClose={handleClosePaywall}
+        onUpgrade={handleUpgrade}
+        triggerReason={paywallTrigger}
+      />
     </>
   )
 }
