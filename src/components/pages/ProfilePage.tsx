@@ -3,6 +3,7 @@ import { PencilSimple, Moon, Headphones, Flame, CaretRight, SlidersHorizontal, U
 import { useKV } from '@github/spark/hooks'
 import { PreferencesPage } from './PreferencesPage'
 import { AccountPage } from './AccountPage'
+import { ReferralCard } from '../ReferralCard'
 
 interface UserProfile {
   name: string
@@ -146,6 +147,8 @@ export function ProfilePage() {
             </div>
           </div>
         </div>
+
+        <ReferralCard />
 
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           {settingsCategories.map((category, index) => {
