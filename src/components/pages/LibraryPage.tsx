@@ -3,12 +3,14 @@ import { useKV } from '@github/spark/hooks'
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PlusCircle, MagnifyingGlass, X } from '@phosphor-icons/react'
+import { PlusCircle, MagnifyingGlass, X, Heart } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { SessionCard } from '@/components/SessionCard'
 import { SessionDetailPage } from './SessionDetailPage'
+import { SwipeableSessionCard } from '@/components/SwipeableSessionCard'
 
 type FilterCategory = 'All' | 'Sleep' | 'Confidence' | 'Fears' | 'Habits' | 'Focus' | 'Custom'
+type ViewMode = 'all' | 'favorites'
 
 interface LibrarySession {
   id: string
@@ -24,6 +26,7 @@ interface LibrarySession {
 const filterCategories: FilterCategory[] = ['All', 'Sleep', 'Confidence', 'Fears', 'Habits', 'Focus', 'Custom']
 
 export function LibraryPage() {
+  const [viewMode, setViewMode] = useState<ViewMode>('all')
   const [activeFilter, setActiveFilter] = useState<FilterCategory>('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [sessions, setSessions] = useKV<LibrarySession[]>('library-sessions', [])
@@ -32,11 +35,12 @@ export function LibraryPage() {
 
   const filteredSessions = (sessions || [])
     .filter(session => {
+      const matchesFavorites = viewMode === 'all' || (viewMode === 'favorites' && session.isFavorited)
       const matchesCategory = activeFilter === 'All' || session.category === activeFilter
       const matchesSearch = searchQuery === '' || 
         session.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         session.category.toLowerCase().includes(searchQuery.toLowerCase())
-      return matchesCategory && matchesSearch
+      return matchesFavorites && matchesCategory && matchesSearch
     })
 
   const handlePlaySession = (session: LibrarySession) => {
@@ -47,6 +51,14 @@ export function LibraryPage() {
     setSessions((currentSessions) =>
       (currentSessions || []).map((session) =>
         session.id === id ? { ...session, isFavorited } : session
+      )
+    )
+  }
+
+  const handleRemoveFavorite = (id: string) => {
+    setSessions((currentSessions) =>
+      (currentSessions || []).map((session) =>
+        session.id === id ? { ...session, isFavorited: false } : session
       )
     )
   }
@@ -79,6 +91,36 @@ export function LibraryPage() {
   return (
     <div className="p-4 pb-6">
       <h1 className="text-2xl font-semibold tracking-tight mb-6">Library</h1>
+
+      <div className="mb-6 flex items-center justify-center">
+        <div className="inline-flex items-center gap-1 p-1 bg-card rounded-lg border border-border">
+          <button
+            onClick={() => setViewMode('all')}
+            className={`
+              px-6 py-2 rounded-md text-sm font-medium transition-all duration-200
+              ${viewMode === 'all'
+                ? 'bg-primary text-primary-foreground shadow-md'
+                : 'text-muted-foreground hover:text-foreground'
+              }
+            `}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setViewMode('favorites')}
+            className={`
+              px-6 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2
+              ${viewMode === 'favorites'
+                ? 'bg-primary text-primary-foreground shadow-md'
+                : 'text-muted-foreground hover:text-foreground'
+              }
+            `}
+          >
+            <Heart weight={viewMode === 'favorites' ? 'fill' : 'regular'} className="w-4 h-4" />
+            Favorites
+          </button>
+        </div>
+      </div>
       
       <div className="mb-6 -mx-4 px-4">
         <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2">
@@ -139,7 +181,17 @@ export function LibraryPage() {
           transition={{ duration: 0.3 }}
           className="flex flex-col items-center justify-center py-16 px-4"
         >
-          {searchQuery ? (
+          {viewMode === 'favorites' ? (
+            <>
+              <div className="mb-6 text-8xl opacity-20">
+                ❤️
+              </div>
+              <h2 className="text-xl font-semibold mb-2 text-center">No favorites yet</h2>
+              <p className="text-muted-foreground text-center mb-8 max-w-sm">
+                Tap the heart on any session to save it here.
+              </p>
+            </>
+          ) : searchQuery ? (
             <>
               <div className="mb-6 text-8xl opacity-20">
                 🔍
@@ -194,18 +246,34 @@ export function LibraryPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
             >
-              <SessionCard
-                id={session.id}
-                title={session.title}
-                category={session.category}
-                duration={session.duration}
-                gradient={session.gradient}
-                isFavorited={session.isFavorited}
-                onPlay={() => handlePlaySession(session)}
-                onToggleFavorite={handleToggleFavorite}
-                onClick={() => handleSessionClick(session.id)}
-                searchQuery={searchQuery}
-              />
+              {viewMode === 'favorites' ? (
+                <SwipeableSessionCard
+                  id={session.id}
+                  title={session.title}
+                  category={session.category}
+                  duration={session.duration}
+                  gradient={session.gradient}
+                  isFavorited={session.isFavorited}
+                  onPlay={() => handlePlaySession(session)}
+                  onToggleFavorite={handleToggleFavorite}
+                  onRemove={handleRemoveFavorite}
+                  onClick={() => handleSessionClick(session.id)}
+                  searchQuery={searchQuery}
+                />
+              ) : (
+                <SessionCard
+                  id={session.id}
+                  title={session.title}
+                  category={session.category}
+                  duration={session.duration}
+                  gradient={session.gradient}
+                  isFavorited={session.isFavorited}
+                  onPlay={() => handlePlaySession(session)}
+                  onToggleFavorite={handleToggleFavorite}
+                  onClick={() => handleSessionClick(session.id)}
+                  searchQuery={searchQuery}
+                />
+              )}
             </motion.div>
           ))}
         </div>
