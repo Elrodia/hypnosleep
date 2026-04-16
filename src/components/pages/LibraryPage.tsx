@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
 import { Button } from '@/components/ui/button'
-import { Play, PlusCircle } from '@phosphor-icons/react'
+import { PlusCircle } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
+import { SessionCard } from '@/components/SessionCard'
 
 type FilterCategory = 'All' | 'Sleep' | 'Confidence' | 'Fears' | 'Habits' | 'Focus' | 'Custom'
 
@@ -15,13 +16,14 @@ interface LibrarySession {
   gradient: string
   playCount: number
   createdAt: number
+  isFavorited?: boolean
 }
 
 const filterCategories: FilterCategory[] = ['All', 'Sleep', 'Confidence', 'Fears', 'Habits', 'Focus', 'Custom']
 
 export function LibraryPage() {
   const [activeFilter, setActiveFilter] = useState<FilterCategory>('All')
-  const [sessions] = useKV<LibrarySession[]>('library-sessions', [])
+  const [sessions, setSessions] = useKV<LibrarySession[]>('library-sessions', [])
   const { play } = useAudioPlayer()
 
   const filteredSessions = activeFilter === 'All' 
@@ -30,6 +32,14 @@ export function LibraryPage() {
 
   const handlePlaySession = (session: LibrarySession) => {
     play(session.title, 100)
+  }
+
+  const handleToggleFavorite = (id: string, isFavorited: boolean) => {
+    setSessions((currentSessions) =>
+      (currentSessions || []).map((session) =>
+        session.id === id ? { ...session, isFavorited } : session
+      )
+    )
   }
 
   return (
@@ -94,39 +104,17 @@ export function LibraryPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
-              className="group"
             >
-              <div className="bg-card border border-border rounded-xl overflow-hidden hover:border-primary/50 transition-all duration-200">
-                <div className={`
-                  relative h-32 bg-gradient-to-br ${session.gradient}
-                  flex items-center justify-center
-                `}>
-                  <span className="absolute top-2 left-2 text-xs font-medium px-2 py-1 rounded-full bg-black/30 backdrop-blur-sm text-white">
-                    {session.category}
-                  </span>
-                  <button
-                    onClick={() => handlePlaySession(session)}
-                    className="
-                      w-12 h-12 rounded-full bg-white/20 backdrop-blur-md
-                      flex items-center justify-center
-                      hover:bg-white/30 hover:scale-110
-                      transition-all duration-200
-                      group-hover:scale-105
-                    "
-                  >
-                    <Play weight="fill" className="w-6 h-6 text-white ml-0.5" />
-                  </button>
-                </div>
-                <div className="p-3">
-                  <h3 className="font-medium text-sm mb-1 line-clamp-2 leading-tight">
-                    {session.title}
-                  </h3>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{session.duration}</span>
-                    <span>{session.playCount.toLocaleString()} plays</span>
-                  </div>
-                </div>
-              </div>
+              <SessionCard
+                id={session.id}
+                title={session.title}
+                category={session.category}
+                duration={session.duration}
+                gradient={session.gradient}
+                isFavorited={session.isFavorited}
+                onPlay={() => handlePlaySession(session)}
+                onToggleFavorite={handleToggleFavorite}
+              />
             </motion.div>
           ))}
         </div>
