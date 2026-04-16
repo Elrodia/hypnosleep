@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PlusCircle, MagnifyingGlass, X, Heart } from '@phosphor-icons/react'
+import { PlusCircle, MagnifyingGlass, X, Heart, FunnelSimple, Check } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { SessionCard } from '@/components/SessionCard'
 import { SessionDetailPage } from './SessionDetailPage'
@@ -11,6 +11,7 @@ import { SwipeableSessionCard } from '@/components/SwipeableSessionCard'
 
 type FilterCategory = 'All' | 'Sleep' | 'Confidence' | 'Fears' | 'Habits' | 'Focus' | 'Custom'
 type ViewMode = 'all' | 'favorites'
+type SortOption = 'newest' | 'oldest' | 'most-played' | 'shortest' | 'longest'
 
 interface LibrarySession {
   id: string
@@ -25,13 +26,46 @@ interface LibrarySession {
 
 const filterCategories: FilterCategory[] = ['All', 'Sleep', 'Confidence', 'Fears', 'Habits', 'Focus', 'Custom']
 
+const sortOptions: { value: SortOption; label: string }[] = [
+  { value: 'newest', label: 'Newest First' },
+  { value: 'oldest', label: 'Oldest First' },
+  { value: 'most-played', label: 'Most Played' },
+  { value: 'shortest', label: 'Shortest Duration' },
+  { value: 'longest', label: 'Longest Duration' },
+]
+
 export function LibraryPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('all')
   const [activeFilter, setActiveFilter] = useState<FilterCategory>('All')
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeSortOption, setActiveSortOption] = useState<SortOption>('newest')
+  const [showSortDropdown, setShowSortDropdown] = useState(false)
   const [sessions, setSessions] = useKV<LibrarySession[]>('library-sessions', [])
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
+  const sortButtonRef = useRef<HTMLButtonElement>(null)
+  const sortDropdownRef = useRef<HTMLDivElement>(null)
   const { play } = useAudioPlayer()
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        sortDropdownRef.current &&
+        !sortDropdownRef.current.contains(event.target as Node) &&
+        sortButtonRef.current &&
+        !sortButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowSortDropdown(false)
+      }
+    }
+
+    if (showSortDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showSortDropdown])
 
   const filteredSessions = (sessions || [])
     .filter(session => {
@@ -41,6 +75,22 @@ export function LibraryPage() {
         session.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         session.category.toLowerCase().includes(searchQuery.toLowerCase())
       return matchesFavorites && matchesCategory && matchesSearch
+    })
+    .sort((a, b) => {
+      switch (activeSortOption) {
+        case 'newest':
+          return b.createdAt - a.createdAt
+        case 'oldest':
+          return a.createdAt - b.createdAt
+        case 'most-played':
+          return b.playCount - a.playCount
+        case 'shortest':
+          return parseInt(a.duration) - parseInt(b.duration)
+        case 'longest':
+          return parseInt(b.duration) - parseInt(a.duration)
+        default:
+          return 0
+      }
     })
 
   const handlePlaySession = (session: LibrarySession) => {
@@ -146,32 +196,89 @@ export function LibraryPage() {
         </div>
       </div>
 
-      <div className="mb-6 relative">
-        <MagnifyingGlass 
-          className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" 
-          weight="bold"
-        />
-        <Input
-          type="text"
-          placeholder="Search sessions..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-11 pr-10 h-12 bg-card border-border focus-visible:ring-primary"
-        />
-        <AnimatePresence>
-          {searchQuery && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.15 }}
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="w-4 h-4" weight="bold" />
-            </motion.button>
-          )}
-        </AnimatePresence>
+      <div className="mb-6 flex gap-3">
+        <div className="relative flex-1">
+          <MagnifyingGlass 
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" 
+            weight="bold"
+          />
+          <Input
+            type="text"
+            placeholder="Search sessions..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-11 pr-10 h-12 bg-card border-border focus-visible:ring-primary"
+          />
+          <AnimatePresence>
+            {searchQuery && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.15 }}
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-4 h-4" weight="bold" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
+        
+        <div className="relative">
+          <button
+            ref={sortButtonRef}
+            onClick={() => setShowSortDropdown(!showSortDropdown)}
+            className="h-12 w-12 rounded-lg bg-card border border-border hover:bg-card/80 flex items-center justify-center text-foreground transition-colors"
+          >
+            <FunnelSimple className="w-5 h-5" weight="bold" />
+          </button>
+          
+          <AnimatePresence>
+            {showSortDropdown && (
+              <motion.div
+                ref={sortDropdownRef}
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="absolute right-0 top-14 w-56 bg-card border border-border rounded-xl shadow-xl overflow-hidden z-50"
+              >
+                {sortOptions.map((option) => {
+                  const isActive = activeSortOption === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        setActiveSortOption(option.value)
+                        setShowSortDropdown(false)
+                      }}
+                      className={`
+                        w-full px-4 py-3 flex items-center justify-between text-left
+                        transition-colors
+                        ${isActive 
+                          ? 'bg-primary/10 text-primary' 
+                          : 'text-foreground hover:bg-muted'
+                        }
+                      `}
+                    >
+                      <span className="font-medium text-sm">{option.label}</span>
+                      {isActive && (
+                        <motion.div
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ duration: 0.2, ease: 'backOut' }}
+                        >
+                          <Check className="w-5 h-5" weight="bold" />
+                        </motion.div>
+                      )}
+                    </button>
+                  )
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {filteredSessions.length === 0 ? (
