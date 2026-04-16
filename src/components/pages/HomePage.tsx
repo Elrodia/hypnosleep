@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
 import { useKV } from '@github/spark/hooks'
-import { Play, Leaf, Star, Cloud, Eye, Heart, CaretRight } from '@phosphor-icons/react'
+import { Play, Leaf, Star, Cloud, Eye, Heart, CaretRight, TrendUp, Headphones } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import { StreakWidget } from '@/components/StreakWidget'
 
@@ -58,6 +58,42 @@ const quickSessions: QuickSession[] = [
   },
 ]
 
+interface PopularSession {
+  id: string
+  title: string
+  category: string
+  playCount: string
+  duration: string
+  gradient: string
+}
+
+const popularSessions: PopularSession[] = [
+  {
+    id: 'confidence-boost',
+    title: 'Ultimate Confidence Boost',
+    category: 'Self-Improvement',
+    playCount: '12.4K',
+    duration: '20 min',
+    gradient: 'from-amber-500 via-orange-500 to-rose-500',
+  },
+  {
+    id: 'deep-sleep',
+    title: 'Deep Sleep Hypnosis',
+    category: 'Sleep & Relaxation',
+    playCount: '18.2K',
+    duration: '30 min',
+    gradient: 'from-indigo-600 via-purple-600 to-pink-600',
+  },
+  {
+    id: 'anxiety-relief',
+    title: 'Instant Anxiety Relief',
+    category: 'Mental Health',
+    playCount: '9.8K',
+    duration: '15 min',
+    gradient: 'from-emerald-500 via-teal-500 to-cyan-500',
+  },
+]
+
 export function HomePage() {
   const { play } = useAudioPlayer()
   const [userName] = useKV<string>('user-name', 'Friend')
@@ -77,6 +113,10 @@ export function HomePage() {
 
   const handleQuickSession = (session: QuickSession) => {
     play(`${session.title} Session`, 100)
+  }
+
+  const handlePopularSession = (session: PopularSession) => {
+    play(session.title, 100)
   }
 
   return (
@@ -196,6 +236,62 @@ export function HomePage() {
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Your Streak</h2>
         <StreakWidget />
+      </div>
+
+      <div className="mb-8">
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-xl font-semibold">Popular This Week</h2>
+          <TrendUp weight="bold" size={20} className="text-primary" />
+        </div>
+
+        <div className="overflow-x-auto -mx-5 px-5 pb-2 snap-x snap-mandatory scrollbar-hide">
+          <div className="flex gap-4 w-max">
+            {popularSessions.map((session) => (
+              <motion.button
+                key={session.id}
+                onClick={() => handlePopularSession(session)}
+                className="snap-start flex-shrink-0 w-44 rounded-2xl overflow-hidden bg-card shadow-lg hover:shadow-xl transition-shadow"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              >
+                <div className="relative">
+                  <div className={`h-56 bg-gradient-to-br ${session.gradient} relative overflow-hidden`}>
+                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_50%_120%,_rgba(255,255,255,0.8),_transparent_70%)]" />
+                    
+                    <div className="absolute top-3 left-3">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-black/30 backdrop-blur-sm text-white border border-white/20">
+                        {session.category}
+                      </span>
+                    </div>
+
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-16 h-16 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-xl">
+                        <Play weight="fill" size={24} className="text-primary ml-1" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 text-left">
+                    <h3 className="font-semibold text-sm mb-3 line-clamp-2 leading-snug">
+                      {session.title}
+                    </h3>
+                    
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <Headphones weight="fill" size={14} />
+                        <span className="font-medium">{session.playCount}</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-muted text-foreground font-medium">
+                        {session.duration}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )
