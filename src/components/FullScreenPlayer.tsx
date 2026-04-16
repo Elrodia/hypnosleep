@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Play, Pause, CaretDown, DotsThree, ArrowCounterClockwise, ArrowClockwise } from '@phosphor-icons/react'
+import { Play, Pause, CaretDown, DotsThree, ArrowCounterClockwise, ArrowClockwise, Clock } from '@phosphor-icons/react'
 import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
 import {
@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu'
 import { toast } from 'sonner'
+import { SleepTimerModal } from './SleepTimerModal'
 
 interface FullScreenPlayerProps {
   isOpen: boolean
@@ -35,12 +36,45 @@ export function FullScreenPlayer({
 }: FullScreenPlayerProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [localProgress, setLocalProgress] = useState(progress)
+  const [showTimerModal, setShowTimerModal] = useState(false)
+  const [timerMinutes, setTimerMinutes] = useState<number | null>(null)
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null)
 
   useEffect(() => {
     if (!isDragging) {
       setLocalProgress(progress)
     }
   }, [progress, isDragging])
+
+  useEffect(() => {
+    if (timerMinutes === null || remainingSeconds === null) return
+
+    if (timerMinutes === -1) {
+      const remaining = duration - (localProgress / 100) * duration
+      setRemainingSeconds(Math.floor(remaining))
+    }
+
+    const interval = setInterval(() => {
+      setRemainingSeconds((prev) => {
+        if (prev === null || prev <= 0) {
+          toast.info('Sleep timer ended')
+          onPlayPause()
+          setTimerMinutes(null)
+          return null
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [timerMinutes, remainingSeconds, duration, localProgress, onPlayPause])
+
+  useEffect(() => {
+    if (timerMinutes === -1) {
+      const remaining = duration - (localProgress / 100) * duration
+      setRemainingSeconds(Math.floor(remaining))
+    }
+  }, [localProgress, duration, timerMinutes])
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newProgress = parseFloat(e.target.value)
@@ -73,7 +107,34 @@ export function FullScreenPlayer({
   }
 
   const elapsedSeconds = (localProgress / 100) * duration
-  const remainingSeconds = duration - elapsedSeconds
+  const remainingPlaybackSeconds = duration - elapsedSeconds
+
+  const handleSetTimer = (minutes: number) => {
+    setTimerMinutes(minutes)
+    if (minutes === -1) {
+      const remaining = duration - (localProgress / 100) * duration
+      setRemainingSeconds(Math.floor(remaining))
+      toast.success('Timer set to end of session')
+    } else {
+      setRemainingSeconds(minutes * 60)
+      toast.success(`Timer set for ${minutes} minutes`)
+    }
+  }
+
+  const handleCancelTimer = () => {
+    setTimerMinutes(null)
+    setRemainingSeconds(null)
+    toast.info('Timer cancelled')
+  }
+
+  const formatCountdown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    if (mins < 1) return `${seconds}s`
+    if (mins < 60) return `${mins}m`
+    const hours = Math.floor(mins / 60)
+    const remainingMins = mins % 60
+    return `${hours}h${remainingMins > 0 ? ` ${remainingMins}m` : ''}`
+  }
 
   return (
     <AnimatePresence>
@@ -96,24 +157,43 @@ export function FullScreenPlayer({
                 <CaretDown weight="bold" className="w-6 h-6 text-white" />
               </button>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm active:scale-95 transition-transform">
-                    <DotsThree weight="bold" className="w-6 h-6 text-white" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => toast.success('Shared!')}>
-                    Share
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => toast.success('Added to favorites!')}>
-                    Favorite
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => toast.info('Report submitted')}>
-                    Report
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowTimerModal(true)}
+                  className="relative w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+                >
+                  <Clock weight="bold" className="w-6 h-6 text-white" />
+                  {timerMinutes !== null && remainingSeconds !== null && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      className="absolute -top-1 -right-1 min-w-[24px] h-6 px-1.5 flex items-center justify-center rounded-full bg-primary text-white text-xs font-bold shadow-lg"
+                    >
+                      {formatCountdown(remainingSeconds)}
+                    </motion.div>
+                  )}
+                </button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm active:scale-95 transition-transform">
+                      <DotsThree weight="bold" className="w-6 h-6 text-white" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem onClick={() => toast.success('Shared!')}>
+                      Share
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toast.success('Added to favorites!')}>
+                      Favorite
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toast.info('Report submitted')}>
+                      Report
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
 
             <div className="flex-1 flex flex-col items-center justify-center px-8">
@@ -210,11 +290,20 @@ export function FullScreenPlayer({
 
                 <div className="flex items-center justify-between text-sm text-white/70">
                   <span>{formatTime(elapsedSeconds)}</span>
-                  <span>-{formatTime(remainingSeconds)}</span>
+                  <span>-{formatTime(remainingPlaybackSeconds)}</span>
                 </div>
               </motion.div>
             </div>
           </div>
+
+          <SleepTimerModal
+            isOpen={showTimerModal}
+            onClose={() => setShowTimerModal(false)}
+            onSetTimer={handleSetTimer}
+            onCancelTimer={handleCancelTimer}
+            activeTimer={timerMinutes}
+            remainingSeconds={remainingSeconds}
+          />
         </motion.div>
       )}
     </AnimatePresence>
