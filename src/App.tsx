@@ -9,6 +9,7 @@ import { ProgressPage } from './components/pages/ProgressPage'
 import { ProfilePage } from './components/pages/ProfilePage'
 import { LoginPage } from './components/pages/LoginPage'
 import { QuizPage } from './components/pages/QuizPage'
+import { ResultsPage } from './components/pages/ResultsPage'
 import { SplashScreen } from './components/SplashScreen'
 import { MiniPlayer } from './components/MiniPlayer'
 import { OnboardingCarousel } from './components/OnboardingCarousel'
@@ -25,6 +26,12 @@ function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useKV<boolean>('is-logged-in', false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showQuiz, setShowQuiz] = useState(false)
+  const [showResults, setShowResults] = useState(false)
+  const [quizData, setQuizData] = useKV<{
+    selectedGoals: string[]
+    preferredTime: string
+    sessionDuration: number
+  } | null>('quiz-data', null)
   const { player, togglePlayPause } = useAudioPlayer()
 
   useEffect(() => {
@@ -37,11 +44,13 @@ function AppContent() {
         setShowOnboarding(true)
       } else if (!hasCompletedQuiz) {
         setShowQuiz(true)
+      } else if (quizData && !showResults) {
+        setShowResults(true)
       }
     }, 2500)
 
     return () => clearTimeout(timer)
-  }, [hasCompletedOnboarding, hasCompletedQuiz, isLoggedIn])
+  }, [hasCompletedOnboarding, hasCompletedQuiz, isLoggedIn, quizData, showResults])
 
   const handleExpand = () => {
     toast.info('Full player view coming soon!')
@@ -55,9 +64,24 @@ function AppContent() {
     }
   }
 
-  const handleQuizComplete = (selectedGoals: string[]) => {
+  const handleQuizComplete = (data: {
+    selectedGoals: string[]
+    preferredTime: string
+    sessionDuration: number
+  }) => {
+    setQuizData(data)
     setShowQuiz(false)
+    setShowResults(true)
     setHasCompletedQuiz(true)
+  }
+
+  const handleStartSession = () => {
+    setShowResults(false)
+    toast.success('Session starting soon!')
+  }
+
+  const handleSkipToApp = () => {
+    setShowResults(false)
   }
 
   const handleLogin = () => {
@@ -107,8 +131,20 @@ function AppContent() {
           <QuizPage onComplete={handleQuizComplete} />
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {showResults && !showSplash && !showOnboarding && !showQuiz && quizData && (
+          <ResultsPage
+            selectedGoals={quizData.selectedGoals}
+            preferredTime={quizData.preferredTime}
+            sessionDuration={quizData.sessionDuration}
+            onStartSession={handleStartSession}
+            onSkip={handleSkipToApp}
+          />
+        )}
+      </AnimatePresence>
       
-      {!showSplash && !showOnboarding && !showQuiz && (
+      {!showSplash && !showOnboarding && !showQuiz && !showResults && (
         <div className="min-h-screen bg-background text-foreground pb-20 pt-14">
           <Header />
           <AnimatePresence mode="wait">

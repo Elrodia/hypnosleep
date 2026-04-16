@@ -47,7 +47,11 @@ const durationDescriptions: Record<number, string> = {
 }
 
 interface QuizPageProps {
-  onComplete: (selectedGoals: string[]) => void
+  onComplete: (data: {
+    selectedGoals: string[]
+    preferredTime: string
+    sessionDuration: number
+  }) => void
 }
 
 export function QuizPage({ onComplete }: QuizPageProps) {
@@ -79,7 +83,11 @@ export function QuizPage({ onComplete }: QuizPageProps) {
   }
 
   const handleStep3Complete = () => {
-    onComplete(selectedGoals)
+    onComplete({
+      selectedGoals,
+      preferredTime: selectedTime || 'before-sleep',
+      sessionDuration: duration,
+    })
   }
 
   const progress = step === 1 ? 33 : step === 2 ? 66 : 100
