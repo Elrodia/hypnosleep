@@ -49,8 +49,16 @@ export function ProUpgradePage({ onBack }: ProUpgradePageProps) {
   const yearlySavings = Math.round(((monthlyPrice * 12 - yearlyPrice) / (monthlyPrice * 12)) * 100)
 
   const handleStartTrial = () => {
-    window.dispatchEvent(new CustomEvent('show-payment-success'))
-    onBack()
+    const stripeLink = billingCycle === 'monthly'
+      ? import.meta.env.VITE_STRIPE_MONTHLY_LINK
+      : import.meta.env.VITE_STRIPE_ANNUAL_LINK
+
+    if (stripeLink) {
+      window.open(stripeLink, '_blank')
+    } else {
+      window.dispatchEvent(new CustomEvent('show-payment-success'))
+      onBack()
+    }
   }
 
   return (
