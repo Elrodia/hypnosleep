@@ -4,6 +4,7 @@ import { useKV } from '@github/spark/hooks'
 import { Play, Leaf, Star, Cloud, Eye, Heart, CaretRight, TrendUp, Headphones } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import { StreakWidget } from '@/components/StreakWidget'
+import { DailyAffirmation } from '@/components/DailyAffirmation'
 
 function getTimeOfDay(): string {
   const hour = new Date().getHours()
@@ -124,6 +125,10 @@ export function HomePage() {
       <h1 className="text-2xl font-medium tracking-tight mb-8">
         Good {timeOfDay}, {userName}
       </h1>
+
+      <div className="mb-8">
+        <DailyAffirmation />
+      </div>
 
       <div className="relative overflow-hidden rounded-3xl shadow-2xl shadow-primary/20 mb-10">
         <div className="absolute inset-0 bg-gradient-to-br from-[#5b21b6] via-[#4c1d95] to-[#1e3a8a]" />
