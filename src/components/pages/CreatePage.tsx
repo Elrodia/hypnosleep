@@ -3,7 +3,8 @@ import { useKV } from '@github/spark/hooks'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Slider } from '@/components/ui/slider'
-import { Sparkle, Play, Drop, Waves, Tree, Wind, SpeakerSlash } from '@phosphor-icons/react'
+import { Switch } from '@/components/ui/switch'
+import { Sparkle, Play, Drop, Waves, Tree, Wind, SpeakerSlash, CaretDown } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -42,6 +43,14 @@ const BACKGROUND_SOUNDS = [
   { id: 'silence', label: 'Silence', icon: SpeakerSlash },
 ]
 
+const INDUCTION_STYLES = [
+  { id: 'progressive', label: 'Progressive Relaxation' },
+  { id: 'countdown', label: 'Countdown' },
+  { id: 'body-scan', label: 'Body Scan' },
+]
+
+type DepthLevel = 'light' | 'medium' | 'deep'
+
 export function CreatePage() {
   const [sessions, setSessions] = useKV<LibrarySession[]>('library-sessions', [])
   const [inputValue, setInputValue] = useState('')
@@ -50,6 +59,10 @@ export function CreatePage() {
   const [selectedVoice, setSelectedVoice] = useState('calm-female')
   const [sessionLength, setSessionLength] = useState([15])
   const [backgroundSound, setBackgroundSound] = useState('rain')
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
+  const [inductionStyle, setInductionStyle] = useState('progressive')
+  const [depthLevel, setDepthLevel] = useState<DepthLevel>('medium')
+  const [wakeUpEnding, setWakeUpEnding] = useState(true)
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -209,6 +222,141 @@ export function CreatePage() {
                 )
               })}
             </div>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <button
+              onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+              className="flex items-center justify-between w-full text-left group"
+            >
+              <h3 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                Advanced Settings
+              </h3>
+              <CaretDown
+                size={18}
+                weight="bold"
+                className={`text-muted-foreground group-hover:text-primary transition-all duration-300 ${
+                  isAdvancedOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            <AnimatePresence initial={false}>
+              {isAdvancedOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  className="overflow-hidden"
+                >
+                  <div className="pt-4 space-y-5">
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium text-foreground">Induction Style</h4>
+                      <div className="flex gap-2">
+                        {INDUCTION_STYLES.map((style) => (
+                          <button
+                            key={style.id}
+                            onClick={() => setInductionStyle(style.id)}
+                            className={`flex-1 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                              inductionStyle === style.id
+                                ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
+                                : 'bg-card/50 text-foreground hover:bg-card border border-border'
+                            }`}
+                          >
+                            {style.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium text-foreground">Depth Level</h4>
+                      <div className="flex gap-4 justify-center items-center py-2">
+                        <button
+                          onClick={() => setDepthLevel('light')}
+                          className="flex flex-col items-center gap-2 group"
+                        >
+                          <div
+                            className={`w-12 h-12 rounded-full border-2 transition-all ${
+                              depthLevel === 'light'
+                                ? 'border-primary bg-primary/10 scale-110'
+                                : 'border-border hover:border-primary/50'
+                            }`}
+                          />
+                          <span
+                            className={`text-xs font-medium transition-colors ${
+                              depthLevel === 'light' ? 'text-primary' : 'text-muted-foreground'
+                            }`}
+                          >
+                            Light
+                          </span>
+                        </button>
+
+                        <button
+                          onClick={() => setDepthLevel('medium')}
+                          className="flex flex-col items-center gap-2 group"
+                        >
+                          <div
+                            className={`w-12 h-12 rounded-full border-2 relative overflow-hidden transition-all ${
+                              depthLevel === 'medium'
+                                ? 'border-primary scale-110'
+                                : 'border-border hover:border-primary/50'
+                            }`}
+                          >
+                            <div
+                              className={`absolute inset-0 transition-colors ${
+                                depthLevel === 'medium' ? 'bg-primary' : 'bg-border'
+                              }`}
+                              style={{
+                                clipPath: 'polygon(0 50%, 100% 50%, 100% 100%, 0 100%)',
+                              }}
+                            />
+                          </div>
+                          <span
+                            className={`text-xs font-medium transition-colors ${
+                              depthLevel === 'medium' ? 'text-primary' : 'text-muted-foreground'
+                            }`}
+                          >
+                            Medium
+                          </span>
+                        </button>
+
+                        <button
+                          onClick={() => setDepthLevel('deep')}
+                          className="flex flex-col items-center gap-2 group"
+                        >
+                          <div
+                            className={`w-12 h-12 rounded-full border-2 transition-all ${
+                              depthLevel === 'deep'
+                                ? 'border-primary bg-primary scale-110'
+                                : 'border-border bg-border hover:border-primary/50'
+                            }`}
+                          />
+                          <span
+                            className={`text-xs font-medium transition-colors ${
+                              depthLevel === 'deep' ? 'text-primary' : 'text-muted-foreground'
+                            }`}
+                          >
+                            Deep
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between py-2">
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-foreground">Wake-Up Ending</h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Gently bring me back at the end
+                        </p>
+                      </div>
+                      <Switch checked={wakeUpEnding} onCheckedChange={setWakeUpEnding} />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
