@@ -8,17 +8,14 @@ interface LoginPageProps {
 
 export function LoginPage({ onLogin }: LoginPageProps) {
   const handleGoogleLogin = () => {
-    console.log('Google login')
     onLogin()
   }
 
   const handleGithubLogin = () => {
-    console.log('GitHub login')
     onLogin()
   }
 
   const handleMicrosoftLogin = () => {
-    console.log('Microsoft login')
     onLogin()
   }
 
