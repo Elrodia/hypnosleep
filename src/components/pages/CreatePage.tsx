@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
-import { Sparkle, Play, Drop, Waves, Tree, Wind, SpeakerSlash, CaretDown } from '@phosphor-icons/react'
+import { Sparkle, Play, Drop, Waves, Tree, Wind, SpeakerSlash, CaretDown, Moon, Sun, Prohibit, BookOpen, LockKeyOpen, Eye, AppleLogo, FirstAid } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GenerationLoadingOverlay } from '@/components/GenerationLoadingOverlay'
@@ -29,6 +29,82 @@ const PLACEHOLDER_EXAMPLES = [
 ]
 
 const MAX_CHARS = 500
+
+interface QuickTemplate {
+  id: string
+  label: string
+  icon: React.ComponentType<any>
+  prompt: string
+  voice: string
+  duration: number
+}
+
+const QUICK_TEMPLATES: QuickTemplate[] = [
+  {
+    id: 'sleep-10',
+    label: 'Sleep in 10 min',
+    icon: Moon,
+    prompt: 'Help me fall asleep quickly with deep relaxation in 10 minutes',
+    voice: 'soft-whisper',
+    duration: 10,
+  },
+  {
+    id: 'morning-confidence',
+    label: 'Morning Confidence',
+    icon: Sun,
+    prompt: 'Boost my confidence and energy for a successful day ahead',
+    voice: 'calm-female',
+    duration: 10,
+  },
+  {
+    id: 'quit-smoking',
+    label: 'Quit Smoking',
+    icon: Prohibit,
+    prompt: 'Strengthen my resolve to quit smoking and overcome cravings',
+    voice: 'deep-male',
+    duration: 15,
+  },
+  {
+    id: 'exam-calm',
+    label: 'Exam Calm',
+    icon: BookOpen,
+    prompt: 'Release test anxiety and boost focus for my upcoming exam',
+    voice: 'calm-female',
+    duration: 15,
+  },
+  {
+    id: 'fear-release',
+    label: 'Fear Release',
+    icon: LockKeyOpen,
+    prompt: 'Let go of my fears and embrace courage and confidence',
+    voice: 'gentle-british',
+    duration: 20,
+  },
+  {
+    id: 'deep-focus',
+    label: 'Deep Focus',
+    icon: Eye,
+    prompt: 'Enter a state of deep focus and concentration for important work',
+    voice: 'deep-male',
+    duration: 15,
+  },
+  {
+    id: 'weight-control',
+    label: 'Weight Control',
+    icon: AppleLogo,
+    prompt: 'Develop healthy eating habits and positive body image',
+    voice: 'calm-female',
+    duration: 20,
+  },
+  {
+    id: 'pain-relief',
+    label: 'Pain Relief',
+    icon: FirstAid,
+    prompt: 'Reduce physical discomfort and promote natural healing',
+    voice: 'soft-whisper',
+    duration: 15,
+  },
+]
 
 const VOICE_OPTIONS = [
   { id: 'calm-female', label: 'Calm Female' },
@@ -162,6 +238,13 @@ export function CreatePage() {
     setInputValue('')
   }
 
+  const handleTemplateSelect = (template: QuickTemplate) => {
+    setInputValue(template.prompt)
+    setSelectedVoice(template.voice)
+    setSessionLength([template.duration])
+    toast.success(`"${template.label}" template applied!`)
+  }
+
   const generateScriptPreview = () => {
     return `Welcome to your personalized session. Find a comfortable position and allow yourself to relax completely.
 
@@ -184,6 +267,27 @@ When you're ready, you'll return to full awareness, feeling refreshed and renewe
     <>
       <div className="min-h-[calc(100vh-14rem)] flex items-center justify-center p-6">
         <div className="w-full max-w-2xl space-y-6">
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-foreground">Quick Templates</h3>
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+              {QUICK_TEMPLATES.map((template) => {
+                const Icon = template.icon
+                return (
+                  <button
+                    key={template.id}
+                    onClick={() => handleTemplateSelect(template)}
+                    className="flex flex-col items-center gap-2 px-4 py-3 rounded-xl bg-card/50 border border-border hover:bg-card hover:border-primary/50 transition-all shrink-0 min-w-[100px] active:scale-95"
+                  >
+                    <Icon size={24} weight="duotone" className="text-primary" />
+                    <span className="text-xs font-medium text-foreground text-center whitespace-nowrap">
+                      {template.label}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           <div className="relative">
             <Textarea
               id="session-description"
