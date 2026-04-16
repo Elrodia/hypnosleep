@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
 import { Button } from '@/components/ui/button'
-import { PlusCircle } from '@phosphor-icons/react'
-import { motion } from 'framer-motion'
+import { Input } from '@/components/ui/input'
+import { PlusCircle, MagnifyingGlass, X } from '@phosphor-icons/react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { SessionCard } from '@/components/SessionCard'
 
 type FilterCategory = 'All' | 'Sleep' | 'Confidence' | 'Fears' | 'Habits' | 'Focus' | 'Custom'
@@ -23,12 +24,18 @@ const filterCategories: FilterCategory[] = ['All', 'Sleep', 'Confidence', 'Fears
 
 export function LibraryPage() {
   const [activeFilter, setActiveFilter] = useState<FilterCategory>('All')
+  const [searchQuery, setSearchQuery] = useState('')
   const [sessions, setSessions] = useKV<LibrarySession[]>('library-sessions', [])
   const { play } = useAudioPlayer()
 
-  const filteredSessions = activeFilter === 'All' 
-    ? (sessions || [])
-    : (sessions || []).filter(session => session.category === activeFilter)
+  const filteredSessions = (sessions || [])
+    .filter(session => {
+      const matchesCategory = activeFilter === 'All' || session.category === activeFilter
+      const matchesSearch = searchQuery === '' || 
+        session.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        session.category.toLowerCase().includes(searchQuery.toLowerCase())
+      return matchesCategory && matchesSearch
+    })
 
   const handlePlaySession = (session: LibrarySession) => {
     play(session.title, 100)
@@ -70,6 +77,34 @@ export function LibraryPage() {
         </div>
       </div>
 
+      <div className="mb-6 relative">
+        <MagnifyingGlass 
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" 
+          weight="bold"
+        />
+        <Input
+          type="text"
+          placeholder="Search sessions..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-11 pr-10 h-12 bg-card border-border focus-visible:ring-primary"
+        />
+        <AnimatePresence>
+          {searchQuery && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.15 }}
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="w-4 h-4" weight="bold" />
+            </motion.button>
+          )}
+        </AnimatePresence>
+      </div>
+
       {filteredSessions.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -77,24 +112,51 @@ export function LibraryPage() {
           transition={{ duration: 0.3 }}
           className="flex flex-col items-center justify-center py-16 px-4"
         >
-          <div className="mb-6 text-8xl opacity-20">
-            📚
-          </div>
-          <h2 className="text-xl font-semibold mb-2 text-center">No sessions yet</h2>
-          <p className="text-muted-foreground text-center mb-8 max-w-sm">
-            Create your first session and start your journey to better sleep and self-improvement.
-          </p>
-          <Button
-            size="lg"
-            className="gap-2"
-            onClick={() => {
-              const event = new CustomEvent('navigate-to-tab', { detail: 'create' })
-              window.dispatchEvent(event)
-            }}
-          >
-            <PlusCircle weight="fill" className="w-5 h-5" />
-            Create Your First Session
-          </Button>
+          {searchQuery ? (
+            <>
+              <div className="mb-6 text-8xl opacity-20">
+                🔍
+              </div>
+              <h2 className="text-xl font-semibold mb-2 text-center">
+                No results for '{searchQuery}'
+              </h2>
+              <p className="text-muted-foreground text-center mb-8 max-w-sm">
+                We couldn't find any sessions matching your search. Try different keywords or create a new session.
+              </p>
+              <Button
+                size="lg"
+                className="gap-2"
+                onClick={() => {
+                  const event = new CustomEvent('navigate-to-tab', { detail: 'create' })
+                  window.dispatchEvent(event)
+                }}
+              >
+                <PlusCircle weight="fill" className="w-5 h-5" />
+                Create New Session
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="mb-6 text-8xl opacity-20">
+                📚
+              </div>
+              <h2 className="text-xl font-semibold mb-2 text-center">No sessions yet</h2>
+              <p className="text-muted-foreground text-center mb-8 max-w-sm">
+                Create your first session and start your journey to better sleep and self-improvement.
+              </p>
+              <Button
+                size="lg"
+                className="gap-2"
+                onClick={() => {
+                  const event = new CustomEvent('navigate-to-tab', { detail: 'create' })
+                  window.dispatchEvent(event)
+                }}
+              >
+                <PlusCircle weight="fill" className="w-5 h-5" />
+                Create Your First Session
+              </Button>
+            </>
+          )}
         </motion.div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -114,6 +176,7 @@ export function LibraryPage() {
                 isFavorited={session.isFavorited}
                 onPlay={() => handlePlaySession(session)}
                 onToggleFavorite={handleToggleFavorite}
+                searchQuery={searchQuery}
               />
             </motion.div>
           ))}

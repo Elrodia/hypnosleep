@@ -13,6 +13,7 @@ interface SessionCardProps {
   onPlay: () => void
   onToggleFavorite?: (id: string, isFavorited: boolean) => void
   className?: string
+  searchQuery?: string
 }
 
 const categoryColors: Record<string, string> = {
@@ -35,9 +36,29 @@ export function SessionCard({
   onPlay,
   onToggleFavorite,
   className,
+  searchQuery = '',
 }: SessionCardProps) {
   const [isPressed, setIsPressed] = useState(false)
   const [localFavorited, setLocalFavorited] = useState(isFavorited)
+
+  const highlightText = (text: string, query: string) => {
+    if (!query.trim()) return text
+    
+    const parts = text.split(new RegExp(`(${query})`, 'gi'))
+    return (
+      <>
+        {parts.map((part, index) =>
+          part.toLowerCase() === query.toLowerCase() ? (
+            <mark key={index} className="bg-primary/30 text-foreground rounded px-0.5">
+              {part}
+            </mark>
+          ) : (
+            part
+          )
+        )}
+      </>
+    )
+  }
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -80,7 +101,7 @@ export function SessionCard({
 
         <div className="p-3 space-y-3">
           <h3 className="font-semibold text-sm leading-tight line-clamp-2 min-h-[2.5rem]">
-            {title}
+            {highlightText(title, searchQuery)}
           </h3>
 
           <div className="flex items-center justify-between gap-2">
@@ -90,7 +111,7 @@ export function SessionCard({
                 categoryColors[category] || categoryColors.All
               )}
             >
-              {category}
+              {highlightText(category, searchQuery)}
             </span>
 
             <div className="flex items-center gap-2">
