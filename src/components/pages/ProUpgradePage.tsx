@@ -54,7 +54,7 @@ export function ProUpgradePage({ onBack }: ProUpgradePageProps) {
       : import.meta.env.VITE_STRIPE_ANNUAL_LINK
 
     if (stripeLink) {
-      window.open(stripeLink, '_blank')
+      window.open(stripeLink, '_blank', 'noopener,noreferrer')
     } else {
       window.dispatchEvent(new CustomEvent('show-payment-success'))
       onBack()
