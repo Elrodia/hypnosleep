@@ -5,6 +5,7 @@ import { Play, Leaf, Star, Cloud, Eye, Heart, CaretRight, TrendUp, Headphones } 
 import { motion } from 'framer-motion'
 import { StreakWidget } from '@/components/StreakWidget'
 import { DailyAffirmation } from '@/components/DailyAffirmation'
+import { ContinueListening } from '@/components/ContinueListening'
 
 function getTimeOfDay(): string {
   const hour = new Date().getHours()
@@ -95,10 +96,36 @@ const popularSessions: PopularSession[] = [
   },
 ]
 
+interface UnfinishedSession {
+  sessionTitle: string
+  category: string
+  categoryColor: string
+  progress: number
+  durationRemaining: string
+}
+
+const CATEGORY_COLORS: Record<string, string> = {
+  'Sleep & Relaxation': '#7c5cfc',
+  'Self-Improvement': '#f59e0b',
+  'Mental Health': '#10b981',
+  'Focus': '#3b82f6',
+  'Anxiety Relief': '#8b5cf6',
+}
+
 export function HomePage() {
   const { play } = useAudioPlayer()
   const [userName] = useKV<string>('user-name', 'Friend')
   const [timeOfDay, setTimeOfDay] = useState(getTimeOfDay())
+  const [unfinishedSession, setUnfinishedSession] = useKV<UnfinishedSession | null>(
+    'unfinished-session',
+    {
+      sessionTitle: 'Deep Sleep Journey',
+      category: 'Sleep & Relaxation',
+      categoryColor: CATEGORY_COLORS['Sleep & Relaxation'],
+      progress: 42,
+      durationRemaining: '11 min',
+    }
+  )
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -120,11 +147,36 @@ export function HomePage() {
     play(session.title, 100)
   }
 
+  const handleResumeSession = () => {
+    if (unfinishedSession) {
+      play(unfinishedSession.sessionTitle, 100)
+    }
+  }
+
+  const handleDismissSession = () => {
+    setUnfinishedSession(null)
+  }
+
   return (
     <div className="px-5 py-6">
       <h1 className="text-2xl font-medium tracking-tight mb-8">
         Good {timeOfDay}, {userName}
       </h1>
+
+      {unfinishedSession && (
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">Continue Listening</h2>
+          <ContinueListening
+            sessionTitle={unfinishedSession.sessionTitle}
+            category={unfinishedSession.category}
+            categoryColor={unfinishedSession.categoryColor}
+            progress={unfinishedSession.progress}
+            durationRemaining={unfinishedSession.durationRemaining}
+            onResume={handleResumeSession}
+            onDismiss={handleDismissSession}
+          />
+        </div>
+      )}
 
       <div className="mb-8">
         <DailyAffirmation />
