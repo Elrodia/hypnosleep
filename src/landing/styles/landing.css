@@ -1,0 +1,152 @@
+/**
+ * Landing-specific styles. Scoped via `.ls-scope` so the landing page can
+ * coexist with the in-app dark theme without fighting over variable names.
+ *
+ * We use raw CSS (not Tailwind utilities) for things that need @keyframes,
+ * @media (prefers-reduced-motion), or html-level backgrounds.
+ */
+
+.ls-scope {
+  --ls-bg: #0a0a1a;
+  --ls-surface: #12122a;
+  --ls-surface-elevated: #1a1a3a;
+  --ls-primary: #7c5cfc;
+  --ls-secondary: #5b8def;
+  --ls-gold: #f0c674;
+  --ls-text: #e8e8ff;
+  --ls-text-secondary: #9c9cb8;
+
+  background: var(--ls-bg);
+  color: var(--ls-text);
+  font-family: 'Inter', 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: 'ss01', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+}
+
+.ls-scope .ls-display {
+  font-family: 'Fraunces', 'Cormorant Garamond', 'Crimson Pro', Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+/* Subtle film-grain to combat flat digital gradients. 0.03 opacity is enough
+   to register on OLED displays without becoming noisy on low-end LCDs. */
+.ls-scope::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  z-index: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)' opacity='0.8'/></svg>");
+  mix-blend-mode: overlay;
+}
+
+/* Soft radial gradient mesh at the very top of the page — gives the hero an
+   aurora feel without needing an image request. */
+.ls-scope .ls-aurora {
+  position: absolute;
+  inset: -20% -10% auto -10%;
+  height: 90vh;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(60% 50% at 20% 30%, rgba(124, 92, 252, 0.28), transparent 70%),
+    radial-gradient(55% 45% at 80% 20%, rgba(91, 141, 239, 0.22), transparent 70%),
+    radial-gradient(50% 60% at 60% 80%, rgba(240, 198, 116, 0.08), transparent 70%);
+  filter: blur(30px);
+}
+
+/* Starfield — a single-layer fixed-position element. Uses radial-gradients
+   stacked at random-ish offsets so we don't ship any image assets. */
+.ls-scope .ls-stars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    radial-gradient(1px 1px at 10% 15%, rgba(232, 232, 255, 0.6), transparent 50%),
+    radial-gradient(1px 1px at 25% 45%, rgba(232, 232, 255, 0.4), transparent 50%),
+    radial-gradient(1.5px 1.5px at 40% 20%, rgba(232, 232, 255, 0.7), transparent 50%),
+    radial-gradient(1px 1px at 65% 70%, rgba(232, 232, 255, 0.35), transparent 50%),
+    radial-gradient(1px 1px at 80% 30%, rgba(232, 232, 255, 0.5), transparent 50%),
+    radial-gradient(1px 1px at 90% 85%, rgba(232, 232, 255, 0.45), transparent 50%),
+    radial-gradient(1.5px 1.5px at 55% 10%, rgba(232, 232, 255, 0.7), transparent 50%);
+  opacity: 0.8;
+}
+
+/* Gentle pulse on the primary CTA. Keeps user's eye on the action without a
+   loud "click me now" vibe. Amplitude tuned so it does not trigger motion
+   sensitivity complaints — reduced fully for prefers-reduced-motion. */
+@keyframes ls-pulse-kf {
+  0%, 100% { box-shadow: 0 10px 40px -10px rgba(124, 92, 252, 0.65), 0 0 0 0 rgba(124, 92, 252, 0.35); }
+  50%     { box-shadow: 0 10px 40px -10px rgba(124, 92, 252, 0.75), 0 0 0 12px rgba(124, 92, 252, 0); }
+}
+.ls-scope .ls-pulse { animation: ls-pulse-kf 3s ease-in-out infinite; }
+
+/* Morphing hypnotic orb — pure CSS so it costs zero JS and ~0 kb. */
+@keyframes ls-orb-rot { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes ls-orb-breathe {
+  0%, 100% { transform: scale(1); filter: blur(40px); }
+  50%      { transform: scale(1.06); filter: blur(50px); }
+}
+.ls-scope .ls-orb {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+}
+.ls-scope .ls-orb-inner,
+.ls-scope .ls-orb-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+}
+.ls-scope .ls-orb-inner {
+  background:
+    conic-gradient(from 0deg,
+      #7c5cfc 0deg,
+      #5b8def 90deg,
+      #3a2a8c 180deg,
+      #7c5cfc 270deg,
+      #5b8def 360deg);
+  animation: ls-orb-rot 24s linear infinite;
+  mask: radial-gradient(circle, black 55%, transparent 70%);
+}
+.ls-scope .ls-orb-glow {
+  background: radial-gradient(circle, rgba(124, 92, 252, 0.55), transparent 65%);
+  animation: ls-orb-breathe 6s ease-in-out infinite;
+}
+
+/* Animated connector dot for How It Works. Falls back gracefully when JS
+   fails to measure the line. */
+@keyframes ls-travel {
+  from { offset-distance: 0%; }
+  to   { offset-distance: 100%; }
+}
+
+/* Respect user settings. prefers-reduced-motion MUST kill every animation. */
+@media (prefers-reduced-motion: reduce) {
+  .ls-scope .ls-pulse,
+  .ls-scope .ls-orb-inner,
+  .ls-scope .ls-orb-glow {
+    animation: none !important;
+  }
+  .ls-scope * { scroll-behavior: auto !important; }
+}
+
+/* Smooth scroll only when the user has not requested reduced motion. */
+.ls-scope { scroll-behavior: smooth; }
+
+/* Focus rings visible and purple everywhere (accessibility req). */
+.ls-scope a:focus-visible,
+.ls-scope button:focus-visible {
+  outline: 2px solid var(--ls-primary);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
