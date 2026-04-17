@@ -105,7 +105,7 @@ export function createAudioGenerationWorker(): Worker {
       concurrency: 2,
       limiter: {
         max: 5,
-        duration: 60000, // Max 5 jobs per minute (respects Gemini 15 RPM limit)
+        duration: 60000, // Max 5 jobs per minute
       },
     },
   );

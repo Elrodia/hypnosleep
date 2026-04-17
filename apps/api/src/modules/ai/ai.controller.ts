@@ -172,7 +172,9 @@ export function handleSessionEvents(
     'X-Accel-Buffering': 'no',
   });
 
-  res.write(`data: ${JSON.stringify({ step: 'connected', sessionId, progress: 0, message: 'Connected to generation stream' })}\n\n`);
+  // Send an SSE comment as an initial connection acknowledgement without
+  // emitting an out-of-contract GenerationProgressEvent payload.
+  res.write(`: connected to generation stream for session ${sessionId}\n\n`);
 
   // In production, this would subscribe to a Redis pub/sub channel
   // keyed by sessionId and forward events to the SSE stream.

@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai';
 import { logger } from '../../utils/logger.js';
-import { externalApiError, generationFailed } from '../../utils/errors.js';
+import { externalApiError, generationFailed, AppError } from '../../utils/errors.js';
 import type {
   GenerateSessionInput,
   ScriptGenerationResult,
@@ -133,7 +133,7 @@ export async function generateScript(
       generationMs,
     };
   } catch (err) {
-    if (err instanceof Error && err.name === 'AppError') {
+    if (err instanceof AppError) {
       throw err;
     }
 
@@ -177,7 +177,7 @@ Respond with ONLY the rewritten paragraph, no explanations or additional text.`;
 
     return text;
   } catch (err) {
-    if (err instanceof Error && err.name === 'AppError') {
+    if (err instanceof AppError) {
       throw err;
     }
 
