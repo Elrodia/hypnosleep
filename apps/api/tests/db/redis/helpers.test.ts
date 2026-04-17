@@ -62,16 +62,19 @@ function createFakeRedis() {
       }
       return Promise.resolve(op());
     },
-    zrange(key: string, start: number, stop: number, _opt?: 'WITHSCORES') {
+    zrange(key: string, start: number, stop: number, opt?: 'WITHSCORES') {
       const op = () => {
         const z = getZset(key);
         const end = stop === -1 ? z.length - 1 : stop;
         const slice = z.slice(start, end + 1);
-        const out: string[] = [];
-        for (const e of slice) {
-          out.push(e.member, String(e.score));
+        if (opt === 'WITHSCORES') {
+          const out: string[] = [];
+          for (const e of slice) {
+            out.push(e.member, String(e.score));
+          }
+          return out;
         }
-        return out;
+        return slice.map((e) => e.member);
       };
       if (inTx) {
         txOps.push(op);
