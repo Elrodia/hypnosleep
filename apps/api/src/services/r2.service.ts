@@ -9,21 +9,24 @@ import { logger } from '../utils/logger.js';
 let s3Client: S3Client | null = null;
 
 /**
- * Returns the S3-compatible Cloudflare R2 client.
+ * Returns the S3-compatible storage client.
  */
-function getR2Client(): S3Client {
+function getS3Client(): S3Client {
   if (!s3Client) {
-    const accountId = process.env.R2_ACCOUNT_ID;
-    const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+    const accessKeyId = process.env.S3_ACCESS_KEY;
+    const secretAccessKey = process.env.S3_SECRET_KEY;
+    const endpoint = process.env.S3_ENDPOINT;
+    const region = process.env.S3_REGION;
+    const forcePathStyle = process.env.S3_FORCE_PATH_STYLE === 'true';
 
-    if (!accountId || !accessKeyId || !secretAccessKey) {
-      throw new Error('R2 credentials are not configured');
+    if (!accessKeyId || !secretAccessKey || !endpoint || !region) {
+      throw new Error('S3 credentials are not configured');
     }
 
     s3Client = new S3Client({
-      region: 'auto',
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      region,
+      endpoint,
+      forcePathStyle,
       credentials: { accessKeyId, secretAccessKey },
     });
   }
@@ -31,11 +34,10 @@ function getR2Client(): S3Client {
   return s3Client;
 }
 
-const getBucket = () => process.env.R2_BUCKET_NAME ?? 'hypnosleep-audio';
-const getPublicUrl = () => process.env.R2_PUBLIC_URL ?? '';
+const getBucket = () => process.env.S3_BUCKET ?? 'hypnosleep-audio';
 
 /**
- * Uploads an audio file to Cloudflare R2.
+ * Uploads an audio file to S3-compatible storage.
  * @returns The public URL of the uploaded file.
  */
 export async function uploadAudio(
@@ -43,7 +45,7 @@ export async function uploadAudio(
   body: Buffer,
   contentType = 'audio/mpeg',
 ): Promise<string> {
-  const client = getR2Client();
+  const client = getS3Client();
 
   await client.send(
     new PutObjectCommand({
@@ -54,16 +56,18 @@ export async function uploadAudio(
     }),
   );
 
-  const publicUrl = `${getPublicUrl()}/${key}`;
-  logger.info({ key, publicUrl }, 'Audio uploaded to R2');
+  const endpoint = process.env.S3_ENDPOINT ?? '';
+  const bucket = getBucket();
+  const publicUrl = `${endpoint}/${bucket}/${key}`;
+  logger.info({ key, publicUrl }, 'Audio uploaded to S3');
   return publicUrl;
 }
 
 /**
- * Deletes an audio file from Cloudflare R2.
+ * Deletes an audio file from S3-compatible storage.
  */
 export async function deleteAudio(key: string): Promise<void> {
-  const client = getR2Client();
+  const client = getS3Client();
 
   await client.send(
     new DeleteObjectCommand({
@@ -72,14 +76,14 @@ export async function deleteAudio(key: string): Promise<void> {
     }),
   );
 
-  logger.info({ key }, 'Audio deleted from R2');
+  logger.info({ key }, 'Audio deleted from S3');
 }
 
 /**
- * Gets an audio file stream from Cloudflare R2.
+ * Gets an audio file stream from S3-compatible storage.
  */
 export async function getAudio(key: string): Promise<Buffer | null> {
-  const client = getR2Client();
+  const client = getS3Client();
 
   try {
     const response = await client.send(
@@ -97,7 +101,7 @@ export async function getAudio(key: string): Promise<Buffer | null> {
     }
     return Buffer.concat(chunks);
   } catch (err) {
-    logger.error({ err, key }, 'Failed to get audio from R2');
+    logger.error({ err, key }, 'Failed to get audio from S3');
     return null;
   }
 }

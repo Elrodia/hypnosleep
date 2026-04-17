@@ -25,9 +25,9 @@ declare global {
  * Returns 401 UNAUTHENTICATED on missing or invalid tokens.
  */
 export function authenticate() {
-  const secret = process.env.JWT_SECRET;
+  const secret = process.env.JWT_SECRET ?? '';
   if (!secret) {
-    throw new Error('JWT_SECRET must be set');
+    throw new Error('JWT_SECRET environment variable is not set');
   }
 
   return (req: Request, _res: Response, next: NextFunction): void => {

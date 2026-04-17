@@ -1,28 +1,9 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.coerce.number().default(3000),
-  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
-
-  FRONTEND_URL: z.string().url().default('http://localhost:5173'),
-  API_URL: z.string().url().default('http://localhost:3000'),
-
-  MYSQL_URL: z.string().min(1),
   DATABASE_URL: z.string().min(1),
+  MYSQL_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
-
-  R2_ACCOUNT_ID: z.string().min(1),
-  R2_ACCESS_KEY_ID: z.string().min(1),
-  R2_SECRET_ACCESS_KEY: z.string().min(1),
-  R2_BUCKET_NAME: z.string().default('hypnosleep-audio'),
-  R2_PUBLIC_URL: z.string().url(),
-
-  GEMINI_API_KEY: z.string().min(1),
-  GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
-
-  JWT_SECRET: z.string().min(32),
-  JWT_EXPIRES_IN: z.string().default('7d'),
 
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
@@ -30,18 +11,18 @@ const envSchema = z.object({
   GITHUB_CLIENT_SECRET: z.string().min(1),
   MICROSOFT_CLIENT_ID: z.string().min(1),
   MICROSOFT_CLIENT_SECRET: z.string().min(1),
-  MICROSOFT_TENANT_ID: z.string().default('common'),
+
+  S3_ACCESS_KEY: z.string().min(1),
+  S3_SECRET_KEY: z.string().min(1),
+  S3_BUCKET: z.string().min(1),
+  S3_ENDPOINT: z.string().min(1),
+  S3_REGION: z.string().min(1),
+  S3_FORCE_PATH_STYLE: z.string().default('false'),
 
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
   STRIPE_PRICE_MONTHLY: z.string().min(1),
-  STRIPE_PRICE_YEARLY: z.string().min(1),
-
-  RESEND_API_KEY: z.string().min(1),
-  EMAIL_FROM: z.string().email().default('hello@hypnosleep.app'),
-
-  POSTHOG_API_KEY: z.string().optional(),
-  SENTRY_DSN: z.string().optional(),
+  STRIPE_PRICE_ANNUAL: z.string().min(1),
 });
 
 export type Env = z.infer<typeof envSchema>;

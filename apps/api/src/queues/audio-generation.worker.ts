@@ -11,7 +11,7 @@ import type { AudioGenerationJobData } from '../modules/ai/ai.types.js';
  * Pipeline:
  * 1. Synthesize speech from script text via Edge TTS
  * 2. Mix voice audio with background sound via FFmpeg
- * 3. Upload the final audio to Cloudflare R2
+ * 3. Upload the final audio to S3-compatible storage
  * 4. Update session record with audio URL and status
  */
 export function createAudioGenerationWorker(): Worker {
@@ -56,9 +56,9 @@ export function createAudioGenerationWorker(): Worker {
           durationSec,
         );
 
-        // Step 3: Upload to Cloudflare R2
+        // Step 3: Upload to S3-compatible storage
         await job.updateProgress(80);
-        logger.info({ sessionId }, 'Step 3: Uploading to R2...');
+        logger.info({ sessionId }, 'Step 3: Uploading to S3...');
         const audioKey = `sessions/${userId}/${sessionId}.mp3`;
         const audioUrl = await uploadAudio(audioKey, finalAudio);
 

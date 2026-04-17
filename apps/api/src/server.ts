@@ -6,6 +6,7 @@ import { registerRoutes } from './routes.js';
 import { createAudioGenerationWorker } from './queues/audio-generation.worker.js';
 
 const PORT = parseInt(process.env.PORT ?? '3000', 10);
+const FRONTEND_URL = 'https://app.hypnosleep.app';
 
 const app = express();
 
@@ -25,7 +26,7 @@ app.use(
 
 // CORS
 app.use((_req, res, next) => {
-  const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+  const frontendUrl = FRONTEND_URL;
   res.header('Access-Control-Allow-Origin', frontendUrl);
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
