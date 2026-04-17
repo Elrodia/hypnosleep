@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../../middleware/authenticate.js';
+import { rateLimit } from '../../middleware/rate-limit.js';
+import { RATE_LIMITS } from '../../config/constants.js';
 import {
   handleGenerateSession,
   handleRegenerateParagraph,
@@ -10,12 +12,13 @@ const router = Router();
 
 /**
  * AI module routes.
- * All routes require authentication.
+ * All routes require authentication and are rate-limited.
  */
 
 /** Generate a new hypnosis session */
 router.post(
   '/sessions/generate',
+  rateLimit(RATE_LIMITS.API_GLOBAL.window, RATE_LIMITS.API_GLOBAL.max),
   authenticate(),
   handleGenerateSession,
 );
@@ -23,6 +26,7 @@ router.post(
 /** Regenerate a specific paragraph of a script */
 router.post(
   '/sessions/:id/regenerate-paragraph',
+  rateLimit(RATE_LIMITS.API_GLOBAL.window, RATE_LIMITS.API_GLOBAL.max),
   authenticate(),
   handleRegenerateParagraph,
 );
@@ -30,6 +34,7 @@ router.post(
 /** SSE endpoint for generation progress */
 router.get(
   '/sessions/:id/events',
+  rateLimit(RATE_LIMITS.API_GLOBAL.window, RATE_LIMITS.API_GLOBAL.max),
   authenticate(),
   handleSessionEvents,
 );
