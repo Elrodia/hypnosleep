@@ -8,6 +8,7 @@ import { CreatePage } from './components/pages/CreatePage'
 import { ProgressPage } from './components/pages/ProgressPage'
 import { ProfilePage } from './components/pages/ProfilePage'
 import { LoginPage } from './components/pages/LoginPage'
+import { LandingPage } from './landing/LandingPage'
 import { QuizPage } from './components/pages/QuizPage'
 import { ResultsPage } from './components/pages/ResultsPage'
 import { SplashScreen } from './components/SplashScreen'
@@ -32,6 +33,7 @@ function AppContent() {
   const [showResults, setShowResults] = useState(false)
   const [showFullPlayer, setShowFullPlayer] = useState(false)
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
+  const [showLogin, setShowLogin] = useState(false)
   const [quizData, setQuizData] = useKV<{
     selectedGoals: string[]
     preferredTime: string
@@ -141,7 +143,15 @@ function AppContent() {
   }
 
   if (!showSplash && !isLoggedIn) {
-    return <LoginPage onLogin={handleLogin} />
+    if (showLogin) {
+      return <LoginPage onLogin={handleLogin} />
+    }
+    return (
+      <LandingPage
+        onStartTrial={() => setShowLogin(true)}
+        onLogin={() => setShowLogin(true)}
+      />
+    )
   }
 
   return (
