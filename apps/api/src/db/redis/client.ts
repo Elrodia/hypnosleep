@@ -1,42 +1,41 @@
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { logger } from '../../utils/logger.js';
 
-let redisClient: Redis | null = null;
+/**
+ * Eager Redis singleton. Used for caching, rate limiting, and BullMQ
+ * queue plumbing. Throws at module load if `REDIS_URL` is unset so
+ * misconfiguration is caught at boot rather than first request.
+ */
+const url = process.env.REDIS_URL;
+if (!url) {
+  throw new Error('REDIS_URL is not set');
+}
+
+export const redis = new Redis(url, {
+  maxRetriesPerRequest: 3,
+  enableReadyCheck: true,
+  lazyConnect: false,
+});
+
+redis.on('error', (err) => {
+  logger.error({ err }, 'Redis connection error');
+});
+
+redis.on('connect', () => {
+  logger.info('Redis connected');
+});
 
 /**
- * Returns a singleton Redis client.
- * Lazily creates the connection on first call.
+ * Back-compat accessor: returns the shared `redis` instance. Kept so
+ * existing callers (queues, middleware) don't have to change imports.
  */
 export function getRedis(): Redis {
-  if (!redisClient) {
-    const url = process.env.REDIS_URL;
-    if (!url) {
-      throw new Error('REDIS_URL is not set');
-    }
-
-    redisClient = new Redis(url, {
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false,
-    });
-
-    redisClient.on('error', (err) => {
-      logger.error({ err }, 'Redis connection error');
-    });
-
-    redisClient.on('connect', () => {
-      logger.info('Redis connected');
-    });
-  }
-
-  return redisClient;
+  return redis;
 }
 
 /**
  * Closes the Redis connection gracefully.
  */
 export async function closeRedis(): Promise<void> {
-  if (redisClient) {
-    await redisClient.quit();
-    redisClient = null;
-  }
+  await redis.quit();
 }
