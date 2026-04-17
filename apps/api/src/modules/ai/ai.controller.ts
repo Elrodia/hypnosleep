@@ -6,6 +6,7 @@ import { validationFailed, rateLimitExceeded, generationFailed } from '../../uti
 import { VOICES, RATE_LIMITS } from '../../config/constants.js';
 import { proRequired } from '../../utils/errors.js';
 import { logger } from '../../utils/logger.js';
+import { getRedis } from '../../db/redis/client.js';
 import { v4 as uuidv4 } from 'uuid';
 import type { JwtPayload } from '../../middleware/authenticate.js';
 import type { GenerateSessionInput } from './ai.types.js';
@@ -43,7 +44,7 @@ export async function handleGenerateSession(
       const usageCount = await getMonthlyUsage(user.userId);
       if (usageCount >= RATE_LIMITS.AI_GENERATION_FREE) {
         throw rateLimitExceeded(
-          "You've reached your free tier generation limit",
+          'You have reached your free tier generation limit',
           {
             limit: RATE_LIMITS.AI_GENERATION_FREE,
             resetAt: getNextMonthReset(),
@@ -192,11 +193,9 @@ export function handleSessionEvents(
  * Uses Redis cache backed by the database.
  */
 async function getMonthlyUsage(userId: string): Promise<number> {
-  // In production, this reads from Redis key `usage:{userId}:{yyyymm}`
-  // and falls back to the MySQL usage_counters table.
-  // Stubbed for now — will be connected when the DB layer is wired up.
+  // Reads from Redis key `usage:{userId}:{yyyymm}`.
+  // Falls back to 0 if Redis is unavailable.
   try {
-    const { getRedis } = await import('../../db/redis/client.js');
     const redis = getRedis();
     const key = `usage:${userId}:${getCurrentPeriod()}`;
     const count = await redis.get(key);
@@ -211,7 +210,6 @@ async function getMonthlyUsage(userId: string): Promise<number> {
  */
 async function incrementMonthlyUsage(userId: string): Promise<void> {
   try {
-    const { getRedis } = await import('../../db/redis/client.js');
     const redis = getRedis();
     const key = `usage:${userId}:${getCurrentPeriod()}`;
     await redis.incr(key);
