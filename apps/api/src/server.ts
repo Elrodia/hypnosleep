@@ -1,12 +1,13 @@
 import express from 'express';
 import pinoHttp from 'pino-http';
+import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { registerRoutes } from './routes.js';
 import { createAudioGenerationWorker } from './queues/audio-generation.worker.js';
 
-const PORT = parseInt(process.env.PORT ?? '3000', 10);
-const FRONTEND_URL = 'https://app.hypnosleep.app';
+const PORT = env.PORT;
+const FRONTEND_URL = env.FRONTEND_URL;
 
 const app = express();
 
@@ -50,10 +51,10 @@ app.use(errorHandler);
 let worker: ReturnType<typeof createAudioGenerationWorker> | null = null;
 
 app.listen(PORT, () => {
-  logger.info({ port: PORT, env: process.env.NODE_ENV }, '🚀 HypnoSleep API server started');
+  logger.info({ port: PORT, env: env.NODE_ENV }, '🚀 HypnoSleep API server started');
 
   // Start the audio generation worker if Redis is configured
-  if (process.env.REDIS_URL) {
+  if (env.REDIS_URL) {
     try {
       worker = createAudioGenerationWorker();
       logger.info('Audio generation worker started');

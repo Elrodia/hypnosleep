@@ -23,14 +23,21 @@ declare global {
  * Express middleware to validate JWT bearer tokens.
  * Attaches decoded payload to `req.user` on success.
  * Returns 401 UNAUTHENTICATED on missing or invalid tokens.
+ *
+ * `JWT_SECRET` is validated in the central env schema at startup, so in
+ * normal operation it will already be present. The secret is looked up per
+ * request (rather than at factory time) so that a missing value does not
+ * throw synchronously during route registration — instead it surfaces as a
+ * 401 via `next(err)` and can be handled by the global error middleware.
  */
 export function authenticate() {
-  const secret = process.env.JWT_SECRET ?? '';
-  if (!secret) {
-    throw new Error('JWT_SECRET environment variable is not set');
-  }
-
   return (req: Request, _res: Response, next: NextFunction): void => {
+    const secret = process.env.JWT_SECRET ?? '';
+    if (!secret) {
+      next(unauthenticated('Authentication is not configured'));
+      return;
+    }
+
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
       next(unauthenticated('Missing or invalid Authorization header'));

@@ -17,9 +17,10 @@ function getS3Client(): S3Client {
     const secretAccessKey = process.env.S3_SECRET_KEY;
     const endpoint = process.env.S3_ENDPOINT;
     const region = process.env.S3_REGION;
+    const bucket = process.env.S3_BUCKET;
     const forcePathStyle = process.env.S3_FORCE_PATH_STYLE === 'true';
 
-    if (!accessKeyId || !secretAccessKey || !endpoint || !region) {
+    if (!accessKeyId || !secretAccessKey || !endpoint || !region || !bucket) {
       throw new Error('S3 credentials are not configured');
     }
 
@@ -34,7 +35,13 @@ function getS3Client(): S3Client {
   return s3Client;
 }
 
-const getBucket = () => process.env.S3_BUCKET ?? 'hypnosleep-audio';
+const getBucket = (): string => {
+  const bucket = process.env.S3_BUCKET;
+  if (!bucket) {
+    throw new Error('S3_BUCKET environment variable is not set');
+  }
+  return bucket;
+};
 
 /**
  * Uploads an audio file to S3-compatible storage.

@@ -19,7 +19,11 @@ const windowStore = new Map<string, { count: number; resetAt: number }>();
 export function rateLimit(windowSec: number, maxRequests: number) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
-    const route = req.baseUrl + req.path;
+    // Use the matched route pattern (e.g. `/sessions/:id`) rather than the
+    // concrete request path so clients cannot bypass the limit by varying
+    // dynamic path segments.
+    const routePattern = req.route?.path ?? req.path;
+    const route = `${req.baseUrl}${routePattern}`;
     const key = `ratelimit:${ip}:${route}`;
     const now = Date.now();
 
@@ -91,8 +95,10 @@ export function rateLimit(windowSec: number, maxRequests: number) {
   };
 }
 
-// Periodically clean up expired in-memory entries
-setInterval(() => {
+// Periodically clean up expired in-memory entries. `.unref()` so the timer
+// does not keep the Node event loop alive on its own — important for CLI
+// tooling and test runners that import this module indirectly.
+const cleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of windowStore) {
     if (now >= entry.resetAt) {
@@ -100,6 +106,7 @@ setInterval(() => {
     }
   }
 }, 60000);
+cleanupInterval.unref();
 
 /**
  * Clears the in-memory rate limit store (for testing).
