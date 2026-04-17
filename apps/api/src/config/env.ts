@@ -29,7 +29,10 @@ const envSchema = z.object({
   S3_BUCKET: z.string().min(1),
   S3_ENDPOINT: z.string().min(1),
   S3_REGION: z.string().min(1),
-  S3_FORCE_PATH_STYLE: z.string().min(1),
+  // Consumed at runtime as `process.env.S3_FORCE_PATH_STYLE === 'true'`
+  // (see `r2.service.ts`), so validate it as an explicit boolean-ish
+  // enum with a safe default instead of a required opaque string.
+  S3_FORCE_PATH_STYLE: z.enum(['true', 'false']).default('false'),
 
   // --- Billing (Stripe) ----------------------------------------------------
   STRIPE_SECRET_KEY: z.string().min(1),
@@ -38,9 +41,13 @@ const envSchema = z.object({
   STRIPE_PRICE_ANNUAL: z.string().min(1),
 
   // --- Client-visible Stripe config (Vite, injected at build time) ---------
-  VITE_STRIPE_PUBLISHABLE_KEY: z.string().min(1),
-  VITE_STRIPE_MONTHLY_LINK: z.string().min(1),
-  VITE_STRIPE_ANNUAL_LINK: z.string().min(1),
+  // These are frontend build-time variables and are not consumed by the
+  // API at runtime. Keep them in the schema for documentation but make
+  // them optional so the API doesn't refuse to boot in environments
+  // that don't set Vite client vars.
+  VITE_STRIPE_PUBLISHABLE_KEY: z.string().min(1).optional(),
+  VITE_STRIPE_MONTHLY_LINK: z.string().min(1).optional(),
+  VITE_STRIPE_ANNUAL_LINK: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
