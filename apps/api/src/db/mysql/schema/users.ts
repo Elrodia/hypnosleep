@@ -5,7 +5,6 @@ import {
   json,
   mysqlEnum,
   uniqueIndex,
-  index,
 } from 'drizzle-orm/mysql-core';
 import { sql } from 'drizzle-orm';
 
@@ -41,8 +40,10 @@ export const users = mysqlTable(
       .onUpdateNow(),
   },
   (t) => ({
+    // `email` is already `.unique()`, which creates a unique B-tree index
+    // in MySQL; a second non-unique index on the same column would be
+    // redundant and just add write/storage overhead.
     oauthLookup: uniqueIndex('users_oauth_lookup').on(t.oauthProvider, t.oauthId),
-    emailIdx: index('users_email_idx').on(t.email),
   }),
 );
 
