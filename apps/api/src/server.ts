@@ -43,7 +43,7 @@ app.set('trust proxy', 1);
 
 // --- Security -------------------------------------------------------------
 // `helmet` ships strong defaults; disable CSP (API returns JSON, not HTML)
-// and relax COR so cross-origin consumers (the SPA on a different origin,
+// and relax CORP so cross-origin consumers (the SPA on a different origin,
 // or S3/R2 media responses) aren't blocked.
 app.use(
   helmet({

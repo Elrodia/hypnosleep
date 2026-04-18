@@ -53,8 +53,8 @@ describe.skipIf(!API)('smoke tests', () => {
   });
 
   it('rate limits aggressive callers', async () => {
-    // The IP limiter is 100 req/min, so 120 in quick succession should
-    // produce at least a few 429s even under heavy platform variance.
+    // The IP limiter is 100 req per 60 s, so 120 in quick succession
+    // should produce at least a few 429s even under heavy platform variance.
     const promises = Array.from({ length: 120 }, () => fetch(`${API}/api/health`));
     const responses = await Promise.all(promises);
     const rateLimited = responses.filter((r) => r.status === 429);
