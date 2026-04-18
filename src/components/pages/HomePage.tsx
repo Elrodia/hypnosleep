@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
 import { useKV } from '@/hooks/use-kv'
+import { useAuth } from '@/lib/auth-context'
 import { Play, Leaf, Star, Cloud, Eye, Heart, CaretRight, TrendUp, Headphones } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import { StreakWidget } from '@/components/StreakWidget'
 import { DailyAffirmation } from '@/components/DailyAffirmation'
 import { ContinueListening } from '@/components/ContinueListening'
+import { getTrendingSessions, type SessionSummary } from '@/lib/api-endpoints'
+import { formatCategory } from '@/lib/session-ui'
 
 function getTimeOfDay(): string {
   const hour = new Date().getHours()
@@ -120,18 +124,19 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export function HomePage() {
   const { play } = useAudioPlayer()
-  const [userName] = useKV<string>('user-name', 'Friend')
+  const { user } = useAuth()
+  const userName = user?.name?.split(' ')[0] ?? 'Friend'
   const [timeOfDay, setTimeOfDay] = useState(getTimeOfDay())
   const [unfinishedSession, setUnfinishedSession] = useKV<UnfinishedSession | null>(
     'unfinished-session',
-    {
-      sessionTitle: 'Deep Sleep Journey',
-      category: 'Sleep & Relaxation',
-      categoryColor: CATEGORY_COLORS['Sleep & Relaxation'],
-      progress: 42,
-      durationRemaining: '11 min',
-    }
+    null,
   )
+
+  const { data: trending } = useQuery({
+    queryKey: ['sessions', 'trending'],
+    queryFn: getTrendingSessions,
+    staleTime: 5 * 60 * 1000,
+  })
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -149,8 +154,13 @@ export function HomePage() {
     play(`${session.title} Session`, session.category, 300)
   }
 
-  const handlePopularSession = (session: PopularSession) => {
-    play(session.title, session.category, 600)
+  const handleTrendingSession = (session: SessionSummary) => {
+    play({
+      sessionId: session.status === 'ready' ? session.id : undefined,
+      title: session.title,
+      category: formatCategory(session.category),
+      duration: session.durationSec,
+    })
   }
 
   const handleResumeSession = () => {
@@ -309,50 +319,73 @@ export function HomePage() {
 
         <div className="overflow-x-auto -mx-5 px-5 pb-2 snap-x snap-mandatory scrollbar-hide">
           <div className="flex gap-4 w-max">
-            {popularSessions.map((session) => (
-              <motion.button
-                key={session.id}
-                onClick={() => handlePopularSession(session)}
-                className="snap-start flex-shrink-0 w-44 rounded-2xl overflow-hidden bg-card shadow-lg hover:shadow-xl transition-shadow"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              >
-                <div className="relative">
-                  <div className={`h-56 bg-gradient-to-br ${session.gradient} relative overflow-hidden`}>
-                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_50%_120%,_rgba(255,255,255,0.8),_transparent_70%)]" />
-                    
-                    <div className="absolute top-3 left-3">
-                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-black/30 backdrop-blur-sm text-white border border-white/20">
-                        {session.category}
-                      </span>
+            {(trending ?? popularSessions).map((session) => {
+              // Normalise summary / mock shape into one card model.
+              const isRemote = 'id' in session && 'durationSec' in session
+              const key = session.id
+              const title = session.title
+              const category = isRemote
+                ? formatCategory((session as SessionSummary).category)
+                : (session as PopularSession).category
+              const playCount = isRemote
+                ? String((session as SessionSummary).playCount ?? 0)
+                : (session as PopularSession).playCount
+              const duration = isRemote
+                ? `${Math.max(1, Math.round((session as SessionSummary).durationSec / 60))} min`
+                : (session as PopularSession).duration
+              const gradient = isRemote
+                ? 'from-indigo-600 via-purple-600 to-pink-600'
+                : (session as PopularSession).gradient
+
+              return (
+                <motion.button
+                  key={key}
+                  onClick={() =>
+                    isRemote
+                      ? handleTrendingSession(session as SessionSummary)
+                      : play((session as PopularSession).title, (session as PopularSession).category, 600)
+                  }
+                  className="snap-start flex-shrink-0 w-44 rounded-2xl overflow-hidden bg-card shadow-lg hover:shadow-xl transition-shadow"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                >
+                  <div className="relative">
+                    <div className={`h-56 bg-gradient-to-br ${gradient} relative overflow-hidden`}>
+                      <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_50%_120%,_rgba(255,255,255,0.8),_transparent_70%)]" />
+
+                      <div className="absolute top-3 left-3">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-black/30 backdrop-blur-sm text-white border border-white/20">
+                          {category}
+                        </span>
+                      </div>
+
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-16 h-16 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-xl">
+                          <Play weight="fill" size={24} className="text-primary ml-1" />
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-16 h-16 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-xl">
-                        <Play weight="fill" size={24} className="text-primary ml-1" />
+                    <div className="p-4 text-left">
+                      <h3 className="font-semibold text-sm mb-3 line-clamp-2 leading-snug">
+                        {title}
+                      </h3>
+
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <Headphones weight="fill" size={14} />
+                          <span className="font-medium">{playCount}</span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded-full bg-muted text-foreground font-medium">
+                          {duration}
+                        </span>
                       </div>
                     </div>
                   </div>
-
-                  <div className="p-4 text-left">
-                    <h3 className="font-semibold text-sm mb-3 line-clamp-2 leading-snug">
-                      {session.title}
-                    </h3>
-                    
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <Headphones weight="fill" size={14} />
-                        <span className="font-medium">{session.playCount}</span>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-full bg-muted text-foreground font-medium">
-                        {session.duration}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </motion.button>
-            ))}
+                </motion.button>
+              )
+            })}
           </div>
         </div>
       </div>

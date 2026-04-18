@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { useKV } from '@/hooks/use-kv'
+import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
+import { getMoodTrend, type MoodTrendPoint } from '@/lib/api-endpoints'
 
 interface MoodRating {
   date: string
@@ -33,23 +34,26 @@ const MOOD_LABELS = {
 }
 
 export function MoodTrend() {
-  const [moodRatings] = useKV<MoodRating[]>('mood-ratings', [])
+  const { data: trend } = useQuery({
+    queryKey: ['progress', 'mood-trend', 30],
+    queryFn: () => getMoodTrend(30),
+  })
   const [tooltip, setTooltip] = useState<TooltipData | null>(null)
 
-  const last30DaysData = useMemo(() => {
-    const today = new Date()
-    const thirtyDaysAgo = new Date(today)
-    thirtyDaysAgo.setDate(today.getDate() - 29)
-
-    const ratingsInRange = (moodRatings || []).filter((rating) => {
-      const ratingDate = new Date(rating.date)
-      return ratingDate >= thirtyDaysAgo && ratingDate <= today
-    })
-
-    return ratingsInRange.sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  // Backend aggregates ratings per day (`avgRating`). Map to the
+  // chart's legacy shape so the rest of the component is unchanged.
+  const last30DaysData = useMemo<MoodRating[]>(() => {
+    if (!trend) return []
+    const points = [...trend].sort(
+      (a: MoodTrendPoint, b: MoodTrendPoint) =>
+        new Date(a.date).getTime() - new Date(b.date).getTime(),
     )
-  }, [moodRatings])
+    return points.map((p) => ({
+      date: p.date,
+      mood: Math.max(1, Math.min(5, Math.round(p.avgRating))),
+      sessionName: p.count === 1 ? '1 rating' : `${p.count} ratings`,
+    }))
+  }, [trend])
 
   const averageMood = useMemo(() => {
     if (last30DaysData.length === 0) return 0

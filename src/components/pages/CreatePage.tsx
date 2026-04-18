@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useKV } from '@/hooks/use-kv'
+import { useState, useEffect, useRef } from 'react'
+import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Slider } from '@/components/ui/slider'
@@ -12,17 +12,22 @@ import { SessionPreviewScreen } from '@/components/SessionPreviewScreen'
 import { ScriptEditorModal } from '@/components/ScriptEditorModal'
 import { RecentCreations } from '@/components/RecentCreations'
 import { PaywallModal } from '@/components/PaywallModal'
+import { useAuth } from '@/lib/auth-context'
+import {
+  generateSession,
+  getSession,
+  listSessions,
+  regenerateSessionAudio,
+  deleteSession,
+  type SessionDetail,
+} from '@/lib/api-endpoints'
+import { ApiError } from '@/lib/api'
+import { getAuthToken } from '@/lib/auth'
+import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
+import { formatCategory, CATEGORY_GRADIENTS } from '@/lib/session-ui'
 
-interface LibrarySession {
-  id: string
-  title: string
-  category: 'Sleep' | 'Confidence' | 'Fears' | 'Habits' | 'Focus' | 'Custom'
-  duration: string
-  gradient: string
-  playCount: number
-  createdAt: number
-  isFavorited?: boolean
-}
+// Backend is the source of truth for library sessions — the old local
+// `useKV('library-sessions')` state is no longer used here.
 
 const PLACEHOLDER_EXAMPLES = [
   'Help me fall asleep in 10 minutes',
@@ -39,81 +44,29 @@ interface QuickTemplate {
   prompt: string
   voice: string
   duration: number
+  category: string
 }
 
 const QUICK_TEMPLATES: QuickTemplate[] = [
-  {
-    id: 'sleep-10',
-    label: 'Sleep in 10 min',
-    icon: Moon,
-    prompt: 'Help me fall asleep quickly with deep relaxation in 10 minutes',
-    voice: 'soft-whisper',
-    duration: 10,
-  },
-  {
-    id: 'morning-confidence',
-    label: 'Morning Confidence',
-    icon: Sun,
-    prompt: 'Boost my confidence and energy for a successful day ahead',
-    voice: 'calm-female',
-    duration: 10,
-  },
-  {
-    id: 'quit-smoking',
-    label: 'Quit Smoking',
-    icon: Prohibit,
-    prompt: 'Strengthen my resolve to quit smoking and overcome cravings',
-    voice: 'deep-male',
-    duration: 15,
-  },
-  {
-    id: 'exam-calm',
-    label: 'Exam Calm',
-    icon: BookOpen,
-    prompt: 'Release test anxiety and boost focus for my upcoming exam',
-    voice: 'calm-female',
-    duration: 15,
-  },
-  {
-    id: 'fear-release',
-    label: 'Fear Release',
-    icon: LockKeyOpen,
-    prompt: 'Let go of my fears and embrace courage and confidence',
-    voice: 'gentle-british',
-    duration: 20,
-  },
-  {
-    id: 'deep-focus',
-    label: 'Deep Focus',
-    icon: Eye,
-    prompt: 'Enter a state of deep focus and concentration for important work',
-    voice: 'deep-male',
-    duration: 15,
-  },
-  {
-    id: 'weight-control',
-    label: 'Weight Control',
-    icon: AppleLogo,
-    prompt: 'Develop healthy eating habits and positive body image',
-    voice: 'calm-female',
-    duration: 20,
-  },
-  {
-    id: 'pain-relief',
-    label: 'Pain Relief',
-    icon: FirstAid,
-    prompt: 'Reduce physical discomfort and promote natural healing',
-    voice: 'soft-whisper',
-    duration: 15,
-  },
+  { id: 'sleep-10', label: 'Sleep in 10 min', icon: Moon, prompt: 'Help me fall asleep quickly with deep relaxation in 10 minutes', voice: 'en-US-AriaNeural', duration: 10, category: 'sleep' },
+  { id: 'morning-confidence', label: 'Morning Confidence', icon: Sun, prompt: 'Boost my confidence and energy for a successful day ahead', voice: 'en-US-AnaNeural', duration: 10, category: 'confidence' },
+  { id: 'quit-smoking', label: 'Quit Smoking', icon: Prohibit, prompt: 'Strengthen my resolve to quit smoking and overcome cravings', voice: 'en-US-GuyNeural', duration: 15, category: 'habits' },
+  { id: 'exam-calm', label: 'Exam Calm', icon: BookOpen, prompt: 'Release test anxiety and boost focus for my upcoming exam', voice: 'en-US-AnaNeural', duration: 15, category: 'focus' },
+  { id: 'fear-release', label: 'Fear Release', icon: LockKeyOpen, prompt: 'Let go of my fears and embrace courage and confidence', voice: 'en-GB-SoniaNeural', duration: 20, category: 'fears' },
+  { id: 'deep-focus', label: 'Deep Focus', icon: Eye, prompt: 'Enter a state of deep focus and concentration for important work', voice: 'en-US-GuyNeural', duration: 15, category: 'focus' },
+  { id: 'weight-control', label: 'Weight Control', icon: AppleLogo, prompt: 'Develop healthy eating habits and positive body image', voice: 'en-US-AnaNeural', duration: 20, category: 'habits' },
+  { id: 'pain-relief', label: 'Pain Relief', icon: FirstAid, prompt: 'Reduce physical discomfort and promote natural healing', voice: 'en-US-AriaNeural', duration: 15, category: 'custom' },
 ]
 
+// Voice IDs match the backend `VOICES` registry (Azure TTS names); the
+// user-facing label is the only part we render.
 const VOICE_OPTIONS = [
-  { id: 'calm-female', label: 'Calm Female' },
-  { id: 'deep-male', label: 'Deep Male' },
-  { id: 'soft-whisper', label: 'Soft Whisper' },
-  { id: 'gentle-british', label: 'Gentle British' },
-  { id: 'warm-australian', label: 'Warm Australian' },
+  { id: 'en-US-AnaNeural', label: 'Calm Female', pro: false },
+  { id: 'en-US-GuyNeural', label: 'Deep Male', pro: false },
+  { id: 'en-US-AriaNeural', label: 'Soft Whisper', pro: true },
+  { id: 'en-GB-SoniaNeural', label: 'Gentle British', pro: true },
+  { id: 'en-AU-NatashaNeural', label: 'Warm Australian', pro: true },
+  { id: 'en-US-DavisNeural', label: 'Steady Guide', pro: true },
 ]
 
 const BACKGROUND_SOUNDS = [
@@ -132,15 +85,32 @@ const INDUCTION_STYLES = [
 
 type DepthLevel = 'light' | 'medium' | 'deep'
 
-const PREMIUM_VOICES = ['gentle-british', 'warm-australian']
-const FREE_SESSION_LIMIT = 3
+/**
+ * Heuristic mapping from free-text prompts to backend category slugs.
+ * Order matters: the first keyword that matches wins. Falls back to
+ * `custom` when nothing matches.
+ */
+function inferCategory(prompt: string): string {
+  const lower = prompt.toLowerCase()
+  if (/\b(sleep|insomnia|rest)\b/.test(lower)) return 'sleep'
+  if (/\b(confidence|self[- ]esteem|assertive)\b/.test(lower)) return 'confidence'
+  if (/\b(fear|phobia|anxious|anxiety|panic)\b/.test(lower)) return 'fears'
+  if (/\b(habit|smoking|weight|eating|drinking)\b/.test(lower)) return 'habits'
+  if (/\b(focus|concentration|study|exam)\b/.test(lower)) return 'focus'
+  return 'custom'
+}
 
 export function CreatePage() {
-  const [sessions, setSessions] = useKV<LibrarySession[]>('library-sessions', [])
+  const { user } = useAuth()
+  const isPro = user?.plan === 'pro'
+  const qc = useQueryClient()
+  const { play } = useAudioPlayer()
+
   const [inputValue, setInputValue] = useState('')
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
   const [isGenerating, setIsGenerating] = useState(false)
-  const [selectedVoice, setSelectedVoice] = useState('calm-female')
+  const [selectedVoice, setSelectedVoice] = useState('en-US-AnaNeural')
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [sessionLength, setSessionLength] = useState([15])
   const [backgroundSound, setBackgroundSound] = useState('rain')
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
@@ -148,93 +118,165 @@ export function CreatePage() {
   const [depthLevel, setDepthLevel] = useState<DepthLevel>('medium')
   const [wakeUpEnding, setWakeUpEnding] = useState(true)
   const [showPreview, setShowPreview] = useState(false)
-  const [generatedSession, setGeneratedSession] = useState<LibrarySession | null>(null)
+  const [generatedSession, setGeneratedSession] = useState<SessionDetail | null>(null)
   const [showScriptEditor, setShowScriptEditor] = useState(false)
-  const [scriptText, setScriptText] = useState('')
   const [showPaywall, setShowPaywall] = useState(false)
   const [paywallTrigger, setPaywallTrigger] = useState<'session-limit' | 'premium-voice'>('session-limit')
-  const [isPro, setIsPro] = useKV<boolean>('is-pro-user', false)
+
+  // Holds the current SSE EventSource so we can close it on cancel /
+  // unmount. Kept in a ref so re-renders don't orphan subscriptions.
+  const eventSourceRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
     const interval = setInterval(() => {
       setPlaceholderIndex((prev) => (prev + 1) % PLACEHOLDER_EXAMPLES.length)
     }, 3000)
-
     return () => clearInterval(interval)
   }, [])
+
+  // Make sure any open SSE stream is closed when the component
+  // unmounts — otherwise the backend keeps a handler alive for the
+  // full 5-minute timeout.
+  useEffect(() => {
+    return () => {
+      eventSourceRef.current?.close()
+      eventSourceRef.current = null
+    }
+  }, [])
+
+  /**
+   * Subscribe to the SSE progress stream for a newly-generated
+   * session. Resolves when the backend emits a `done` event with the
+   * final (ready-state) session payload, or rejects on `error`.
+   */
+  const subscribeToGeneration = (sessionId: string) =>
+    new Promise<SessionDetail>((resolve, reject) => {
+      const token = getAuthToken()
+      if (!token) {
+        reject(new Error('Not authenticated'))
+        return
+      }
+      // EventSource can't set headers, so the backend accepts the JWT
+      // as a query param on this specific route (see authenticateFromQuery).
+      const url = `/api/sessions/${encodeURIComponent(sessionId)}/events?token=${encodeURIComponent(token)}`
+      const es = new EventSource(url)
+      eventSourceRef.current = es
+
+      const done = (fn: () => void) => {
+        es.close()
+        if (eventSourceRef.current === es) eventSourceRef.current = null
+        fn()
+      }
+
+      es.onerror = () => {
+        // The browser auto-reconnects, but once the server closes we
+        // should stop and resolve/reject based on what we already saw.
+        done(() => reject(new Error('Lost connection to generation stream')))
+      }
+
+      es.addEventListener('progress', (ev) => {
+        try {
+          const payload = JSON.parse((ev as MessageEvent).data) as { percent?: number; stage?: string }
+          void payload
+        } catch {
+          /* ignore malformed keepalives */
+        }
+      })
+
+      es.addEventListener('done', () => {
+        done(async () => {
+          try {
+            const detail = await getSession(sessionId)
+            resolve(detail)
+          } catch (err) {
+            reject(err)
+          }
+        })
+      })
+
+      es.addEventListener('error', (ev) => {
+        let message = 'Generation failed'
+        try {
+          const payload = JSON.parse((ev as MessageEvent).data ?? '{}') as { message?: string }
+          if (payload?.message) message = payload.message
+        } catch {
+          /* ignore */
+        }
+        done(() => reject(new Error(message)))
+      })
+    })
 
   const handleGenerate = async () => {
     if (!inputValue.trim()) return
 
-    if (!isPro && (sessions?.length ?? 0) >= FREE_SESSION_LIMIT) {
-      setPaywallTrigger('session-limit')
-      setShowPaywall(true)
-      return
-    }
-
     setIsGenerating(true)
+    try {
+      const category = selectedCategory ?? inferCategory(inputValue)
+      const { sessionId } = await generateSession({
+        userPrompt: inputValue.trim(),
+        durationMin: sessionLength[0],
+        voiceId: selectedVoice,
+        inductionStyle,
+        depthLevel,
+        wakeUpAtEnd: wakeUpEnding,
+        background: backgroundSound,
+        category,
+      })
 
-    setTimeout(() => {
-      const categoryMap: Record<string, LibrarySession['category']> = {
-        sleep: 'Sleep',
-        confidence: 'Confidence',
-        fear: 'Fears',
-        habit: 'Habits',
-        focus: 'Focus',
-      }
-      
-      let detectedCategory: LibrarySession['category'] = 'Custom'
-      const lowerInput = inputValue.toLowerCase()
-      for (const [key, value] of Object.entries(categoryMap)) {
-        if (lowerInput.includes(key)) {
-          detectedCategory = value
-          break
-        }
-      }
-
-      const words = inputValue.trim().split(' ')
-      const titleWords = words.slice(0, 6).join(' ')
-      const generatedTitle = titleWords.charAt(0).toUpperCase() + titleWords.slice(1)
-
-      const newSession: LibrarySession = {
-        id: `session-${Date.now()}`,
-        title: generatedTitle,
-        category: detectedCategory,
-        duration: `${sessionLength[0]} min`,
-        gradient: 'from-purple-600 to-indigo-600',
-        playCount: 0,
-        createdAt: Date.now(),
-        isFavorited: false,
-      }
-
-      setGeneratedSession(newSession)
-      setSessions((currentSessions) => [newSession, ...(currentSessions || [])])
+      const detail = await subscribeToGeneration(sessionId)
+      setGeneratedSession(detail)
+      qc.invalidateQueries({ queryKey: ['sessions'] })
       setIsGenerating(false)
       setShowPreview(true)
-    }, 28000)
+    } catch (err) {
+      setIsGenerating(false)
+      eventSourceRef.current?.close()
+      eventSourceRef.current = null
+
+      if (err instanceof ApiError) {
+        if (err.status === 402) {
+          setPaywallTrigger('session-limit')
+          setShowPaywall(true)
+          return
+        }
+        if (err.code === 'PREMIUM_VOICE') {
+          setPaywallTrigger('premium-voice')
+          setShowPaywall(true)
+          return
+        }
+        toast.error(err.message || 'Could not generate session.')
+        return
+      }
+      toast.error(err instanceof Error ? err.message : 'Generation failed')
+    }
   }
 
   const handleCancelGeneration = () => {
+    eventSourceRef.current?.close()
+    eventSourceRef.current = null
     setIsGenerating(false)
     toast.info('Session generation cancelled')
   }
 
   const handleListenNow = () => {
+    if (!generatedSession) return
+    play({
+      sessionId: generatedSession.status === 'ready' ? generatedSession.id : undefined,
+      title: generatedSession.title,
+      category: formatCategory(generatedSession.category),
+      duration: generatedSession.durationSec,
+    })
     setShowPreview(false)
-    toast.success('Starting your session...')
   }
 
   const handleEditScript = () => {
-    setScriptText(generateScriptPreview())
     setShowPreview(false)
     setShowScriptEditor(true)
   }
 
-  const handleSaveScript = (editedScript: string, modifiedSections: Set<number>) => {
-    setScriptText(editedScript)
+  const handleSaveScript = (_edited: string, _modified: Set<number>) => {
     setShowScriptEditor(false)
     setShowPreview(true)
-    toast.success(`Script updated! ${modifiedSections.size} section${modifiedSections.size !== 1 ? 's' : ''} regenerated with AI.`)
   }
 
   const handleCloseEditor = () => {
@@ -242,25 +284,40 @@ export function CreatePage() {
     setShowPreview(true)
   }
 
-  const handleRegenerate = () => {
-    setShowPreview(false)
-    handleGenerate()
+  const handleRegenerate = async () => {
+    if (!generatedSession) return
+    try {
+      await regenerateSessionAudio(generatedSession.id)
+      toast.success('Regenerating audio…')
+      setShowPreview(false)
+      qc.invalidateQueries({ queryKey: ['sessions'] })
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 402) {
+        setPaywallTrigger('session-limit')
+        setShowPaywall(true)
+        return
+      }
+      toast.error('Could not regenerate audio.')
+    }
   }
 
   const handleClosePreview = () => {
     setShowPreview(false)
     setInputValue('')
+    setGeneratedSession(null)
   }
 
   const handleTemplateSelect = (template: QuickTemplate) => {
     setInputValue(template.prompt)
     setSelectedVoice(template.voice)
     setSessionLength([template.duration])
+    setSelectedCategory(template.category)
     toast.success(`"${template.label}" template applied!`)
   }
 
   const handleVoiceSelect = (voiceId: string) => {
-    if (!isPro && PREMIUM_VOICES.includes(voiceId)) {
+    const voice = VOICE_OPTIONS.find((v) => v.id === voiceId)
+    if (voice?.pro && !isPro) {
       setPaywallTrigger('premium-voice')
       setShowPaywall(true)
       return
@@ -276,54 +333,47 @@ export function CreatePage() {
     }, 100)
   }
 
-  const handleClosePaywall = () => {
-    setShowPaywall(false)
-  }
+  const handleClosePaywall = () => setShowPaywall(false)
 
-  const handlePlaySession = (sessionId: string) => {
+  const handlePlaySession = (_sessionId: string) => {
+    // Delegated to RecentCreations / Library; we just surface a toast.
     toast.success('Starting session...')
   }
 
-  const handleEditSession = (sessionId: string) => {
-    const session = (sessions || []).find(s => s.id === sessionId)
-    if (session) {
-      setGeneratedSession(session)
-      setScriptText(generateScriptPreview())
-      setShowScriptEditor(true)
+  const handleEditSession = (_sessionId: string) => {
+    toast.info('Open the session from your library to edit its script.')
+  }
+
+  const handleRegenerateAudio = async (sessionId: string) => {
+    try {
+      await regenerateSessionAudio(sessionId)
+      toast.success('Regenerating audio…')
+      qc.invalidateQueries({ queryKey: ['sessions'] })
+    } catch {
+      toast.error('Could not regenerate.')
     }
   }
 
-  const handleRegenerateAudio = (sessionId: string) => {
-    toast.info('Regenerating audio...', { duration: 2000 })
-    setTimeout(() => {
-      toast.success('Audio regenerated!')
-    }, 3000)
-  }
-
-  const handleDeleteSession = (sessionId: string) => {
-    setSessions((currentSessions) => 
-      (currentSessions || []).filter(s => s.id !== sessionId)
-    )
-    toast.success('Session deleted')
-  }
-
-  const generateScriptPreview = () => {
-    return `Welcome to your personalized session. Find a comfortable position and allow yourself to relax completely.
-
-Take a deep breath in... and slowly let it out. With each breath, you're becoming more and more relaxed.
-
-Your body is becoming heavy and comfortable. Any tension is melting away like ice under warm sunshine.
-
-You are safe, you are calm, and you are in control. Each moment brings you deeper into this peaceful state.
-
-As you continue to relax, positive changes are taking root in your subconscious mind. You are capable, confident, and ready to embrace the transformation you seek.
-
-When you're ready, you'll return to full awareness, feeling refreshed and renewed.`
+  const handleDeleteSession = async (sessionId: string) => {
+    try {
+      await deleteSession(sessionId)
+      qc.invalidateQueries({ queryKey: ['sessions'] })
+      toast.success('Session deleted')
+    } catch {
+      toast.error('Could not delete session.')
+    }
   }
 
   const charCount = inputValue.length
   const isOverLimit = charCount > MAX_CHARS
   const isEmpty = inputValue.trim().length === 0
+
+  const previewScript = generatedSession?.scriptText ?? ''
+  const previewCategory = generatedSession ? formatCategory(generatedSession.category) : 'Custom'
+  const previewDuration = generatedSession
+    ? `${Math.round(generatedSession.durationSec / 60)} min`
+    : '15 min'
+  void CATEGORY_GRADIENTS // (retained for type-level imports)
 
   return (
     <>
@@ -398,7 +448,7 @@ When you're ready, you'll return to full awareness, feeling refreshed and renewe
               <h3 className="text-sm font-medium text-foreground">Voice</h3>
               <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
                 {VOICE_OPTIONS.map((voice) => {
-                  const isPremium = PREMIUM_VOICES.includes(voice.id)
+                  const isPremium = voice.pro
                   return (
                     <button
                       key={voice.id}
@@ -629,8 +679,7 @@ When you're ready, you'll return to full awareness, feeling refreshed and renewe
         </div>
       </div>
 
-      <RecentCreations
-        sessions={sessions || []}
+      <RecentCreationsContainer
         onPlay={handlePlaySession}
         onEdit={handleEditSession}
         onRegenerate={handleRegenerateAudio}
@@ -645,19 +694,20 @@ When you're ready, you'll return to full awareness, feeling refreshed and renewe
           <SessionPreviewScreen
             isOpen={showPreview}
             sessionTitle={generatedSession.title}
-            category={generatedSession.category}
-            duration={generatedSession.duration}
-            scriptText={scriptText || generateScriptPreview()}
+            category={previewCategory}
+            duration={previewDuration}
+            scriptText={previewScript}
             onListenNow={handleListenNow}
             onEditScript={handleEditScript}
             onRegenerate={handleRegenerate}
             onClose={handleClosePreview}
           />
-          
+
           <ScriptEditorModal
             isOpen={showScriptEditor}
             onClose={handleCloseEditor}
-            initialScript={scriptText || generateScriptPreview()}
+            initialScript={previewScript}
+            sessionId={generatedSession.id}
             onSave={handleSaveScript}
           />
         </>
@@ -671,4 +721,44 @@ When you're ready, you'll return to full awareness, feeling refreshed and renewe
       />
     </>
   )
+}
+
+/**
+ * Thin wrapper so `RecentCreations` can live in its own section of the
+ * page without CreatePage needing to re-run the sessions query at the
+ * top level. The query is shared (same key) with LibraryPage, so data
+ * is cached cross-tab.
+ */
+function RecentCreationsContainer(props: {
+  onPlay: (id: string) => void
+  onEdit: (id: string) => void
+  onRegenerate: (id: string) => void
+  onDelete: (id: string) => void
+}) {
+  const { data } = useRecentSessionsQuery()
+  return (
+    <RecentCreations
+      sessions={(data ?? []).map((s) => ({
+        id: s.id,
+        title: s.title,
+        duration: `${Math.max(1, Math.round(s.durationSec / 60))} min`,
+        createdAt: new Date(s.createdAt).getTime(),
+        playCount: s.playCount,
+      }))}
+      onPlay={props.onPlay}
+      onEdit={props.onEdit}
+      onRegenerate={props.onRegenerate}
+      onDelete={props.onDelete}
+    />
+  )
+}
+
+function useRecentSessionsQuery() {
+  return useQuery({
+    queryKey: ['sessions', { limit: 5, sort: 'newest', category: 'all', favoritesOnly: false }],
+    queryFn: async () => {
+      const env = await listSessions({ limit: 5, sort: 'newest' })
+      return env.data
+    },
+  })
 }

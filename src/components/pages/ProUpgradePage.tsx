@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Sparkle, Check, Lightning, Download, Prohibit, Waveform, Palette } from '@phosphor-icons/react'
+import { ArrowLeft, Sparkle, Check, Lightning, Download, Prohibit, Waveform, Palette, CircleNotch } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { toast } from 'sonner'
+import { createCheckoutSession } from '@/lib/api-endpoints'
 
 interface ProUpgradePageProps {
   onBack: () => void
@@ -43,21 +45,27 @@ const BENEFITS = [
 
 export function ProUpgradePage({ onBack }: ProUpgradePageProps) {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('yearly')
+  const [isLoading, setIsLoading] = useState(false)
 
   const monthlyPrice = 19.99
   const yearlyPrice = 119.99
   const yearlySavings = Math.round(((monthlyPrice * 12 - yearlyPrice) / (monthlyPrice * 12)) * 100)
 
-  const handleStartTrial = () => {
-    const stripeLink = billingCycle === 'monthly'
-      ? import.meta.env.VITE_STRIPE_MONTHLY_LINK
-      : import.meta.env.VITE_STRIPE_ANNUAL_LINK
-
-    if (stripeLink) {
-      window.open(stripeLink, '_blank', 'noopener,noreferrer')
-    } else {
-      window.dispatchEvent(new CustomEvent('show-payment-success'))
-      onBack()
+  /**
+   * Kick off a Stripe Checkout session on the backend and redirect
+   * the browser to the hosted payment page. The backend derives the
+   * price id from the `plan` string — we just pass the cycle.
+   */
+  const handleStartTrial = async () => {
+    setIsLoading(true)
+    try {
+      const { url } = await createCheckoutSession({ plan: billingCycle })
+      window.location.assign(url)
+    } catch (err) {
+      setIsLoading(false)
+      toast.error(
+        err instanceof Error ? err.message : 'Could not start checkout. Please try again.',
+      )
     }
   }
 
@@ -195,10 +203,15 @@ export function ProUpgradePage({ onBack }: ProUpgradePageProps) {
           <Button
             size="lg"
             onClick={handleStartTrial}
+            disabled={isLoading}
             className="w-full bg-gradient-to-r from-primary via-purple-600 to-primary bg-[length:200%_100%] hover:bg-[position:100%_0] transition-all duration-500 shadow-xl shadow-primary/30 text-lg font-bold h-14"
           >
-            <Sparkle size={24} weight="fill" className="mr-2" />
-            Start Free 7-Day Trial
+            {isLoading ? (
+              <CircleNotch size={24} className="mr-2 animate-spin" />
+            ) : (
+              <Sparkle size={24} weight="fill" className="mr-2" />
+            )}
+            {isLoading ? 'Redirecting…' : 'Start Free 7-Day Trial'}
           </Button>
           <p className="text-center text-sm text-muted-foreground px-4 leading-relaxed">
             Cancel anytime. No charge until trial ends.

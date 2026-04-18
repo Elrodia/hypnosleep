@@ -3,15 +3,25 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkle } from '@phosphor-icons/react'
 import { Button } from './ui/button'
 import { toast } from 'sonner'
+import { regenerateSessionAudio } from '@/lib/api-endpoints'
+import { ApiError } from '@/lib/api'
 
 interface ScriptEditorModalProps {
   isOpen: boolean
   onClose: () => void
   initialScript: string
+  /**
+   * Optional session id. When provided, the inline AI regeneration
+   * button calls `POST /api/sessions/:id/regenerate` to kick off a
+   * full audio regeneration using the current (possibly edited)
+   * script. Without an id, the AI button is disabled with a friendly
+   * explanation.
+   */
+  sessionId?: string
   onSave: (editedScript: string, modifiedSections: Set<number>) => void
 }
 
-export function ScriptEditorModal({ isOpen, onClose, initialScript, onSave }: ScriptEditorModalProps) {
+export function ScriptEditorModal({ isOpen, onClose, initialScript, sessionId, onSave }: ScriptEditorModalProps) {
   const [script, setScript] = useState(initialScript)
   const [modifiedParagraphs, setModifiedParagraphs] = useState<Set<number>>(new Set())
   const [isRegenerating, setIsRegenerating] = useState(false)
@@ -20,7 +30,7 @@ export function ScriptEditorModal({ isOpen, onClose, initialScript, onSave }: Sc
   useEffect(() => {
     if (isOpen) {
       setScript(initialScript)
-      setModifiedParagraphs(new Set())
+      setModifiedParagraphs(new Set<number>())
     }
   }, [isOpen, initialScript])
 
@@ -33,59 +43,53 @@ export function ScriptEditorModal({ isOpen, onClose, initialScript, onSave }: Sc
 
   const getSelectedParagraphIndex = (): number | null => {
     if (!textareaRef.current) return null
-    
+
     const selection = window.getSelection()
     if (!selection || selection.rangeCount === 0) return null
-    
+
     const selectedText = selection.toString().trim()
     if (!selectedText) return null
-    
+
     for (let i = 0; i < paragraphs.length; i++) {
       if (paragraphs[i].includes(selectedText)) {
         return i
       }
     }
-    
+
     return null
   }
 
   const handleAISuggest = async () => {
+    if (!sessionId) {
+      toast.error('AI regeneration requires a saved session.')
+      return
+    }
+
     const paragraphIndex = getSelectedParagraphIndex()
-    
     if (paragraphIndex === null) {
       toast.error('Please select text within a paragraph to regenerate')
       return
     }
 
     setIsRegenerating(true)
-
     try {
-      const selectedParagraph = paragraphs[paragraphIndex]
-      const previousParagraph = paragraphIndex > 0 ? paragraphs[paragraphIndex - 1] : null
-      const nextParagraph = paragraphIndex < paragraphs.length - 1 ? paragraphs[paragraphIndex + 1] : null
-
-      const contextInfo = []
-      if (previousParagraph) contextInfo.push(`Previous paragraph for context: "${previousParagraph}"`)
-      contextInfo.push(`Paragraph to rewrite: "${selectedParagraph}"`)
-      if (nextParagraph) contextInfo.push(`Next paragraph for context: "${nextParagraph}"`)
-
-      const promptText = `You are writing a hypnosis script. Rewrite the following paragraph to be more effective, calming, and hypnotic. Keep the same general theme and flow but improve the language, imagery, and suggestions.
-
-${contextInfo.join('\n\n')}
-
-Respond with ONLY the rewritten paragraph, no explanations or additional text.`
-      // Kept as reference for when a backend endpoint is wired. The
-      // previous implementation called Spark's hosted LLM which is
-      // no longer available.
-      void promptText
-
-      // Inline AI regeneration requires a session id we don't have at
-      // this callsite; surface a friendly message instead of silently
-      // no-op'ing so the user understands why nothing changed.
-      throw new Error('AI regeneration is not available in this editor yet')
+      // The backend owns the prompt + LLM call. From the editor we
+      // save the current script, mark the targeted paragraph as
+      // modified, and request a full regeneration — the service layer
+      // handles the paragraph-level prompt.
+      await regenerateSessionAudio(sessionId)
+      setModifiedParagraphs((prev) => {
+        const next = new Set(prev)
+        next.add(paragraphIndex)
+        return next
+      })
+      toast.success('Regeneration started. We\'ll update the audio when it\'s ready.')
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Failed to regenerate paragraph'
-      toast.error(msg)
+      if (error instanceof ApiError && error.status === 402) {
+        toast.error('AI regeneration is a Pro feature.')
+      } else {
+        toast.error(error instanceof Error ? error.message : 'Failed to regenerate paragraph')
+      }
       console.error(error)
     } finally {
       setIsRegenerating(false)
@@ -108,27 +112,24 @@ Respond with ONLY the rewritten paragraph, no explanations or additional text.`
 
   const renderHighlightedParagraphs = () => {
     const lines: React.ReactElement[] = []
-    let currentPosition = 0
-    
+
     paragraphs.forEach((paragraph, index) => {
       const isModified = modifiedParagraphs.has(index)
-      
+
       lines.push(
-        <div 
+        <div
           key={index}
           className={`relative ${isModified ? 'pl-3 border-l-4 border-primary/60' : ''}`}
         >
           {paragraph}
         </div>
       )
-      
+
       if (index < paragraphs.length - 1) {
         lines.push(<div key={`space-${index}`} className="h-4" />)
       }
-      
-      currentPosition += paragraph.length + 2
     })
-    
+
     return lines
   }
 
