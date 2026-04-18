@@ -13,6 +13,9 @@ const MONTHLY = 19.99
 const YEARLY = 119.99
 const YEARLY_VS_MONTHLY = MONTHLY * 12 // 239.88
 const YEARLY_SAVINGS = YEARLY_VS_MONTHLY - YEARLY // 119.88
+// Derive the toggle badge from the same constants as the price so the two
+// never drift out of sync (e.g. if pricing is tweaked in the future).
+const YEARLY_SAVINGS_PCT = Math.round((YEARLY_SAVINGS / YEARLY_VS_MONTHLY) * 100)
 
 const freeBullets = [
   '3 AI sessions / month',
@@ -70,7 +73,7 @@ export function Pricing({ onCtaClick }: PricingProps) {
                 {p === 'monthly' ? 'Monthly' : 'Yearly'}
                 {p === 'yearly' && (
                   <span className="ml-2 text-[10px] uppercase tracking-wide text-[color:var(--ls-gold)]">
-                    Save 50%
+                    Save {YEARLY_SAVINGS_PCT}%
                   </span>
                 )}
               </button>

@@ -130,18 +130,36 @@
   to   { offset-distance: 100%; }
 }
 
-/* Respect user settings. prefers-reduced-motion MUST kill every animation. */
+/* Respect user settings. prefers-reduced-motion MUST kill every animation
+   — including Tailwind `animate-*` utilities and Framer Motion transitions
+   on landing descendants — so we disable animation/transition on every
+   element inside `.ls-scope` (and the html container that owns scrolling). */
 @media (prefers-reduced-motion: reduce) {
-  .ls-scope .ls-pulse,
-  .ls-scope .ls-orb-inner,
-  .ls-scope .ls-orb-glow {
+  .ls-scope,
+  .ls-scope *,
+  .ls-scope *::before,
+  .ls-scope *::after {
     animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
-  .ls-scope * { scroll-behavior: auto !important; }
+  html:has(.ls-scope) { scroll-behavior: auto !important; }
 }
 
-/* Smooth scroll only when the user has not requested reduced motion. */
-.ls-scope { scroll-behavior: smooth; }
+/* Smooth scroll must be applied to the actual scroll container (the root
+   <html>) or in-page anchor jumps won't honor it. We scope it to pages that
+   mount `.ls-scope` so the in-app dark theme keeps its current behavior. */
+html:has(.ls-scope) { scroll-behavior: smooth; }
+
+/* Reserve room at the bottom for the fixed mobile "Start Free Trial" bar so
+   the footer / final section aren't obscured behind it. Includes the iOS
+   safe-area inset for notched devices. Only applied on viewports where the
+   sticky bar is actually rendered. */
+@media (max-width: 767px) {
+  .ls-has-sticky-cta {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+}
 
 /* Focus rings visible and purple everywhere (accessibility req). */
 .ls-scope a:focus-visible,

@@ -28,6 +28,15 @@ export function Nav({ onCtaClick, onLogin }: NavProps) {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  // Lock body scroll while the mobile drawer is open so the page behind it
+  // doesn't scroll, matching the `aria-modal="true"` semantics.
+  useEffect(() => {
+    if (!drawerOpen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [drawerOpen])
+
   const go = (href: string) => {
     posthog.capture('landing_nav_clicked', { target: href })
     setDrawerOpen(false)
@@ -92,9 +101,10 @@ export function Nav({ onCtaClick, onLogin }: NavProps) {
       {/* Mobile drawer */}
       {drawerOpen && (
         <div
-          className="fixed inset-0 z-30 md:hidden bg-[color:var(--ls-bg)]/95 backdrop-blur-xl pt-20"
+          className="fixed inset-0 z-50 md:hidden bg-[color:var(--ls-bg)]/95 backdrop-blur-xl pt-20"
           role="dialog"
           aria-modal="true"
+          aria-label="Navigation menu"
         >
           <div className="flex flex-col gap-2 px-6">
             {navLinks.map((l) => (

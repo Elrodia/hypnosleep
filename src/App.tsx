@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { TabBar, TabId } from './components/TabBar'
 import { Header } from './components/Header'
@@ -8,7 +8,11 @@ import { CreatePage } from './components/pages/CreatePage'
 import { ProgressPage } from './components/pages/ProgressPage'
 import { ProfilePage } from './components/pages/ProfilePage'
 import { LoginPage } from './components/pages/LoginPage'
-import { LandingPage } from './landing/LandingPage'
+// Lazy-load the marketing landing page so its JS and CSS are not shipped
+// with the authenticated app bundle.
+const LandingPage = lazy(() =>
+  import('./landing/LandingPage').then((m) => ({ default: m.LandingPage })),
+)
 import { QuizPage } from './components/pages/QuizPage'
 import { ResultsPage } from './components/pages/ResultsPage'
 import { SplashScreen } from './components/SplashScreen'
@@ -147,10 +151,12 @@ function AppContent() {
       return <LoginPage onLogin={handleLogin} />
     }
     return (
-      <LandingPage
-        onStartTrial={() => setShowLogin(true)}
-        onLogin={() => setShowLogin(true)}
-      />
+      <Suspense fallback={<div className="min-h-screen bg-background" />}>
+        <LandingPage
+          onStartTrial={() => setShowLogin(true)}
+          onLogin={() => setShowLogin(true)}
+        />
+      </Suspense>
     )
   }
 
