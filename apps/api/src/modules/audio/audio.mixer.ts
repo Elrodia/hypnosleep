@@ -26,8 +26,8 @@ export type BackgroundSound =
 export interface MixOptions {
   /** Absolute path to the voice MP3 produced by Edge TTS. */
   voicePath: string;
-  /** Background loop to mix in. */
-  background: BackgroundSound;
+  /** Background loop to mix in; excludes the `'silence'` skip sentinel. */
+  background: Exclude<BackgroundSound, 'silence'>;
   /** Voice gain in dB; default `0`. */
   voiceVolumeDb?: number;
   /** Background gain in dB; default `-12`. */
