@@ -250,6 +250,16 @@ const server = app.listen(PORT, () => {
 // stay comfortably under that.
 const SHUTDOWN_TIMEOUT_MS = 25_000;
 
+const closeHttpServer = (): Promise<void> =>
+  new Promise((resolve) => {
+    server.close((err) => {
+      if (err) {
+        logger.warn({ err }, 'HTTP server close reported an error');
+      }
+      resolve();
+    });
+  });
+
 const shutdown = async (signal: string) => {
   if (shuttingDown) return;
   shuttingDown = true;
@@ -259,14 +269,6 @@ const shutdown = async (signal: string) => {
   // to finish. `server.close()` is asynchronous — without awaiting it we
   // could tear down the queue/worker (or `process.exit`) while requests
   // are still being served.
-  const closeServer = new Promise<void>((resolve) => {
-    server.close((err) => {
-      if (err) {
-        logger.warn({ err }, 'HTTP server close reported an error');
-      }
-      resolve();
-    });
-  });
   const closeTimeout = new Promise<void>((resolve) => {
     const t = setTimeout(() => {
       logger.warn(
@@ -277,7 +279,7 @@ const shutdown = async (signal: string) => {
     }, SHUTDOWN_TIMEOUT_MS);
     t.unref();
   });
-  await Promise.race([closeServer, closeTimeout]);
+  await Promise.race([closeHttpServer(), closeTimeout]);
 
   try {
     if (worker) {
