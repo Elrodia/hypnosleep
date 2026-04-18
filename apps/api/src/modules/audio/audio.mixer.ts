@@ -42,20 +42,31 @@ export interface MixOptions {
  * Probes a media file for its duration in seconds using `ffprobe`.
  *
  * @returns The duration in seconds.
- * @throws {AppError} `GENERATION_FAILED` if the duration cannot be parsed.
+ * @throws {AppError} `GENERATION_FAILED` if probing fails or the duration
+ *   cannot be parsed.
  */
 async function probeDurationSec(path: string): Promise<number> {
-  const { stdout } = await execa('ffprobe', [
-    '-v', 'error',
-    '-show_entries', 'format=duration',
-    '-of', 'default=noprint_wrappers=1:nokey=1',
-    path,
-  ]);
-  const duration = parseFloat(stdout);
-  if (!isFinite(duration) || duration <= 0) {
-    throw new AppError('GENERATION_FAILED', 'Could not probe media duration', 500);
+  try {
+    const { stdout } = await execa('ffprobe', [
+      '-v', 'error',
+      '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      path,
+    ]);
+    const duration = parseFloat(stdout);
+    if (!isFinite(duration) || duration <= 0) {
+      throw new AppError('GENERATION_FAILED', `Could not probe media duration for "${path}"`, 500);
+    }
+    return duration;
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    throw new AppError(
+      'GENERATION_FAILED',
+      `ffprobe failed for "${path}": ${message}`,
+      500,
+    );
   }
-  return duration;
 }
 
 /**
