@@ -13,7 +13,7 @@ export function StreakWidget() {
     queryFn: getStreak,
   })
   const { data: heatmap } = useQuery({
-    queryKey: ['progress', 'heatmap', 7],
+    queryKey: ['progress', 'heatmap', 14],
     queryFn: () => getHeatmap(14),
   })
 
