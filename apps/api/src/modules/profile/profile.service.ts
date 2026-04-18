@@ -201,9 +201,10 @@ export async function exportUserData(userId: string) {
  *  2. Delete every S3 audio object we own for the user.
  *  3. Delete Postgres analytics rows (events, mood logs, AI audit
  *     rows, streak, weekly insights).
- *  4. Delete the MySQL user row last; `ON DELETE CASCADE` cleans up
- *     sessions, subscriptions, favorites, usage counters, and
- *     referrals in the same statement.
+ *  4. Manually delete referral rows first, then delete the MySQL
+ *     user row last; `ON DELETE CASCADE` cleans up other dependent
+ *     rows such as sessions, subscriptions, favorites, and usage
+ *     counters.
  *
  * All failures after the Stripe step propagate — if the core DB
  * delete fails the caller must see an error, not a partial state.
