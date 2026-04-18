@@ -179,6 +179,19 @@ function AppContent() {
     setRoute('app')
   }, [route, status])
 
+  // If the browser lands on `/auth/error` but the user is actually
+  // already authenticated (e.g. a replayed OAuth callback after a
+  // successful sign-in — browser back, prefetch, duplicate-tab race,
+  // or a stale one-time code), skip the failure screen and drop them
+  // into the app. Without this, a perfectly valid session would still
+  // see a "Sign-in failed" page purely because of the replay.
+  useEffect(() => {
+    if (route !== 'auth-error') return
+    if (status !== 'authenticated') return
+    clearCallbackUrl()
+    setRoute('app')
+  }, [route, status])
+
   const handleExpand = () => setShowFullPlayer(true)
   const handleCloseFullPlayer = () => setShowFullPlayer(false)
   const handleSeek = (newProgress: number) => setProgress(newProgress)
@@ -256,6 +269,17 @@ function AppContent() {
   }
 
   if (route === 'auth-error') {
+    // Wait for `/api/auth/me` to resolve before deciding. If we have a
+    // valid JWT the effect above will transition us to 'app'; in the
+    // meantime show the splash so we don't flash the error screen at a
+    // user who is actually signed in.
+    if (status === 'loading' || status === 'authenticated') {
+      return (
+        <AnimatePresence>
+          <SplashScreen />
+        </AnimatePresence>
+      )
+    }
     return (
       <AuthErrorPage
         onRetry={() => {
