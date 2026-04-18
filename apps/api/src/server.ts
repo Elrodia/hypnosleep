@@ -60,9 +60,24 @@ app.use(compression());
 // `https://app.hypnosleep.app`, so CORS headers are unnecessary (and the
 // browser never issues a preflight).
 if (!SAME_ORIGIN) {
+  // Build the allowlist from each entry's `.origin` (scheme + host + port).
+  // `FRONTEND_URL` is validated as a full URL and may include a path, but
+  // the browser's `Origin` request header is always origin-only, so a
+  // direct string compare against `FRONTEND_URL` can silently fail CORS.
+  const toOrigin = (candidate: string): string | null => {
+    try {
+      return new URL(candidate).origin;
+    } catch {
+      return null;
+    }
+  };
+  const allowedOrigins = [FRONTEND_URL, 'https://hypnosleep.app']
+    .map(toOrigin)
+    .filter((o): o is string => o !== null);
+
   app.use(
     cors({
-      origin: [FRONTEND_URL, 'https://hypnosleep.app'],
+      origin: allowedOrigins,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
@@ -229,43 +244,39 @@ const server = app.listen(PORT, () => {
 });
 
 // --- Graceful shutdown ---
-// Wrapping `server.close` in a promise lets us actually await the
-// drain before the process exits. Without this, Railway's rolling
-// deploy can SIGKILL us mid-request because `server.close()` kicks
-// off drain asynchronously but returns immediately.
-const closeHttpServer = (): Promise<void> =>
-  new Promise((resolve) => {
-    server.close((err) => {
-      if (err) {
-        // Drain errors are non-fatal — we still want to continue
-        // closing the queue, worker, and analytics — but log so
-        // operators can see when a shutdown didn't complete cleanly.
-        logger.warn({ err }, 'HTTP server close reported an error');
-      }
-      resolve();
-    });
-  });
-
-/** Hard ceiling on shutdown work. Railway sends SIGKILL ~30s after
- *  SIGTERM; exit cleanly before that so we don't lose flush buffers. */
-const SHUTDOWN_TIMEOUT_MS = 20_000;
-
-let shuttingDown = false;
+// Max time (ms) to wait for in-flight HTTP requests to drain before
+// force-exiting. Platforms like Railway send SIGKILL after ~30s, so
+// stay comfortably under that.
+const SHUTDOWN_TIMEOUT_MS = 25_000;
 
 const shutdown = async (signal: string) => {
   if (shuttingDown) return;
   shuttingDown = true;
   logger.info({ signal }, 'Received shutdown signal');
 
-  // Bound total shutdown time so a hung downstream can't keep us
-  // alive past Railway's grace period.
-  const hardTimeout = setTimeout(() => {
-    logger.warn({ ms: SHUTDOWN_TIMEOUT_MS }, 'Shutdown timeout — forcing exit');
-    process.exit(1);
-  }, SHUTDOWN_TIMEOUT_MS);
-  // Don't let the timeout itself keep the event loop alive if the
-  // clean path wins the race.
-  hardTimeout.unref();
+  // Stop accepting new HTTP connections and wait for in-flight requests
+  // to finish. `server.close()` is asynchronous — without awaiting it we
+  // could tear down the queue/worker (or `process.exit`) while requests
+  // are still being served.
+  const closeServer = new Promise<void>((resolve) => {
+    server.close((err) => {
+      if (err) {
+        logger.warn({ err }, 'HTTP server close reported an error');
+      }
+      resolve();
+    });
+  });
+  const closeTimeout = new Promise<void>((resolve) => {
+    const t = setTimeout(() => {
+      logger.warn(
+        { timeoutMs: SHUTDOWN_TIMEOUT_MS },
+        'Timed out waiting for HTTP server to close — continuing shutdown',
+      );
+      resolve();
+    }, SHUTDOWN_TIMEOUT_MS);
+    t.unref();
+  });
+  await Promise.race([closeServer, closeTimeout]);
 
   try {
     // Stop accepting new HTTP connections and wait for in-flight
@@ -287,13 +298,9 @@ const shutdown = async (signal: string) => {
       logger.warn({ err }, 'Failed to close audio queue cleanly');
     });
 
-    // Flush any pending PostHog analytics events.
-    await shutdownPostHog();
-  } finally {
-    clearTimeout(hardTimeout);
-  }
-
-  process.exit(0);
+  // Let the event loop drain naturally now that all resources are closed.
+  // (We intentionally don't call `process.exit(0)` — leaving it to the
+  // runtime means any still-pending I/O can finish flushing.)
 };
 
 process.on('SIGTERM', () => void shutdown('SIGTERM'));
