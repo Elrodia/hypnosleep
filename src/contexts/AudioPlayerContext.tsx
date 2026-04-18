@@ -181,10 +181,19 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   const resume = useCallback(() => {
     const audio = audioRef.current
-    if (audio && audio.src) {
-      void audio.play().catch(() => { /* ignore autoplay rejection */ })
-    }
-    setPlayer((prev) => ({ ...prev, isPlaying: true }))
+    if (!audio || !audio.src) return
+    // Only flip `isPlaying` to true once the browser has actually started
+    // playback. Autoplay policies, not-ready media, or a rejected play()
+    // promise would otherwise leave the UI showing "playing" while the
+    // `<audio>` element is still paused.
+    void audio
+      .play()
+      .then(() => {
+        setPlayer((prev) => ({ ...prev, isPlaying: true }))
+      })
+      .catch(() => {
+        setPlayer((prev) => ({ ...prev, isPlaying: false }))
+      })
   }, [])
 
   const recordCompletion = useCallback((snapshot: AudioPlayerState) => {

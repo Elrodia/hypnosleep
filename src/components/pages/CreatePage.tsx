@@ -24,7 +24,7 @@ import {
 import { ApiError } from '@/lib/api'
 import { getAuthToken } from '@/lib/auth'
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
-import { formatCategory, CATEGORY_GRADIENTS } from '@/lib/session-ui'
+import { formatCategory } from '@/lib/session-ui'
 
 // Backend is the source of truth for library sessions — the old local
 // `useKV('library-sessions')` state is no longer used here.
@@ -373,7 +373,6 @@ export function CreatePage() {
   const previewDuration = generatedSession
     ? `${Math.round(generatedSession.durationSec / 60)} min`
     : '15 min'
-  void CATEGORY_GRADIENTS // (retained for type-level imports)
 
   return (
     <>
