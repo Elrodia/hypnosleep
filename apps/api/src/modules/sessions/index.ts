@@ -1,11 +1,26 @@
 export { sessionsRoutes } from './sessions.routes.js';
 export {
-  createSession,
-  getSessionById,
+  createGenerationSession,
   listSessions,
-  updateSession,
+  getSessionById,
+  getAudioUrl,
   deleteSession,
-  _clearSessionStore,
+  toggleFavorite,
+  recordPlay,
+  editScript,
+  regenerateAudio,
+  getTrending,
 } from './sessions.service.js';
 export type { Session, CreateSessionInput, ListSessionsFilter } from './sessions.types.js';
-export { listSessionsSchema, sessionIdSchema } from './sessions.schema.js';
+export {
+  generateSessionSchema,
+  listSessionsQuerySchema,
+  listSessionsSchema,
+  editScriptSchema,
+  regenerateSchema,
+  sessionIdSchema,
+  type GenerateSessionInput,
+  type ListSessionsQuery,
+  type EditScriptInput,
+  type RegenerateInput,
+} from './sessions.schema.js';

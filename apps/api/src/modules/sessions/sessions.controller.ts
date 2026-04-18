@@ -1,111 +1,228 @@
 import type { Request, Response, NextFunction } from 'express';
 import {
-  getSessionById,
+  generateSessionSchema,
+  listSessionsQuerySchema,
+  editScriptSchema,
+  regenerateSchema,
+  sessionIdSchema,
+} from './sessions.schema.js';
+import {
+  createGenerationSession,
   listSessions,
+  getSessionById,
+  getAudioUrl,
   deleteSession,
+  toggleFavorite,
+  recordPlay,
+  editScript,
+  regenerateAudio,
+  getTrending,
 } from './sessions.service.js';
-import { listSessionsSchema, sessionIdSchema } from './sessions.schema.js';
-import { validationFailed, forbidden } from '../../utils/errors.js';
+import { validationFailed } from '../../utils/errors.js';
 import type { JwtPayload } from '../../middleware/authenticate.js';
 
 /**
- * GET /api/sessions
- * Lists the authenticated user's sessions.
+ * Centralised Zod-result unwrap. Surfaces field-level errors via the
+ * standard `VALIDATION_FAILED` error envelope so the global error
+ * middleware can render them.
  */
-export async function handleListSessions(
+function parseOrThrow<T>(
+  schema: { safeParse: (input: unknown) => { success: true; data: T } | { success: false; error: { flatten: () => unknown } } },
+  input: unknown,
+  message: string,
+): T {
+  const result = schema.safeParse(input);
+  if (!result.success) {
+    const flat = result.error.flatten() as { fieldErrors?: Record<string, unknown> };
+    throw validationFailed(message, { errors: flat.fieldErrors ?? flat });
+  }
+  return result.data;
+}
+
+/** POST /api/sessions/generate */
+export async function handleGenerate(
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
   try {
     const user = req.user as JwtPayload;
-    const query = listSessionsSchema.safeParse(req.query);
-
-    if (!query.success) {
-      throw validationFailed('Invalid query parameters', {
-        errors: query.error.flatten().fieldErrors,
-      });
-    }
-
-    const { page, limit, ...filters } = query.data;
-
-    const result = await listSessions({
-      userId: user.userId,
-      page,
-      limit,
-      ...filters,
-    });
-
-    res.json({
-      data: result.sessions,
-      meta: {
-        total: result.total,
-        page,
-        limit,
-      },
-    });
+    const input = parseOrThrow(
+      generateSessionSchema,
+      req.body,
+      'Invalid session generation parameters',
+    );
+    const result = await createGenerationSession(user.userId, input);
+    res.status(202).json({ data: result });
   } catch (err) {
     next(err);
   }
 }
 
-/**
- * GET /api/sessions/:id
- * Gets a specific session by ID.
- */
-export async function handleGetSession(
+/** GET /api/sessions */
+export async function handleList(
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
   try {
     const user = req.user as JwtPayload;
-    const params = sessionIdSchema.safeParse(req.params);
-
-    if (!params.success) {
-      throw validationFailed('Invalid session ID');
-    }
-
-    const session = await getSessionById(params.data.id);
-
-    // Users can only access their own sessions (or templates)
-    if (session.userId !== user.userId && !session.isTemplate) {
-      throw forbidden('You can only access your own sessions');
-    }
-
-    res.json({ data: session });
+    const query = parseOrThrow(
+      listSessionsQuerySchema,
+      req.query,
+      'Invalid query parameters',
+    );
+    const result = await listSessions(user.userId, query);
+    res.json({ data: result.items, meta: result.meta });
   } catch (err) {
     next(err);
   }
 }
 
-/**
- * DELETE /api/sessions/:id
- * Deletes a specific session.
- */
-export async function handleDeleteSession(
+/** GET /api/sessions/:id */
+export async function handleGetOne(
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
   try {
     const user = req.user as JwtPayload;
-    const params = sessionIdSchema.safeParse(req.params);
-
-    if (!params.success) {
-      throw validationFailed('Invalid session ID');
-    }
-
-    // Verify ownership before deleting
-    const session = await getSessionById(params.data.id);
-    if (session.userId !== user.userId) {
-      throw forbidden('You can only delete your own sessions');
-    }
-
-    await deleteSession(params.data.id);
-
-    res.status(204).send();
+    const { id } = parseOrThrow(sessionIdSchema, req.params, 'Invalid session ID');
+    const data = await getSessionById(user.userId, id);
+    res.json({ data });
   } catch (err) {
     next(err);
   }
 }
+
+/** GET /api/sessions/:id/audio */
+export async function handleGetAudio(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const user = req.user as JwtPayload;
+    const { id } = parseOrThrow(sessionIdSchema, req.params, 'Invalid session ID');
+    const url = await getAudioUrl(user.userId, id);
+    res.json({ data: { url } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** DELETE /api/sessions/:id */
+export async function handleDelete(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const user = req.user as JwtPayload;
+    const { id } = parseOrThrow(sessionIdSchema, req.params, 'Invalid session ID');
+    await deleteSession(user.userId, id);
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** POST /api/sessions/:id/favorite */
+export async function handleFavorite(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const user = req.user as JwtPayload;
+    const { id } = parseOrThrow(sessionIdSchema, req.params, 'Invalid session ID');
+    const favorited = await toggleFavorite(user.userId, id);
+    res.json({ data: { favorited } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** POST /api/sessions/:id/play */
+export async function handlePlay(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const user = req.user as JwtPayload;
+    const { id } = parseOrThrow(sessionIdSchema, req.params, 'Invalid session ID');
+    const result = await recordPlay(user.userId, id);
+    res.json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** PUT /api/sessions/:id/script (Pro only) */
+export async function handleEditScript(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const user = req.user as JwtPayload;
+    const { id } = parseOrThrow(sessionIdSchema, req.params, 'Invalid session ID');
+    const body = parseOrThrow(editScriptSchema, req.body, 'Invalid script body');
+    const result = await editScript(user.userId, id, body);
+    res.json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** POST /api/sessions/:id/regenerate */
+export async function handleRegenerate(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const user = req.user as JwtPayload;
+    const { id } = parseOrThrow(sessionIdSchema, req.params, 'Invalid session ID');
+    const body = parseOrThrow(
+      regenerateSchema,
+      req.body ?? {},
+      'Invalid regenerate body',
+    );
+    const result = await regenerateAudio(
+      user.userId,
+      id,
+      body,
+      user.plan === 'pro',
+    );
+    res.status(202).json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** GET /api/sessions/trending */
+export async function handleTrending(
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const data = await getTrending();
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Back-compat aliases. Older imports referenced `handleListSessions`,
+// `handleGetSession`, and `handleDeleteSession`; keep the names valid
+// so we don't break callers outside this module.
+// ─────────────────────────────────────────────────────────────────────
+export {
+  handleList as handleListSessions,
+  handleGetOne as handleGetSession,
+  handleDelete as handleDeleteSession,
+};
