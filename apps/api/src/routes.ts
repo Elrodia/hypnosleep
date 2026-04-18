@@ -17,11 +17,14 @@ export function registerRoutes(app: Express): void {
   // OAuth authentication routes (login, callback, me, logout)
   app.use('/api/auth', authRouter);
 
-  // AI generation routes (generate, regenerate, SSE events)
-  app.use('/api', aiRoutes);
-
-  // Session CRUD routes
+  // Session CRUD routes (registered BEFORE the AI router so the
+  // sessions module owns POST /sessions/generate and GET
+  // /sessions/:id/events; the AI router still handles
+  // /sessions/:id/regenerate-paragraph).
   app.use('/api/sessions', sessionsRoutes);
+
+  // AI generation routes (regenerate paragraph, etc.)
+  app.use('/api', aiRoutes);
 
   // Health check
   app.get('/api/health', (_req, res) => {
