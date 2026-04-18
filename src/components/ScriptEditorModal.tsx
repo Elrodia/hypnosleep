@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkle } from '@phosphor-icons/react'
 import { Button } from './ui/button'
 import { toast } from 'sonner'
-import { regenerateSessionAudio } from '@/lib/api-endpoints'
+import { editSessionScript, regenerateSessionAudio } from '@/lib/api-endpoints'
 import { ApiError } from '@/lib/api'
 
 interface ScriptEditorModalProps {
@@ -73,10 +73,14 @@ export function ScriptEditorModal({ isOpen, onClose, initialScript, sessionId, o
 
     setIsRegenerating(true)
     try {
-      // The backend owns the prompt + LLM call. From the editor we
-      // save the current script, mark the targeted paragraph as
-      // modified, and request a full regeneration — the service layer
-      // handles the paragraph-level prompt.
+      // Persist the user's edits first so the backend regenerates
+      // against the script currently visible in the editor — not
+      // whatever was last saved. Without this the server would
+      // regenerate the stale version and the user's changes would be
+      // silently ignored.
+      if (script !== initialScript) {
+        await editSessionScript(sessionId, script)
+      }
       await regenerateSessionAudio(sessionId)
       setModifiedParagraphs((prev) => {
         const next = new Set(prev)

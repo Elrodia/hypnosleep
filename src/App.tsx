@@ -168,6 +168,17 @@ function AppContent() {
     }
   }, [])
 
+  // Once auth has resolved on the `/auth/callback` route, clear the
+  // URL and transition to the normal app route. This lives in an
+  // effect (not inline in render) so the side effects don't fire on
+  // every re-render of the callback screen.
+  useEffect(() => {
+    if (route !== 'auth-callback') return
+    if (status === 'loading') return
+    clearCallbackUrl()
+    setRoute('app')
+  }, [route, status])
+
   const handleExpand = () => setShowFullPlayer(true)
   const handleCloseFullPlayer = () => setShowFullPlayer(false)
   const handleSeek = (newProgress: number) => setProgress(newProgress)
@@ -237,13 +248,10 @@ function AppContent() {
   // user landing on /auth/callback still sees the proper "signing in"
   // screen rather than the landing page.
   if (route === 'auth-callback') {
-    // Once auth resolves (either way), return home. If it succeeded we
-    // land in the app shell; if it failed we land on the landing page.
-    if (status !== 'loading') {
-      clearCallbackUrl()
-      // Fall-through to normal rendering by switching the route.
-      setTimeout(() => setRoute('app'), 0)
-    }
+    // The transition to the app route (and URL cleanup) is handled by
+    // the effect above; while it runs we keep showing the callback
+    // screen. Once `status` flips off 'loading', the effect swaps
+    // `route` to 'app' and we fall through to the normal render tree.
     return <AuthCallbackPage />
   }
 

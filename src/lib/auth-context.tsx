@@ -30,7 +30,7 @@ import {
   consumeOAuthCallback,
   getAuthToken,
 } from './auth'
-import { apiFetch } from './api'
+import { apiFetch, ApiError } from './api'
 import type { ProfileUser } from './api-endpoints'
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
@@ -60,7 +60,15 @@ async function fetchMe(): Promise<ProfileUser | null> {
   try {
     const data = await apiFetch<ProfileUser>('/api/auth/me', { allow401: true })
     return data
-  } catch {
+  } catch (err) {
+    // A 401 here means the stored JWT is expired/invalid. `allow401`
+    // suppresses the global unauthorized event (so no stray toast on
+    // first boot), but we still need to clear the stale token — otherwise
+    // downstream hooks like `useKV` see a token present and start
+    // issuing authenticated requests that will all 401.
+    if (err instanceof ApiError && err.status === 401) {
+      clearAuthToken()
+    }
     return null
   }
 }
