@@ -320,6 +320,32 @@ vi.mock('@/modules/subscription/stripe.client', () => ({
   },
 }));
 
+// ── Subscription service ─────────────────────────────────────────────
+// `deleteAccount` picks the "current" subscription via
+// `getCurrentSubscription` so it cancels the right row when a user has
+// multiple subscription rows. The real implementation lives in the
+// subscription module and pulls in `@/config/env`, which we don't load
+// here; mock it with a small fake that mirrors the production
+// behaviour (prefer active/trialing, fall back to any row).
+vi.mock('@/modules/subscription/subscription.service', () => ({
+  getCurrentSubscription: async (userId: string) => {
+    const rows = state.subscriptions.filter((s) => s.userId === userId);
+    if (rows.length === 0) return null;
+    const rank: Record<string, number> = {
+      trialing: 0,
+      active: 1,
+      past_due: 2,
+      incomplete: 3,
+      incomplete_expired: 4,
+      canceled: 5,
+    };
+    const sorted = [...rows].sort(
+      (a, b) => (rank[a.status] ?? 99) - (rank[b.status] ?? 99),
+    );
+    return sorted[0] ?? null;
+  },
+}));
+
 // ── S3 ───────────────────────────────────────────────────────────────
 vi.mock('@/modules/audio/audio.s3', () => ({
   deleteFile: (key: string) => {
@@ -594,5 +620,58 @@ describe('profile.service.deleteAccount', () => {
     await expect(svc.deleteAccount('ghost')).rejects.toMatchObject({
       statusCode: 404,
     });
+  });
+
+  it('skips Stripe cancellation when the current subscription is already canceled', async () => {
+    state.users.set(USER, {
+      id: USER,
+      name: 'Jane',
+      avatarUrl: null,
+      preferences: null,
+      referralCode: 'CODE',
+      referredBy: null,
+    });
+    state.subscriptions.push({
+      id: 'sub',
+      userId: USER,
+      stripeSubscriptionId: 'stripe_old',
+      status: 'canceled',
+    });
+
+    const result = await svc.deleteAccount(USER);
+    expect(result).toEqual({ ok: true });
+    // No Stripe call should happen for a terminal subscription row.
+    expect(state.stripeCanceled).toHaveLength(0);
+    expect(state.users.has(USER)).toBe(false);
+  });
+
+  it('cancels the active subscription when multiple rows exist', async () => {
+    state.users.set(USER, {
+      id: USER,
+      name: 'Jane',
+      avatarUrl: null,
+      preferences: null,
+      referralCode: 'CODE',
+      referredBy: null,
+    });
+    // Older canceled row + newer active row — deleteAccount should
+    // target the active one, not the stale canceled one.
+    state.subscriptions.push(
+      {
+        id: 'sub_old',
+        userId: USER,
+        stripeSubscriptionId: 'stripe_old',
+        status: 'canceled',
+      },
+      {
+        id: 'sub_new',
+        userId: USER,
+        stripeSubscriptionId: 'stripe_new',
+        status: 'active',
+      },
+    );
+
+    await svc.deleteAccount(USER);
+    expect(state.stripeCanceled).toEqual(['stripe_new']);
   });
 });

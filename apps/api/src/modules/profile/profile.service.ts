@@ -12,6 +12,7 @@ import { aiGenerations } from '../../db/postgres/schema/ai-generations.js';
 import { streaks } from '../../db/postgres/schema/streaks.js';
 import { weeklyInsights } from '../../db/postgres/schema/weekly-insights.js';
 import { stripe } from '../subscription/stripe.client.js';
+import { getCurrentSubscription } from '../subscription/subscription.service.js';
 import { deleteFile, buildSessionKey } from '../audio/audio.s3.js';
 import { notFound } from '../../utils/errors.js';
 import { logger } from '../../utils/logger.js';
@@ -217,13 +218,18 @@ export async function deleteAccount(userId: string) {
     .limit(1);
   if (!user) throw notFound('User');
 
-  // 1. Stripe cancellation — best effort.
-  const [sub] = await mysqlDb
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, userId))
-    .limit(1);
-  if (sub?.stripeSubscriptionId) {
+  // 1. Stripe cancellation — best effort. Use `getCurrentSubscription`
+  // to pick the user's "current" row deterministically (newest active /
+  // trialing first) instead of an arbitrary `.limit(1)` read, since the
+  // same user can legitimately have multiple subscription rows from
+  // re-subscribes and we don't want to cancel a stale/already-canceled
+  // one while leaving a live subscription billing.
+  const sub = await getCurrentSubscription(userId);
+  const isCancelable =
+    sub !== null &&
+    sub.status !== 'canceled' &&
+    sub.status !== 'incomplete_expired';
+  if (isCancelable && sub.stripeSubscriptionId) {
     try {
       await stripe.subscriptions.cancel(sub.stripeSubscriptionId);
     } catch (err) {
