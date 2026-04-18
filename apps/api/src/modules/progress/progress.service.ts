@@ -68,43 +68,45 @@ function logEvent(
 async function updateStreak(userId: string): Promise<void> {
   const today = todayUtc();
 
-  const [current] = await pgDb
-    .select()
-    .from(streaks)
-    .where(eq(streaks.userId, userId))
-    .limit(1);
+  await pgDb.transaction(async (tx) => {
+    await tx
+      .insert(streaks)
+      .values({
+        userId,
+        currentStreak: 1,
+        longestStreak: 1,
+        lastListenDate: today,
+      })
+      .onConflictDoNothing({ target: streaks.userId });
 
-  if (!current) {
-    await pgDb.insert(streaks).values({
-      userId,
-      currentStreak: 1,
-      longestStreak: 1,
-      lastListenDate: today,
-    });
-    return;
-  }
+    const [current] = await tx
+      .select()
+      .from(streaks)
+      .where(eq(streaks.userId, userId))
+      .limit(1);
 
-  if (current.lastListenDate === today) return;
+    if (!current || current.lastListenDate === today) return;
 
-  let newStreak = 1;
-  if (current.lastListenDate) {
-    const last = new Date(current.lastListenDate);
-    const todayDate = new Date(today);
-    const dayDiff = Math.floor(
-      (todayDate.getTime() - last.getTime()) / DAY_MS,
-    );
-    if (dayDiff === 1) newStreak = current.currentStreak + 1;
-  }
+    let newStreak = 1;
+    if (current.lastListenDate) {
+      const last = new Date(current.lastListenDate);
+      const todayDate = new Date(today);
+      const dayDiff = Math.floor(
+        (todayDate.getTime() - last.getTime()) / DAY_MS,
+      );
+      if (dayDiff === 1) newStreak = current.currentStreak + 1;
+    }
 
-  await pgDb
-    .update(streaks)
-    .set({
-      currentStreak: newStreak,
-      longestStreak: Math.max(newStreak, current.longestStreak),
-      lastListenDate: today,
-      updatedAt: new Date(),
-    })
-    .where(eq(streaks.userId, userId));
+    await tx
+      .update(streaks)
+      .set({
+        currentStreak: newStreak,
+        longestStreak: Math.max(newStreak, current.longestStreak),
+        lastListenDate: today,
+        updatedAt: new Date(),
+      })
+      .where(eq(streaks.userId, userId));
+  });
 }
 
 /**
