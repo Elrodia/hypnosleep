@@ -130,7 +130,11 @@ const shutdown = async (signal: string) => {
   if (worker) {
     // Drain in-flight jobs before exiting so a Railway redeploy
     // doesn't abort an audio generation mid-pipeline.
-    await worker.close();
+    try {
+      await worker.close();
+    } catch (err) {
+      logger.warn({ err }, 'Failed to close audio generation worker cleanly');
+    }
   }
   // Close the queue's Redis connection so the process can exit
   // cleanly even if the worker was never started.
