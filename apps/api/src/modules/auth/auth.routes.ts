@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import passport from 'passport';
 import { env } from '../../config/env.js';
+import { logger } from '../../utils/logger.js';
 import { rateLimit } from '../../middleware/rate-limit.js';
 import { RATE_LIMITS } from '../../config/constants.js';
 import { googleStrategy } from './strategies/google.strategy.js';
@@ -8,7 +9,7 @@ import { githubStrategy } from './strategies/github.strategy.js';
 import { microsoftStrategy } from './strategies/microsoft.strategy.js';
 import { requireAuth } from './auth.middleware.js';
 import {
-  encodeOAuthState,
+  beginOAuthState,
   handleGetMe,
   handleLogout,
   handleOAuthCallback,
@@ -24,14 +25,15 @@ passport.use('github', githubStrategy as unknown as passport.Strategy);
 passport.use('microsoft', microsoftStrategy as unknown as passport.Strategy);
 
 /**
- * Build the OAuth initiation handler for a given provider. The optional
- * `?ref=CODE` query string is packed into the OAuth `state` parameter so
- * the referral is preserved across the provider redirect.
+ * Build the OAuth initiation handler for a given provider. Generates a
+ * CSRF nonce (pinned to the user agent via an HttpOnly cookie) and
+ * packs it — along with an optional `?ref=CODE` — into the OAuth
+ * `state` parameter so both survive the provider redirect.
  */
 function initOAuth(provider: OAuthProvider) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const ref = typeof req.query.ref === 'string' ? req.query.ref : undefined;
-    const state = encodeOAuthState({ ref });
+    const state = beginOAuthState(res, { ref });
     passport.authenticate(provider, { session: false, state })(req, res, next);
   };
 }
@@ -39,14 +41,37 @@ function initOAuth(provider: OAuthProvider) {
 /**
  * Build the OAuth callback chain: authenticate via passport (which
  * triggers the upsert), then hand off to the shared callback controller
- * that attaches referrals, issues a JWT and redirects to the frontend.
+ * that validates the CSRF state, attaches referrals, issues a JWT and
+ * redirects to the frontend.
+ *
+ * We use a custom `passport.authenticate` callback so that *any*
+ * failure — whether an expected `done(null, false)` or an error thrown
+ * by the strategy (e.g. `EMAIL_PROVIDER_MISMATCH`) — redirects the
+ * browser back to the frontend error page. The default `failureRedirect`
+ * option only handles the former and would otherwise surface thrown
+ * errors as JSON through the global error handler, breaking the browser
+ * OAuth flow.
  */
 function callbackHandlers(provider: OAuthProvider) {
   return [
-    passport.authenticate(provider, {
-      session: false,
-      failureRedirect: `${env.FRONTEND_URL}/auth/error`,
-    }),
+    (req: Request, res: Response, next: NextFunction): void => {
+      passport.authenticate(
+        provider,
+        { session: false },
+        (err: unknown, user: Express.User | false | null) => {
+          if (err || !user) {
+            if (err) {
+              logger.warn({ err, provider }, 'OAuth authentication failed');
+            }
+            res.redirect(`${env.FRONTEND_URL}/auth/error`);
+            return;
+          }
+
+          req.user = user;
+          next();
+        },
+      )(req, res, next);
+    },
     handleOAuthCallback,
   ] as const;
 }
