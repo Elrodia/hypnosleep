@@ -43,6 +43,12 @@ async function logGeneration(row: {
   status: 'success' | 'failed';
   errorMessage?: string | null;
 }): Promise<void> {
+  // Short-circuit when Postgres is not configured (tests/tooling). Audit
+  // logging is strictly best-effort, so silently skip rather than attempt
+  // to load the env-validated DB client.
+  if (!process.env.DATABASE_URL) {
+    return;
+  }
   try {
     const [{ pgDb }, { aiGenerations }] = await Promise.all([
       import('../../db/postgres/client.js'),
@@ -62,7 +68,9 @@ async function logGeneration(row: {
       errorMessage: row.errorMessage ?? null,
     });
   } catch (err) {
-    logger.error({ err }, 'Failed to log AI generation');
+    // Best-effort: log at warn rather than error so missing/unavailable
+    // Postgres in dev/test environments does not look like a real failure.
+    logger.warn({ err }, 'Failed to log AI generation');
   }
 }
 
@@ -85,6 +93,11 @@ export async function generateScript(
   const auditSessionId = input.sessionId ?? randomUUID();
 
   let lastError: unknown = null;
+  // Tracks whether this request has already written an `ai_generations`
+  // row. Some failure paths (notably safety failures) log before throwing
+  // an AppError; without this flag, the AppError catch below would write
+  // a second audit row for the same request.
+  let didLogAudit = false;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       const { text, tokensInput, tokensOutput } = await callGemini(prompt);
@@ -97,17 +110,26 @@ export async function generateScript(
       const lines = text.trim().split('\n');
       const title = lines[0].replace(/^#\s*/, '').trim().slice(0, 60);
       const scriptText = lines.slice(1).join('\n').trim();
+      if (scriptText.length === 0) {
+        throw generationFailed('Gemini returned an empty script body');
+      }
 
       const generationMs = Date.now() - startTime;
 
+      // Safety passes review the full generated content (title + body) so
+      // unsafe claims in a user-visible title are not missed.
+      const contentForSafetyReview = [title, scriptText]
+        .filter((part) => part.length > 0)
+        .join('\n\n');
+
       // Cheap heuristic safety pass — always runs.
-      const quick = quickSafetyCheck(scriptText);
+      const quick = quickSafetyCheck(contentForSafetyReview);
       let safetyFailure: string | null = null;
       if (!quick.safe) {
         safetyFailure = `safety_flags: ${quick.flags.join(',')}`;
       } else if (SENSITIVE_CATEGORIES.has(input.category)) {
         // Deep safety pass only for sensitive categories, to keep cost down.
-        const deep = await deepSafetyCheck(scriptText);
+        const deep = await deepSafetyCheck(contentForSafetyReview);
         if (!deep.isSafe) {
           safetyFailure = `safety_unsafe: ${deep.reason ?? 'flagged'}`;
         }
@@ -125,6 +147,7 @@ export async function generateScript(
         status: safetyFailure ? 'failed' : 'success',
         errorMessage: safetyFailure,
       });
+      didLogAudit = true;
 
       if (safetyFailure) {
         throw generationFailed(
@@ -148,20 +171,29 @@ export async function generateScript(
     } catch (err) {
       lastError = err;
 
-      // Do not retry permanent failures — just surface them.
+      // Do not retry permanent failures — just surface them. Some paths
+      // (e.g. safety failures) have already written an audit row; avoid
+      // writing a duplicate.
       if (err instanceof AppError) {
         logger.error({ err }, 'Script generation failed (permanent)');
-        void logGeneration({
-          userId: input.userId,
-          sessionId: auditSessionId,
-          promptText: input.prompt,
-          voice: input.voiceId,
-          generationMs: Date.now() - startTime,
-          status: 'failed',
-          errorMessage: err.message,
-        });
+        if (!didLogAudit) {
+          void logGeneration({
+            userId: input.userId,
+            sessionId: auditSessionId,
+            promptText: input.prompt,
+            voice: input.voiceId,
+            generationMs: Date.now() - startTime,
+            status: 'failed',
+            errorMessage: err.message,
+          });
+          didLogAudit = true;
+        }
         throw err;
       }
+
+      // Known permanent configuration errors arrive as AppErrors (see
+      // `getModel` in ai.gemini.ts) and are handled in the branch above —
+      // no regex matching on error messages needed here.
 
       // Transient error: retry with linear backoff (1s, 2s).
       if (attempt < MAX_RETRIES) {
@@ -177,16 +209,18 @@ export async function generateScript(
   }
 
   logger.error({ err: lastError }, 'Gemini script generation failed');
-  void logGeneration({
-    userId: input.userId,
-    sessionId: auditSessionId,
-    promptText: input.prompt,
-    voice: input.voiceId,
-    generationMs: Date.now() - startTime,
-    status: 'failed',
-    errorMessage:
-      lastError instanceof Error ? lastError.message : 'unknown error',
-  });
+  if (!didLogAudit) {
+    void logGeneration({
+      userId: input.userId,
+      sessionId: auditSessionId,
+      promptText: input.prompt,
+      voice: input.voiceId,
+      generationMs: Date.now() - startTime,
+      status: 'failed',
+      errorMessage:
+        lastError instanceof Error ? lastError.message : 'unknown error',
+    });
+  }
   throw externalApiError('gemini', 'Failed to generate hypnosis script');
 }
 

@@ -1,12 +1,14 @@
-import type { InductionStyle, DepthLevel } from '../../config/constants.js';
+import type { InductionStyle, DepthLevel, VoiceId } from '../../config/constants.js';
 import type { GenerateSessionInput } from './ai.types.js';
 
 /**
  * Voice-id → tone-hint map used to steer Gemini's pacing and warmth so the
  * generated script matches the eventual TTS voice. Keys mirror the
- * `VoiceId`s defined in `config/constants.ts`.
+ * `VoiceId`s defined in `config/constants.ts`; typing as a
+ * `Partial<Record<VoiceId, string>>` ensures typos and removed voices are
+ * caught at compile time while still allowing partial coverage.
  */
-export const VOICE_TONE_HINTS: Record<string, string> = {
+export const VOICE_TONE_HINTS: Partial<Record<VoiceId, string>> = {
   'en-US-AnaNeural':     'soft, maternal, slow-paced, lots of pauses',
   'en-US-GuyNeural':     'steady, grounded, deliberate, masculine reassurance',
   'en-GB-SoniaNeural':   'refined, articulate, elegant rhythm',

@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai';
+import { externalApiError } from '../../utils/errors.js';
 
 /**
  * Raw response returned by {@link callGemini}, exposing the generated text
@@ -16,14 +17,18 @@ let model: GenerativeModel | null = null;
 /**
  * Returns the singleton Gemini generative model instance, lazily
  * constructing it from `GEMINI_API_KEY` / `GEMINI_MODEL` the first time
- * it is needed. Configured for JSON-only output with a creative-but-stable
- * sampling profile tuned for hypnosis script generation.
+ * it is needed. Uses a creative-but-stable sampling profile tuned for
+ * hypnosis script generation; response formatting is determined by callers
+ * and prompts rather than enforced as JSON in `generationConfig`.
  */
 export function getModel(): GenerativeModel {
   if (!model) {
     const apiKey = process.env.GEMINI_API_KEY ?? '';
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY environment variable is not set');
+      // Thrown as a typed AppError so callers can treat missing config as
+      // a permanent failure and skip retry/backoff, rather than having to
+      // pattern-match on the error message.
+      throw externalApiError('gemini', 'GEMINI_API_KEY environment variable is not set');
     }
 
     genAI = new GoogleGenerativeAI(apiKey);
