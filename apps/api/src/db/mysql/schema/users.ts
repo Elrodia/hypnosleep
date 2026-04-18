@@ -22,6 +22,7 @@ export const users = mysqlTable(
     name: varchar('name', { length: 255 }).notNull(),
     avatarUrl: varchar('avatar_url', { length: 1024 }),
     plan: mysqlEnum('plan', ['free', 'pro']).notNull().default('free'),
+    stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
     preferences: json('preferences').$type<{
       goals: string[];
       preferredTime: 'before_sleep' | 'morning' | 'breaks' | 'anytime';

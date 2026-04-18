@@ -8,6 +8,13 @@
       "when": 1776468217315,
       "tag": "0000_slippery_tusk",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1776540328335,
+      "tag": "0001_new_thunderbolts",
+      "breakpoints": true
     }
   ]
 }

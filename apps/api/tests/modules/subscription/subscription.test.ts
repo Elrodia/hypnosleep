@@ -587,6 +587,40 @@ describe('subscription.service', () => {
       expect(pastDue.plan).toBe('free');
       expect(pastDue.status).toBe('past_due');
     });
+
+    it('picks the current subscription when a user has multiple rows (old canceled + new active)', async () => {
+      seedUser();
+      // Simulate a re-subscribe: an older canceled row and a newer active one.
+      state.subscriptions.set('s_old', {
+        id: 's_old',
+        userId: 'user-1',
+        plan: 'monthly',
+        stripeCustomerId: 'cus_1',
+        stripeSubscriptionId: 'sub_old',
+        status: 'canceled',
+        trialEndsAt: null,
+        currentPeriodEnd: new Date(Date.now() - 30 * 24 * 3600 * 1000),
+        canceledAt: new Date(Date.now() - 30 * 24 * 3600 * 1000),
+        createdAt: new Date(Date.now() - 60 * 24 * 3600 * 1000),
+      } as SubscriptionRow);
+      state.subscriptions.set('s_new', {
+        id: 's_new',
+        userId: 'user-1',
+        plan: 'yearly',
+        stripeCustomerId: 'cus_1',
+        stripeSubscriptionId: 'sub_new',
+        status: 'active',
+        trialEndsAt: null,
+        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 3600 * 1000),
+        canceledAt: null,
+        createdAt: new Date(),
+      } as SubscriptionRow);
+
+      const status = await getStatus('user-1');
+      expect(status.plan).toBe('pro');
+      expect(status.status).toBe('active');
+      expect(status.billingPeriod).toBe('yearly');
+    });
   });
 });
 
@@ -684,6 +718,37 @@ describe('subscription.webhook', () => {
       expect(Array.from(state.subscriptions.values())).toHaveLength(1);
       expect(state.subscriptions.get('s1')?.status).toBe('active');
       expect(state.emailsSent).toHaveLength(0);
+    });
+
+    it('sends the welcome email when an existing non-pro row transitions into a pro state', async () => {
+      seedUser({ plan: 'free' });
+      // First webhook landed as `incomplete` (e.g. initial payment held),
+      // so no welcome email was sent yet.
+      state.subscriptions.set('s1', {
+        id: 's1',
+        userId: 'user-1',
+        plan: 'monthly',
+        stripeCustomerId: 'cus_1',
+        stripeSubscriptionId: 'sub_1',
+        status: 'incomplete',
+        trialEndsAt: null,
+        currentPeriodEnd: new Date(),
+        canceledAt: null,
+      });
+
+      await __test.handleSubscriptionUpsert({
+        id: 'sub_1',
+        customer: 'cus_1',
+        status: 'active',
+        trial_end: null,
+        current_period_end: Math.floor(Date.now() / 1000) + 30 * 24 * 3600,
+        canceled_at: null,
+        metadata: { userId: 'user-1', plan: 'monthly' },
+      } as never);
+
+      expect(state.users.get('user-1')?.plan).toBe('pro');
+      expect(state.emailsSent).toHaveLength(1);
+      expect(state.emailsSent[0].subject).toContain('Welcome');
     });
 
     it('downgrades the user to free when the status becomes past_due', async () => {
