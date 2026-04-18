@@ -24,7 +24,7 @@ WORKDIR /app
 # across Railway rebuilds when `package-lock.json` hasn't changed
 # layer-by-layer.
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN --mount=type=cache,id=npm-frontend,target=/root/.npm npm ci
 
 # Copy just what Vite needs to build.
 COPY index.html ./
@@ -42,7 +42,7 @@ FROM node:20-bookworm-slim AS api-builder
 WORKDIR /app/apps/api
 
 COPY apps/api/package.json apps/api/package-lock.json* ./
-RUN npm ci
+RUN --mount=type=cache,id=npm-api,target=/root/.npm npm ci
 
 COPY apps/api/tsconfig.json ./
 COPY apps/api/drizzle.config.mysql.ts apps/api/drizzle.config.postgres.ts ./
@@ -53,7 +53,7 @@ RUN npm run build
 
 # Drop dev dependencies so we can copy node_modules straight into the
 # runtime image.
-RUN npm prune --omit=dev
+RUN --mount=type=cache,id=npm-api,target=/root/.npm npm prune --omit=dev
 
 # ---------------------------------------------------------------------------
 # Stage 3: runtime
@@ -63,7 +63,9 @@ FROM node:20-bookworm-slim AS runtime
 # Python + FFmpeg + edge-tts for the TTS pipeline (kept consistent with
 # apps/api/Dockerfile). BuildKit cache mounts on apt's list + archives
 # dirs avoid re-downloading packages on every Railway rebuild.
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,id=apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=apt-lib,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
         python3 \
         python3-pip \
         python3-venv \
