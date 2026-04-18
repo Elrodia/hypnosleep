@@ -23,7 +23,18 @@ const SAME_ORIGIN = (() => {
 const app = express();
 
 // --- Middleware ---
-app.use(express.json({ limit: '1mb' }));
+// Stripe webhooks require the raw request body to verify signatures.
+// The subscription router installs `express.raw()` for
+// `/api/subscription/webhook`, so we skip the JSON parser on that path;
+// otherwise we'd consume the body stream first and signature
+// verification would fail.
+app.use((req, res, next) => {
+  if (req.path === '/api/subscription/webhook') {
+    next();
+    return;
+  }
+  express.json({ limit: '1mb' })(req, res, next);
+});
 app.use(
   pinoHttp({
     logger,
