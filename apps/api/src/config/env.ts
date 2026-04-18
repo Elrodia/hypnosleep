@@ -103,6 +103,14 @@ const envSchema = z.object({
   VITE_STRIPE_PUBLISHABLE_KEY: z.string().min(1).optional(),
   VITE_STRIPE_MONTHLY_LINK: z.string().min(1).optional(),
   VITE_STRIPE_ANNUAL_LINK: z.string().min(1).optional(),
+
+  // --- Monitoring ----------------------------------------------------------
+  /** Sentry DSN for server-side error reporting. When unset, Sentry is disabled. */
+  SENTRY_DSN: optionalString(),
+  /** PostHog project API key for server-side analytics. When unset, analytics are no-ops. */
+  POSTHOG_API_KEY: optionalString(),
+  /** Optional PostHog host override (defaults to the PostHog Cloud endpoint). */
+  POSTHOG_HOST: optionalString(),
 });
 
 export type Env = z.infer<typeof envSchema>;

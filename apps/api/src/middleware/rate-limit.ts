@@ -118,3 +118,16 @@ cleanupInterval.unref();
 export function _clearRateLimitStore(): void {
   windowStore.clear();
 }
+
+/**
+ * Global IP-level rate limit applied at the top of the Express chain.
+ * Distinct from {@link rateLimit} (which keys per-route): this limits
+ * total requests from a single IP across the whole API and is intended
+ * as coarse-grained abuse protection. Skips nothing itself — callers in
+ * `server.ts` are responsible for bypassing it on paths with their own
+ * rate-limiting semantics (Stripe webhooks, SSE streams).
+ */
+const IP_LIMIT = 100; // requests
+const IP_WINDOW_SEC = 60;
+
+export const ipRateLimit = rateLimit(IP_WINDOW_SEC, IP_LIMIT);

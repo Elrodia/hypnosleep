@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Minimum permissions — jobs only need to read repository contents.
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend lint & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install
+        run: npm ci
+      - name: Lint
+        # Lint tooling is not yet wired into the root project; don't block
+        # CI on it until eslint is installed.
+        continue-on-error: true
+        run: npm run lint
+      - name: Build
+        run: npm run build
+
+  api:
+    name: API lint, build & test
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: hypnosleep_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: hypnosleep_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      NODE_ENV: test
+      MYSQL_URL: mysql://root:root@127.0.0.1:3306/hypnosleep_test
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/hypnosleep_test
+      REDIS_URL: redis://127.0.0.1:6379
+      # Placeholder secrets — tests mock anything that actually hits these providers.
+      JWT_SECRET: test-secret-at-least-32-characters-long-0000
+      GEMINI_API_KEY: test-gemini-key
+      GOOGLE_CLIENT_ID: test-google-id
+      GOOGLE_CLIENT_SECRET: test-google-secret
+      GITHUB_CLIENT_ID: test-github-id
+      GITHUB_CLIENT_SECRET: test-github-secret
+      MICROSOFT_CLIENT_ID: test-ms-id
+      MICROSOFT_CLIENT_SECRET: test-ms-secret
+      S3_ACCESS_KEY: test-access-key
+      S3_SECRET_KEY: test-secret-key
+      S3_BUCKET: test-bucket
+      S3_ENDPOINT: http://127.0.0.1:9000
+      S3_REGION: us-east-1
+      STRIPE_SECRET_KEY: sk_test_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_test_placeholder
+      STRIPE_PRICE_MONTHLY: price_test_monthly
+      STRIPE_PRICE_ANNUAL: price_test_annual
+
+    defaults:
+      run:
+        working-directory: apps/api
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        # Lint tooling is not yet wired into the API project; don't block
+        # CI on it until eslint is installed.
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+  deploy:
+    name: Deploy to Railway
+    needs: [frontend, api]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy
+        uses: bervProject/railway-deploy@main
+        with:
+          railway_token: ${{ secrets.RAILWAY_TOKEN }}
+          service: hypnosleep-api

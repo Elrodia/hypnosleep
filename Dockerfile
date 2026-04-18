@@ -15,7 +15,7 @@
 # ---------------------------------------------------------------------------
 # Stage 1: build the Vite frontend
 # ---------------------------------------------------------------------------
-FROM node:20-slim AS frontend-builder
+FROM node:20-bookworm-slim AS frontend-builder
 
 WORKDIR /app
 
@@ -35,7 +35,7 @@ RUN npm run build
 # ---------------------------------------------------------------------------
 # Stage 2: build the Express API (TypeScript -> dist)
 # ---------------------------------------------------------------------------
-FROM node:20-slim AS api-builder
+FROM node:20-bookworm-slim AS api-builder
 
 WORKDIR /app/apps/api
 
@@ -56,7 +56,7 @@ RUN npm prune --omit=dev
 # ---------------------------------------------------------------------------
 # Stage 3: runtime
 # ---------------------------------------------------------------------------
-FROM node:20-slim AS runtime
+FROM node:20-bookworm-slim AS runtime
 
 # Python + FFmpeg + edge-tts for the TTS pipeline (kept consistent with
 # apps/api/Dockerfile).
@@ -65,8 +65,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3-pip \
         python3-venv \
         ffmpeg \
+        ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-RUN pip3 install --break-system-packages edge-tts
+# Install edge-tts in an isolated venv so it's on PATH for the runtime
+# user without needing --break-system-packages.
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --no-cache-dir edge-tts==6.1.10
 
 WORKDIR /app
 
@@ -86,8 +91,18 @@ ENV NODE_ENV=production \
     PORT=3000 \
     STATIC_DIR=/app/public
 
+# Run as a non-root user to limit blast radius of any runtime
+# compromise. Chown after all COPYs so the app user owns the full tree.
+RUN groupadd -r app && useradd -r -g app app && chown -R app:app /app
+USER app
+
 EXPOSE 3000
 
 WORKDIR /app/apps/api
+
+# Container-level liveness probe. Railway additionally polls
+# `/api/health` over HTTP (see `railway.toml`).
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 
 CMD ["node", "dist/server.js"]
