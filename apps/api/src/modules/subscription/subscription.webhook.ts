@@ -12,6 +12,7 @@ import { events } from '../../db/postgres/schema/events.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
 import { sendEmail } from '../../services/email.service.js';
+import { getCurrentSubscription } from './subscription.service.js';
 
 /** Stripe subscription statuses we persist to MySQL as-is. */
 type MirroredStatus =
@@ -154,6 +155,10 @@ async function handleSubscriptionUpsert(
     .where(eq(subscriptions.stripeSubscriptionId, sub.id))
     .limit(1);
 
+  const previousStatus = existing?.status ?? null;
+  const wasPro =
+    previousStatus === 'active' || previousStatus === 'trialing';
+
   const data = {
     userId,
     plan: planLabel,
@@ -189,8 +194,11 @@ async function handleSubscriptionUpsert(
     { status, plan: planLabel },
   );
 
-  // Welcome email on the first activation (trialing or active).
-  if (!existing && isPro) {
+  // Welcome email on the first transition into a pro state. Covers both
+  // the first-ever insert (e.g. `trialing` on day one) and the case where
+  // the initial webhook arrived with a non-pro status like `incomplete`
+  // and later transitioned into `active`/`trialing`.
+  if (isPro && !wasPro) {
     const [user] = await mysqlDb
       .select()
       .from(users)
@@ -314,11 +322,7 @@ async function handlePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
  *     {@link createCheckoutSession}.
  */
 async function applyReferralReward(referrerId: string): Promise<void> {
-  const [referrerSub] = await mysqlDb
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, referrerId))
-    .limit(1);
+  const referrerSub = await getCurrentSubscription(referrerId);
 
   if (referrerSub) {
     if (referrerSub.status === 'trialing') {

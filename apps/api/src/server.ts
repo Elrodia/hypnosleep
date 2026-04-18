@@ -27,13 +27,27 @@ const app = express();
 // The subscription router installs `express.raw()` for
 // `/api/subscription/webhook`, so we skip the JSON parser on that path;
 // otherwise we'd consume the body stream first and signature
-// verification would fail.
+// verification would fail. We match with a prefix (and fall back to
+// `req.originalUrl` when the app is mounted under a sub-path) rather
+// than an exact-string compare so a trailing slash or query string
+// doesn't accidentally route the webhook through the JSON parser.
+const STRIPE_WEBHOOK_PATH = '/api/subscription/webhook';
+const jsonParser = express.json({ limit: '1mb' });
+const isStripeWebhookRequest = (req: express.Request): boolean => {
+  const candidate = req.originalUrl || req.path || '';
+  // Strip query string before comparing so `?foo=bar` doesn't defeat the match.
+  const pathPart = candidate.split('?', 1)[0];
+  return (
+    pathPart === STRIPE_WEBHOOK_PATH ||
+    pathPart.startsWith(`${STRIPE_WEBHOOK_PATH}/`)
+  );
+};
 app.use((req, res, next) => {
-  if (req.path === '/api/subscription/webhook') {
+  if (isStripeWebhookRequest(req)) {
     next();
     return;
   }
-  express.json({ limit: '1mb' })(req, res, next);
+  jsonParser(req, res, next);
 });
 app.use(
   pinoHttp({

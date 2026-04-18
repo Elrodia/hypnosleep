@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { stripe } from './stripe.client.js';
 import { mysqlDb } from '../../db/mysql/client.js';
 import { users } from '../../db/mysql/schema/users.js';
-import { subscriptions } from '../../db/mysql/schema/subscriptions.js';
+import { subscriptions, type Subscription } from '../../db/mysql/schema/subscriptions.js';
 import { referrals } from '../../db/mysql/schema/referrals.js';
 import { pgDb } from '../../db/postgres/client.js';
 import { events } from '../../db/postgres/schema/events.js';
@@ -30,6 +30,51 @@ const REFERRAL_REWARD_DAYS = 7;
  * record an analytics row must never break a billing flow. We swallow
  * errors after logging them so the caller can continue.
  */
+/**
+ * Ranking of subscription statuses when multiple rows exist for a user.
+ * Lower = more "current". `subscriptions.user_id` is not unique (re-subscribes
+ * create additional rows), so a user can legitimately have several rows and we
+ * need a deterministic way to pick the one billing flows should target.
+ */
+const STATUS_RANK: Record<Subscription['status'], number> = {
+  trialing: 0,
+  active: 1,
+  past_due: 2,
+  incomplete: 3,
+  incomplete_expired: 4,
+  canceled: 5,
+};
+
+/**
+ * Pick the user's current subscription row deterministically:
+ *   1. Prefer `trialing`/`active` over `past_due`/`incomplete*`/`canceled`.
+ *   2. Then newest by `currentPeriodEnd`.
+ *   3. Then newest by `createdAt` as a final tiebreaker.
+ *
+ * Sorting happens in JS so we issue a single `.where(eq(userId, …))` query
+ * and tolerate fakes/mocks that don't implement `orderBy`.
+ */
+export async function getCurrentSubscription(
+  userId: string,
+): Promise<Subscription | null> {
+  const rows = (await mysqlDb
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, userId))) as Subscription[];
+  if (rows.length === 0) return null;
+  const sorted = [...rows].sort((a, b) => {
+    const rankDiff = STATUS_RANK[a.status] - STATUS_RANK[b.status];
+    if (rankDiff !== 0) return rankDiff;
+    const aEnd = a.currentPeriodEnd ? a.currentPeriodEnd.getTime() : 0;
+    const bEnd = b.currentPeriodEnd ? b.currentPeriodEnd.getTime() : 0;
+    if (aEnd !== bEnd) return bEnd - aEnd;
+    const aCreated = a.createdAt ? a.createdAt.getTime() : 0;
+    const bCreated = b.createdAt ? b.createdAt.getTime() : 0;
+    return bCreated - aCreated;
+  });
+  return sorted[0] ?? null;
+}
+
 function trackEvent(
   userId: string,
   eventType: string,
@@ -74,17 +119,19 @@ export async function createCheckoutSession(
   const priceId =
     input.plan === 'monthly' ? env.STRIPE_PRICE_MONTHLY : env.STRIPE_PRICE_ANNUAL;
 
-  // Find or create a Stripe customer — one per user.
-  const [existingSub] = await mysqlDb
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, userId))
-    .limit(1);
+  // Find or create a Stripe customer — one per user. We look at the user row
+  // first so a customer created during an abandoned checkout is reused rather
+  // than duplicated. As a fallback, also check the most recent subscription
+  // row (legacy rows from before `users.stripeCustomerId` existed).
+  let customerId: string | undefined = user.stripeCustomerId ?? undefined;
+  if (!customerId) {
+    const existingSub = await getCurrentSubscription(userId);
+    if (existingSub?.stripeCustomerId) {
+      customerId = existingSub.stripeCustomerId;
+    }
+  }
 
-  let customerId: string;
-  if (existingSub?.stripeCustomerId) {
-    customerId = existingSub.stripeCustomerId;
-  } else {
+  if (!customerId) {
     const customer = await stripe.customers.create({
       email: user.email,
       name: user.name,
@@ -94,6 +141,17 @@ export async function createCheckoutSession(
       },
     });
     customerId = customer.id;
+  }
+
+  // Persist the customer id on the user so an abandoned checkout (no
+  // subscription webhook yet) doesn't cause a second Stripe customer to be
+  // created on the next attempt. Best-effort: if the update fails we still
+  // proceed with checkout rather than block the user.
+  if (user.stripeCustomerId !== customerId) {
+    await mysqlDb
+      .update(users)
+      .set({ stripeCustomerId: customerId })
+      .where(eq(users.id, userId));
   }
 
   // Referral bonus: +7 trial days on the first checkout by a referred user.
@@ -152,11 +210,7 @@ export async function createCheckoutSession(
 export async function createPortalSession(
   userId: string,
 ): Promise<{ url: string }> {
-  const [sub] = await mysqlDb
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, userId))
-    .limit(1);
+  const sub = await getCurrentSubscription(userId);
 
   if (!sub) throw notFound('Subscription');
 
@@ -176,13 +230,12 @@ export async function createPortalSession(
 export async function cancelSubscription(
   userId: string,
 ): Promise<{ ok: true; cancelAtPeriodEnd: true }> {
-  const [sub] = await mysqlDb
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, userId))
-    .limit(1);
+  const sub = await getCurrentSubscription(userId);
 
   if (!sub) throw notFound('Subscription');
+  if (sub.status === 'canceled' || sub.status === 'incomplete_expired') {
+    throw notFound('Subscription');
+  }
 
   await stripe.subscriptions.update(sub.stripeSubscriptionId, {
     cancel_at_period_end: true,
@@ -207,11 +260,7 @@ export interface SubscriptionStatus {
  * back to `{ plan: 'free' }` when no subscription row exists.
  */
 export async function getStatus(userId: string): Promise<SubscriptionStatus> {
-  const [sub] = await mysqlDb
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, userId))
-    .limit(1);
+  const sub = await getCurrentSubscription(userId);
 
   if (!sub) return { plan: 'free' };
 
