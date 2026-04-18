@@ -1,9 +1,10 @@
 /**
  * Audio pipeline integration test.
  *
- * Exercises the full TTS → FFmpeg mix → (local) flow. Requires a Docker
- * environment with `python3`, `edge-tts`, and `ffmpeg` installed, plus
- * outbound network access to the Edge TTS endpoint.
+ * Exercises the TTS portion of the local audio flow by generating a voice
+ * clip with Edge TTS. Requires a Docker environment with `python3`,
+ * `edge-tts`, and `ffmpeg` installed, plus outbound network access to the
+ * Edge TTS endpoint.
  *
  * Skipped by default to keep `npm test` hermetic in CI / contributor
  * machines. Enable by running:
