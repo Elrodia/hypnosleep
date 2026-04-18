@@ -97,7 +97,14 @@ export async function generateWeeklyInsight(
   const category = topCategory(categories);
   const moodNotes = moods
     .filter((m) => !!m.note)
-    .map((m) => m.note as string)
+    // Truncate each note defensively — the schema allows up to 500
+    // chars per note, so five notes could add ~2.5KB of unstructured
+    // text to the prompt. Cap each to 120 chars so the prompt stays
+    // predictably sized regardless of user input.
+    .map((m) => {
+      const note = (m.note as string).trim();
+      return note.length > 120 ? `${note.slice(0, 117)}...` : note;
+    })
     .slice(0, 5);
 
   if (totalListens < 2) {
