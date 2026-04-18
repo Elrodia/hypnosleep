@@ -7,15 +7,19 @@
     <title>HypnoSleep — AI Hypnosis App for Sleep, Confidence &amp; Habits</title>
     <meta name="description" content="AI hypnosis app with personalized sessions to help you sleep better, build confidence and break habits. Free 7-day trial, no credit card." />
     <meta name="theme-color" content="#0a0a1a" />
-    <link rel="canonical" href="https://app.hypnosleep.app/" />
+    <!-- Canonical / social origin is injected at build time from
+         VITE_SITE_ORIGIN so staging and local builds don't point crawlers
+         at the production deployment. Defaults to the production origin
+         via `.env.production` if not overridden. -->
+    <link rel="canonical" href="%VITE_SITE_ORIGIN%/" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="HypnoSleep" />
-    <meta property="og:url" content="https://app.hypnosleep.app/" />
+    <meta property="og:url" content="%VITE_SITE_ORIGIN%/" />
     <meta property="og:title" content="HypnoSleep — AI Hypnosis App for Sleep, Confidence &amp; Habits" />
     <meta property="og:description" content="Personalized AI hypnosis sessions in 30 seconds. Sleep deeper, build confidence, break habits." />
-    <meta property="og:image" content="https://app.hypnosleep.app/og.png" />
+    <meta property="og:image" content="%VITE_SITE_ORIGIN%/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
 
@@ -23,7 +27,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="HypnoSleep — AI Hypnosis App" />
     <meta name="twitter:description" content="Personalized AI hypnosis in 30 seconds. Sleep deeper, build confidence, break habits." />
-    <meta name="twitter:image" content="https://app.hypnosleep.app/og.png" />
+    <meta name="twitter:image" content="%VITE_SITE_ORIGIN%/og.png" />
 
     <!-- Fonts: preload the single weight used above the fold to protect LCP -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

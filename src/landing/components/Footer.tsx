@@ -19,12 +19,13 @@ export function Footer() {
             <ul className="space-y-2">
               {c.links.map((l) => (
                 <li key={l}>
-                  <a
-                    href="#"
-                    className="text-[color:var(--ls-text-secondary)] hover:text-[color:var(--ls-text)] transition"
-                  >
+                  {/* Placeholders for pre-launch — rendered as non-interactive
+                      text so clicking doesn't jump to the top of the page or
+                      pollute browser history with `#` entries. Swap to real
+                      <a> tags as destinations come online. */}
+                  <span className="text-[color:var(--ls-text-secondary)]">
                     {l}
-                  </a>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -48,24 +49,27 @@ export function Footer() {
 
         <ul className="flex items-center gap-2">
           {[
-            { label: 'X (Twitter)', icon: Twitter, href: '#' },
-            { label: 'TikTok', icon: null, href: '#' },
-            { label: 'Instagram', icon: Instagram, href: '#' },
-            { label: 'YouTube', icon: Youtube, href: '#' },
+            { label: 'X (Twitter)', icon: Twitter },
+            { label: 'TikTok', icon: null },
+            { label: 'Instagram', icon: Instagram },
+            { label: 'YouTube', icon: Youtube },
           ].map((s) => {
             const Icon = s.icon
             return (
               <li key={s.label}>
-                <a
-                  href={s.href}
+                {/* Social destinations aren't live yet — render as a non-
+                    interactive badge rather than an `href="#"` link that
+                    would scroll to the top and dirty the history stack. */}
+                <span
                   aria-label={s.label}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition"
+                  role="img"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5"
                 >
                   {Icon ? <Icon size={16} /> : (
                     // TikTok glyph — lucide doesn't ship a first-class icon.
                     <span className="ls-display text-sm">t</span>
                   )}
-                </a>
+                </span>
               </li>
             )
           })}

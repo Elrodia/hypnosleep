@@ -97,9 +97,9 @@ export function LandingPage({ onStartTrial, onLogin }: LandingPageProps) {
   }, [])
 
   return (
-    <div className="ls-scope">
+    <div className="ls-scope ls-has-sticky-cta">
       <a
-        href="#top"
+        href="#ls-main"
         className="sr-only focus:not-sr-only fixed top-2 left-2 z-50 rounded-md bg-[color:var(--ls-primary)] px-3 py-1.5 text-sm text-white"
       >
         Skip to content
@@ -107,7 +107,7 @@ export function LandingPage({ onStartTrial, onLogin }: LandingPageProps) {
 
       <Nav onCtaClick={trackCTA} onLogin={onLogin} />
 
-      <main className="relative z-10">
+      <main id="ls-main" className="relative z-10">
         <Hero onCtaClick={(l) => trackCTA(l)} />
         <ProblemSolution />
         <HowItWorks />

@@ -11,12 +11,19 @@ interface ExitIntentModalProps {
 
 export function ExitIntentModal({ open, onClose, onCtaClick }: ExitIntentModalProps) {
   // Escape to close — respecting accessibility without needing a focus trap
-  // library (the modal contains only two focusable elements).
+  // library (the modal contains only two focusable elements). Also locks
+  // body scroll while the modal is open so the page behind can't scroll,
+  // matching the treatment used by the in-app SlideUpModal.
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
     document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = previousOverflow
+    }
   }, [open, onClose])
 
   return (
