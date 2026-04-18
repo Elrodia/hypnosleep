@@ -37,6 +37,12 @@ export interface AudioGenerationJobData {
   voiceId: VoiceId;
   backgroundSound: BackgroundSound;
   durationMinutes: number;
+  /**
+   * Whether the requesting user is on the Pro plan. Used by the queue
+   * to assign a higher BullMQ priority so paid users skip ahead of
+   * free-tier work when both are pending.
+   */
+  isPro?: boolean;
 }
 
 /** Progress events emitted via SSE */
