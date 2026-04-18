@@ -70,7 +70,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         python3-pip \
         python3-venv \
         ffmpeg \
-        ca-certificates
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 # Install edge-tts in an isolated venv so it's on PATH for the runtime
 # user without needing --break-system-packages.
 RUN python3 -m venv /opt/venv
