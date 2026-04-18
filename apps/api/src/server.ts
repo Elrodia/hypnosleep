@@ -248,6 +248,7 @@ const server = app.listen(PORT, () => {
 // force-exiting. Platforms like Railway send SIGKILL after ~30s, so
 // stay comfortably under that.
 const SHUTDOWN_TIMEOUT_MS = 25_000;
+let shuttingDown = false;
 
 const shutdown = async (signal: string) => {
   if (shuttingDown) return;
@@ -279,10 +280,6 @@ const shutdown = async (signal: string) => {
   await Promise.race([closeServer, closeTimeout]);
 
   try {
-    // Stop accepting new HTTP connections and wait for in-flight
-    // requests to drain.
-    await closeHttpServer();
-
     if (worker) {
       // Drain in-flight jobs before exiting so a Railway redeploy
       // doesn't abort an audio generation mid-pipeline.
@@ -297,7 +294,12 @@ const shutdown = async (signal: string) => {
     await closeQueue().catch((err) => {
       logger.warn({ err }, 'Failed to close audio queue cleanly');
     });
-
+    await shutdownPostHog();
+  } catch (err) {
+    logger.error({ err }, 'Unexpected error during shutdown');
+  } finally {
+    shuttingDown = false;
+  }
   // Let the event loop drain naturally now that all resources are closed.
   // (We intentionally don't call `process.exit(0)` — leaving it to the
   // runtime means any still-pending I/O can finish flushing.)
