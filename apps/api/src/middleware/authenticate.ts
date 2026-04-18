@@ -84,7 +84,7 @@ export function authenticateFromQuery() {
     const headerToken = req.headers.authorization?.startsWith('Bearer ')
       ? req.headers.authorization.slice(7)
       : null;
-    const token = queryToken ?? headerToken;
+    const token = headerToken ?? queryToken;
 
     if (!token) {
       next(unauthenticated('Missing authentication token'));
