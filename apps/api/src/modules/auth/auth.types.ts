@@ -1,0 +1,34 @@
+import type { Plan } from '../../config/constants.js';
+
+/** Supported OAuth providers. Passwordless — we support no other auth methods. */
+export type OAuthProvider = 'google' | 'github' | 'microsoft';
+
+/**
+ * Normalized profile returned by each OAuth strategy after unwrapping the
+ * provider's specific response shape. This is the only shape the auth
+ * service cares about.
+ */
+export interface OAuthProfile {
+  provider: OAuthProvider;
+  providerId: string;
+  email: string;
+  name: string;
+  avatarUrl?: string;
+}
+
+/** Decoded payload attached to a JWT we issue. */
+export interface JwtPayload {
+  userId: string;
+  plan: Plan;
+  iat: number;
+  exp: number;
+}
+
+/**
+ * Optional OAuth `state` blob. We currently use it to carry a referral
+ * code across the provider round-trip so that new users can be attributed
+ * to the referrer that sent them.
+ */
+export interface OAuthState {
+  ref?: string;
+}
