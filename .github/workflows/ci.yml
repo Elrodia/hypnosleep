@@ -126,7 +126,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Deploy
-        uses: bervProject/railway-deploy@main
+        # Pinned to a full commit SHA (rather than a moving branch like
+        # `@main`) for reproducible, supply-chain-safe builds.
+        # SHA corresponds to bervProject/railway-deploy main @ 2026-03-09.
+        uses: bervProject/railway-deploy@c8b8e2f0da766585bcb50512e99789a4434c79a8
         with:
           railway_token: ${{ secrets.RAILWAY_TOKEN }}
           service: hypnosleep-api

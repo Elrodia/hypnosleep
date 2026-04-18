@@ -10,21 +10,39 @@ import { logger } from '../utils/logger.js';
 const windowStore = new Map<string, { count: number; resetAt: number }>();
 
 /**
+ * Strategy for building the rate-limit bucket key from a request.
+ * Defaults to per-IP-per-route (so each route has its own budget);
+ * callers that need a different scope (e.g. a true global per-IP
+ * limiter, or a per-user limiter) can pass their own.
+ */
+export type RateLimitKeyFn = (req: Request) => string;
+
+const defaultKeyFn: RateLimitKeyFn = (req) => {
+  const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
+  // Use the matched route pattern (e.g. `/sessions/:id`) rather than the
+  // concrete request path so clients cannot bypass the limit by varying
+  // dynamic path segments.
+  const routePattern = req.route?.path ?? req.path;
+  const route = `${req.baseUrl}${routePattern}`;
+  return `ratelimit:${ip}:${route}`;
+};
+
+/**
  * Express middleware for rate limiting.
- * Uses a fixed-window approach per IP address.
+ * Uses a fixed-window approach, keyed by the supplied `keyFn`
+ * (default: per-IP-per-route).
  *
  * @param windowSec - Window duration in seconds
  * @param maxRequests - Maximum requests allowed in the window
+ * @param keyFn - Optional function to derive the bucket key from a request
  */
-export function rateLimit(windowSec: number, maxRequests: number) {
+export function rateLimit(
+  windowSec: number,
+  maxRequests: number,
+  keyFn: RateLimitKeyFn = defaultKeyFn,
+) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
-    // Use the matched route pattern (e.g. `/sessions/:id`) rather than the
-    // concrete request path so clients cannot bypass the limit by varying
-    // dynamic path segments.
-    const routePattern = req.route?.path ?? req.path;
-    const route = `${req.baseUrl}${routePattern}`;
-    const key = `ratelimit:${ip}:${route}`;
+    const key = keyFn(req);
     const now = Date.now();
 
     try {
@@ -121,13 +139,19 @@ export function _clearRateLimitStore(): void {
 
 /**
  * Global IP-level rate limit applied at the top of the Express chain.
- * Distinct from {@link rateLimit} (which keys per-route): this limits
- * total requests from a single IP across the whole API and is intended
- * as coarse-grained abuse protection. Skips nothing itself — callers in
- * `server.ts` are responsible for bypassing it on paths with their own
- * rate-limiting semantics (Stripe webhooks, SSE streams).
+ * Unlike the default {@link rateLimit} keying (which is per-IP-per-route),
+ * this keys purely by IP with a fixed `:global` suffix so that the budget
+ * is shared across every route — callers can't bypass it by spraying
+ * requests across different paths. Skips nothing itself — `server.ts` is
+ * responsible for bypassing it on paths with their own rate-limiting
+ * semantics (Stripe webhooks, SSE streams).
  */
 const IP_LIMIT = 100; // requests
 const IP_WINDOW_SEC = 60;
 
-export const ipRateLimit = rateLimit(IP_WINDOW_SEC, IP_LIMIT);
+const globalIpKeyFn: RateLimitKeyFn = (req) => {
+  const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
+  return `ratelimit:${ip}:global`;
+};
+
+export const ipRateLimit = rateLimit(IP_WINDOW_SEC, IP_LIMIT, globalIpKeyFn);
