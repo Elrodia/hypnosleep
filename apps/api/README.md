@@ -2,6 +2,49 @@
 
 Express + Drizzle backend for HypnoSleep.
 
+## Deployment — unified Railway service
+
+In production the Vite SPA and this Express API are shipped as a
+**single Railway service** behind one domain (`https://app.hypnosleep.app`).
+The top-level `Dockerfile` and `railway.toml` at the repo root drive the
+build:
+
+1. Stage 1 builds the Vite SPA (`npm run build` at the repo root → `dist/`).
+2. Stage 2 builds this API (`tsc -b` → `apps/api/dist/`).
+3. Stage 3 runs `node dist/server.js`. Express mounts `/api/*` and then
+   serves the built SPA from `STATIC_DIR` with an SPA fallback, so
+   `https://app.hypnosleep.app/api/auth/google/callback` and
+   `https://app.hypnosleep.app/` are handled by the same process.
+
+Because the SPA and the API share an origin, CORS is automatically
+skipped (see `server.ts`) and the OAuth callback URLs registered with
+each provider (`https://app.hypnosleep.app/api/auth/<provider>/callback`)
+point at this service directly.
+
+Attach these Railway services and wire them via env vars:
+
+| Railway service | Env var consumed by the API |
+| --- | --- |
+| PostgreSQL plugin | `DATABASE_URL` |
+| MySQL plugin | `MYSQL_URL` |
+| Redis plugin | `REDIS_URL` (optional — rate-limit + audio worker degrade gracefully without it) |
+| S3-compatible bucket (e.g. Cloudflare R2, AWS S3) | `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`, `S3_ENDPOINT`, `S3_REGION`, `S3_FORCE_PATH_STYLE` |
+
+Other required env vars:
+
+- `JWT_SECRET`, `JWT_EXPIRES_IN`
+- `FRONTEND_URL=https://app.hypnosleep.app`
+- `API_URL=https://app.hypnosleep.app` (same origin as the SPA)
+- `GEMINI_API_KEY`, `GEMINI_MODEL`
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
+- `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_ANNUAL`
+
+`STATIC_DIR` and `PORT` are set by the Dockerfile and by Railway
+respectively and do not need to be configured manually. Point
+Railway's custom domain `app.hypnosleep.app` at this service.
+
 ## Authentication — OAuth only
 
 Authentication is **passwordless**. Users log in exclusively via Google,
