@@ -12,7 +12,11 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "node dist/server.js"
-healthcheckPath = "/api/health"
+# `/health` is registered before the rate limiter and before the Sentry
+# error handler, so Railway's probes never get 429'd or accidentally
+# captured as synthetic errors. The richer `/api/health` endpoint is
+# still available for in-app checks.
+healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3

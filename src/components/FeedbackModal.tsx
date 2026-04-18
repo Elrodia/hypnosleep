@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { X } from '@phosphor-icons/react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { useKV } from '@github/spark/hooks'
+import { useKV } from '@/hooks/use-kv'
 import { toast } from 'sonner'
 
 interface FeedbackModalProps {

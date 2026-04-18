@@ -250,6 +250,8 @@ const server = app.listen(PORT, () => {
 const SHUTDOWN_TIMEOUT_MS = 25_000;
 
 const shutdown = async (signal: string) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
   logger.info({ signal }, 'Received shutdown signal');
 
   // Stop accepting new HTTP connections and wait for in-flight requests
@@ -276,31 +278,33 @@ const shutdown = async (signal: string) => {
   });
   await Promise.race([closeServer, closeTimeout]);
 
-  if (worker) {
-    // Drain in-flight jobs before exiting so a Railway redeploy
-    // doesn't abort an audio generation mid-pipeline.
-    try {
-      await worker.close();
-    } catch (err) {
-      logger.warn({ err }, 'Failed to close audio generation worker cleanly');
-    }
-  }
-  // Close the queue's Redis connection so the process can exit
-  // cleanly even if the worker was never started.
-  await closeQueue().catch((err) => {
-    logger.warn({ err }, 'Failed to close audio queue cleanly');
-  });
+  try {
+    // Stop accepting new HTTP connections and wait for in-flight
+    // requests to drain.
+    await closeHttpServer();
 
-  // Flush any pending PostHog analytics events.
-  await shutdownPostHog();
+    if (worker) {
+      // Drain in-flight jobs before exiting so a Railway redeploy
+      // doesn't abort an audio generation mid-pipeline.
+      try {
+        await worker.close();
+      } catch (err) {
+        logger.warn({ err }, 'Failed to close audio generation worker cleanly');
+      }
+    }
+    // Close the queue's Redis connection so the process can exit
+    // cleanly even if the worker was never started.
+    await closeQueue().catch((err) => {
+      logger.warn({ err }, 'Failed to close audio queue cleanly');
+    });
 
   // Let the event loop drain naturally now that all resources are closed.
   // (We intentionally don't call `process.exit(0)` — leaving it to the
   // runtime means any still-pending I/O can finish flushing.)
 };
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));
 
 process.on('unhandledRejection', (err) => {
   logger.fatal({ err }, 'Unhandled promise rejection');

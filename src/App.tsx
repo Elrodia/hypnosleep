@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense, type ComponentType } from 'react'
+import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { TabBar, TabId } from './components/TabBar'
 import { Header } from './components/Header'
@@ -8,17 +8,11 @@ import { CreatePage } from './components/pages/CreatePage'
 import { ProgressPage } from './components/pages/ProgressPage'
 import { ProfilePage } from './components/pages/ProfilePage'
 import { LoginPage } from './components/pages/LoginPage'
+import { AuthCallbackPage } from './components/pages/AuthCallbackPage'
+import { AuthErrorPage } from './components/pages/AuthErrorPage'
+
 // Lazy-load the marketing landing page so its JS and CSS are not shipped
-// with the authenticated app bundle.
-//
-// Dynamically imported chunks are emitted with content-hashed filenames
-// (e.g. `LandingPage-BgsnaQ-Z.js`). When a new version of the app is
-// deployed, any tab still running the previous version will request a
-// chunk filename that no longer exists on the server, producing a
-// "Failed to fetch dynamically imported module" error. To recover
-// gracefully we retry the import a few times and, if it still
-// fails, force a one-shot hard reload so the user picks up the latest
-// build instead of being stuck on the error fallback.
+// with the authenticated app bundle. See lazyWithRetry comment below.
 function lazyWithRetry<T extends ComponentType<any>>(
   factory: () => Promise<{ default: T }>,
 ) {
@@ -29,26 +23,15 @@ function lazyWithRetry<T extends ComponentType<any>>(
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const mod = await factory()
-        // Successfully loaded; clear any stale reload flag.
-        try {
-          sessionStorage.removeItem(RELOAD_KEY)
-        } catch {
-          /* ignore storage errors */
-        }
+        try { sessionStorage.removeItem(RELOAD_KEY) } catch { /* ignore */ }
         return mod
       } catch (err) {
         lastError = err
-        // Brief backoff before retrying transient network failures.
-        // Skip the backoff after the final attempt so we don't add an
-        // unnecessary delay before the reload / error path.
         if (attempt < maxAttempts - 1) {
           await new Promise((r) => setTimeout(r, 250 * (attempt + 1)))
         }
       }
     }
-
-    // All retries failed. If this looks like a stale chunk error and we
-    // haven't already attempted a reload, hard-refresh once.
     const message = lastError instanceof Error ? lastError.message : String(lastError)
     const isChunkError = /dynamically imported module|Importing a module script failed|Failed to fetch/i.test(message)
     if (typeof window !== 'undefined' && isChunkError) {
@@ -57,15 +40,10 @@ function lazyWithRetry<T extends ComponentType<any>>(
         if (!alreadyReloaded) {
           sessionStorage.setItem(RELOAD_KEY, '1')
           window.location.reload()
-          // Return a never-resolving promise so React keeps the Suspense
-          // fallback visible until the reload happens.
           return new Promise<{ default: T }>(() => {})
         }
-      } catch {
-        /* ignore storage errors */
-      }
+      } catch { /* ignore */ }
     }
-
     throw lastError
   })
 }
@@ -84,33 +62,84 @@ import { PaymentSuccessScreen } from './components/PaymentSuccessScreen'
 import { AudioPlayerProvider, useAudioPlayer } from './contexts/AudioPlayerContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { toast } from 'sonner'
-import { useKV } from '@github/spark/hooks'
+import { useKV } from '@/hooks/use-kv'
+import { useAuth } from '@/lib/auth-context'
+import { updateProfile, type UserPreferences } from '@/lib/api-endpoints'
+
+/**
+ * Top-level route discriminator based on `window.location.pathname`.
+ *
+ * We intentionally do not pull in a full SPA router — the app's
+ * primary navigation is tab-based and the only URLs we need to
+ * recognise are the OAuth and payment callbacks.
+ */
+type AppRoute = 'app' | 'auth-callback' | 'auth-error' | 'payment-success'
+
+function resolveRoute(): AppRoute {
+  if (typeof window === 'undefined') return 'app'
+  const p = window.location.pathname
+  if (p === '/auth/callback') return 'auth-callback'
+  if (p === '/auth/error') return 'auth-error'
+  if (p === '/upgrade/success' || p === '/payment/success') return 'payment-success'
+  return 'app'
+}
+
+/**
+ * Reset the URL back to `/` without reloading. Used after we consume
+ * a callback route so the user doesn't see it in history / share URLs.
+ */
+function clearCallbackUrl(): void {
+  try {
+    window.history.replaceState(null, '', '/')
+  } catch {
+    /* ignore */
+  }
+}
 
 function AppContent() {
+  const { user, status, refresh, setUser } = useAuth()
+  const isLoggedIn = status === 'authenticated'
+
+  const [route, setRoute] = useState<AppRoute>(() => resolveRoute())
   const [activeTab, setActiveTab] = useState<TabId>('home')
   const [showSplash, setShowSplash] = useState(true)
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useKV<boolean>('has-completed-onboarding', false)
-  const [hasCompletedQuiz, setHasCompletedQuiz] = useKV<boolean>('has-completed-quiz', false)
-  const [isLoggedIn, setIsLoggedIn] = useKV<boolean>('is-logged-in', false)
+
+  // Local-only onboarding flags that mirror `user.preferences` once the
+  // profile loads. This keeps the landing-page flow usable for anonymous
+  // users (where we can't write to the backend yet) while giving signed-in
+  // users cross-device persistence.
+  const [localOnboarding, setLocalOnboarding] = useKV<boolean>('has-completed-onboarding', false)
+  const [localQuiz, setLocalQuiz] = useKV<boolean>('has-completed-quiz', false)
+
+  const hasCompletedOnboarding = isLoggedIn
+    ? user?.preferences?.hasCompletedOnboarding ?? false
+    : (localOnboarding ?? false)
+  const hasCompletedQuiz = isLoggedIn
+    ? user?.preferences?.hasCompletedQuiz ?? false
+    : (localQuiz ?? false)
+
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showQuiz, setShowQuiz] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [showFullPlayer, setShowFullPlayer] = useState(false)
-  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
   const [quizData, setQuizData] = useKV<{
     selectedGoals: string[]
     preferredTime: string
     sessionDuration: number
   } | null>('quiz-data', null)
+
   const { player, togglePlayPause, setProgress, showFeedback, setShowFeedback, completedSession, stop } = useAudioPlayer()
 
   useEffect(() => {
+    // Keep the splash screen visible until we know whether the user is
+    // authenticated, so we don't flash the landing page for logged-in
+    // users while `/api/auth/me` is in flight.
+    if (status === 'loading') return
+
     const timer = setTimeout(() => {
       setShowSplash(false)
-      if (!isLoggedIn) {
-        return
-      }
+      if (!isLoggedIn) return
       if (!hasCompletedOnboarding) {
         setShowOnboarding(true)
       } else if (!hasCompletedQuiz) {
@@ -121,15 +150,14 @@ function AppContent() {
     }, 2500)
 
     return () => clearTimeout(timer)
-  }, [hasCompletedOnboarding, hasCompletedQuiz, isLoggedIn, quizData, showResults])
+  }, [status, hasCompletedOnboarding, hasCompletedQuiz, isLoggedIn, quizData, showResults])
 
   useEffect(() => {
     const handleNavigateToTab = (event: CustomEvent<TabId>) => {
       setActiveTab(event.detail)
     }
-
     const handleShowPaymentSuccess = () => {
-      setShowPaymentSuccess(true)
+      setRoute('payment-success')
     }
 
     window.addEventListener('navigate-to-tab', handleNavigateToTab as EventListener)
@@ -140,24 +168,33 @@ function AppContent() {
     }
   }, [])
 
-  const handleExpand = () => {
-    setShowFullPlayer(true)
-  }
+  const handleExpand = () => setShowFullPlayer(true)
+  const handleCloseFullPlayer = () => setShowFullPlayer(false)
+  const handleSeek = (newProgress: number) => setProgress(newProgress)
 
-  const handleCloseFullPlayer = () => {
-    setShowFullPlayer(false)
-  }
-
-  const handleSeek = (newProgress: number) => {
-    setProgress(newProgress)
+  /**
+   * Write the given preference patch to the backend and mirror the
+   * change into the in-memory user so the UI reflects it immediately.
+   * Falls back to the local useKV flag when the user is anonymous.
+   */
+  const persistPreferences = async (patch: Partial<UserPreferences>) => {
+    if (!isLoggedIn) return
+    try {
+      const updated = await updateProfile({ preferences: patch })
+      setUser(updated)
+    } catch (err) {
+      // Non-fatal: the local mirror in `useKV` + the flag-through-next-login
+      // still keeps the user out of the flow. A surfaced toast would be
+      // noisy since the user may not even know they're signed in yet.
+      console.warn('Failed to persist onboarding preferences:', err)
+    }
   }
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false)
-    setHasCompletedOnboarding(true)
-    if (!hasCompletedQuiz) {
-      setShowQuiz(true)
-    }
+    setLocalOnboarding(true)
+    void persistPreferences({ hasCompletedOnboarding: true })
+    if (!hasCompletedQuiz) setShowQuiz(true)
   }
 
   const handleQuizComplete = (data: {
@@ -168,7 +205,13 @@ function AppContent() {
     setQuizData(data)
     setShowQuiz(false)
     setShowResults(true)
-    setHasCompletedQuiz(true)
+    setLocalQuiz(true)
+    void persistPreferences({
+      hasCompletedQuiz: true,
+      goals: data.selectedGoals,
+      preferredTime: data.preferredTime as UserPreferences['preferredTime'],
+      defaultDuration: data.sessionDuration,
+    })
   }
 
   const handleStartSession = () => {
@@ -176,40 +219,57 @@ function AppContent() {
     toast.success('Session starting soon!')
   }
 
-  const handleSkipToApp = () => {
-    setShowResults(false)
-  }
-
-  const handleLogin = () => {
-    setIsLoggedIn(true)
-    if (!hasCompletedOnboarding) {
-      setShowOnboarding(true)
-    } else if (!hasCompletedQuiz) {
-      setShowQuiz(true)
-    }
-  }
+  const handleSkipToApp = () => setShowResults(false)
 
   const renderPage = () => {
     switch (activeTab) {
-      case 'home':
-        return <HomePage />
-      case 'library':
-        return <LibraryPage />
-      case 'create':
-        return <CreatePage />
-      case 'progress':
-        return <ProgressPage />
-      case 'profile':
-        return <ProfilePage />
-      default:
-        return <HomePage />
+      case 'home': return <HomePage />
+      case 'library': return <LibraryPage />
+      case 'create': return <CreatePage />
+      case 'progress': return <ProgressPage />
+      case 'profile': return <ProfilePage />
+      default: return <HomePage />
     }
   }
 
-  if (!showSplash && !isLoggedIn) {
-    if (showLogin) {
-      return <LoginPage onLogin={handleLogin} />
+  // ── Top-level route branches ────────────────────────────────────
+  // These are handled before the auth-state machine below so a signed-out
+  // user landing on /auth/callback still sees the proper "signing in"
+  // screen rather than the landing page.
+  if (route === 'auth-callback') {
+    // Once auth resolves (either way), return home. If it succeeded we
+    // land in the app shell; if it failed we land on the landing page.
+    if (status !== 'loading') {
+      clearCallbackUrl()
+      // Fall-through to normal rendering by switching the route.
+      setTimeout(() => setRoute('app'), 0)
     }
+    return <AuthCallbackPage />
+  }
+
+  if (route === 'auth-error') {
+    return (
+      <AuthErrorPage
+        onRetry={() => {
+          clearCallbackUrl()
+          setRoute('app')
+          setShowLogin(true)
+        }}
+      />
+    )
+  }
+
+  // Render splash while auth is resolving, then decide.
+  if (status === 'loading') {
+    return (
+      <AnimatePresence>
+        <SplashScreen />
+      </AnimatePresence>
+    )
+  }
+
+  if (!showSplash && !isLoggedIn) {
+    if (showLogin) return <LoginPage />
     return (
       <Suspense fallback={<div className="min-h-screen bg-background" />}>
         <LandingPage
@@ -218,6 +278,14 @@ function AppContent() {
         />
       </Suspense>
     )
+  }
+
+  const showPaymentSuccess = route === 'payment-success'
+  const onPaymentSuccessDone = () => {
+    clearCallbackUrl()
+    setRoute('app')
+    // Refresh the profile so the `plan: 'pro'` flip is reflected.
+    void refresh()
   }
 
   return (
@@ -230,15 +298,15 @@ function AppContent() {
         {showPaymentSuccess && (
           <PaymentSuccessScreen
             onNavigateToCreate={() => {
-              setShowPaymentSuccess(false)
+              onPaymentSuccessDone()
               setActiveTab('create')
             }}
             onNavigateToLibrary={() => {
-              setShowPaymentSuccess(false)
+              onPaymentSuccessDone()
               setActiveTab('library')
             }}
             onAutoRedirect={() => {
-              setShowPaymentSuccess(false)
+              onPaymentSuccessDone()
               setActiveTab('home')
             }}
           />
@@ -268,7 +336,7 @@ function AppContent() {
           />
         )}
       </AnimatePresence>
-      
+
       {!showSplash && !showOnboarding && !showQuiz && !showResults && !showPaymentSuccess && (
         <div className="min-h-screen bg-background text-foreground pb-20 pt-14">
           <Header />
@@ -283,7 +351,7 @@ function AppContent() {
               {renderPage()}
             </motion.div>
           </AnimatePresence>
-          
+
           <AnimatePresence>
             {player.isActive && !showFullPlayer && (
               <MiniPlayer
@@ -308,7 +376,7 @@ function AppContent() {
             onSeek={handleSeek}
             onStop={stop}
           />
-          
+
           <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
       )}

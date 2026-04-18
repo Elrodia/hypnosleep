@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Bell } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
-import { useKV } from '@github/spark/hooks'
+import { useKV } from '@/hooks/use-kv'
 import { Logo } from './Logo'
 
 export function Header() {

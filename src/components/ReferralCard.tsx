@@ -1,16 +1,17 @@
 import { Gift, Copy, WhatsappLogo, XLogo, EnvelopeSimple } from '@phosphor-icons/react'
-import { useKV } from '@github/spark/hooks'
+import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
+import { getReferralStats } from '@/lib/api-endpoints'
 
 export function ReferralCard() {
-  const [referralCount] = useKV<number>('referral-count', 0)
-  const [userId] = useKV<string>('user-id', 'USER123')
+  const { data } = useQuery({
+    queryKey: ['profile', 'referral'],
+    queryFn: getReferralStats,
+  })
 
-  const safeReferralCount = referralCount ?? 0
-  const safeUserId = userId ?? 'USER123'
-  
-  const referralLink = `https://hypnosleep.app/join/${safeUserId}`
+  const safeReferralCount = data?.totalInvited ?? 0
+  const referralLink = data?.shareUrl ?? ''
   const referralMessage = "Try HypnoSleep - AI-powered hypnosis for better sleep. Get 7 days free with my link!"
 
   const handleCopyLink = async () => {

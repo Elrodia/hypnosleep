@@ -1,6 +1,6 @@
-import { useKV } from '@github/spark/hooks'
+import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { getStreak, getHeatmap } from '@/lib/api-endpoints'
 
 interface StreakDay {
   date: string
@@ -8,25 +8,33 @@ interface StreakDay {
 }
 
 export function StreakWidget() {
-  const [currentStreak, setCurrentStreak] = useKV<number>('current-streak', 0)
-  const [streakRecord, setStreakRecord] = useKV<number>('streak-record', 0)
-  const [streakHistory, setStreakHistory] = useKV<StreakDay[]>('streak-history', [])
+  const { data: streak } = useQuery({
+    queryKey: ['progress', 'streak'],
+    queryFn: getStreak,
+  })
+  const { data: heatmap } = useQuery({
+    queryKey: ['progress', 'heatmap', 14],
+    queryFn: () => getHeatmap(14),
+  })
+
+  const currentStreak = streak?.currentStreak ?? 0
+  const streakRecord = streak?.longestStreak ?? 0
 
   const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-  
+
   const getLast7Days = (): StreakDay[] => {
     const today = new Date()
     const days: StreakDay[] = []
-    
+    const heatmapMap = new Map<string, number>()
+    for (const p of heatmap ?? []) heatmapMap.set(p.date, p.count)
+
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today)
       date.setDate(date.getDate() - i)
       const dateString = date.toISOString().split('T')[0]
-      
-      const existingDay = (streakHistory || []).find(d => d.date === dateString)
-      days.push(existingDay || { date: dateString, completed: false })
+      days.push({ date: dateString, completed: (heatmapMap.get(dateString) ?? 0) > 0 })
     }
-    
+
     return days
   }
 
@@ -36,29 +44,23 @@ export function StreakWidget() {
   }
 
   const weekDays = getLast7Days()
-  const daysUntilRecord = Math.max(0, ((streakRecord || 0) + 1) - (currentStreak || 0))
-  
-  const flameHeight = Math.min(100, 40 + ((currentStreak || 0) * 3))
+  const daysUntilRecord = Math.max(0, streakRecord + 1 - currentStreak)
+
+  const flameHeight = Math.min(100, 40 + currentStreak * 3)
 
   const getMotivationalText = () => {
-    if ((currentStreak || 0) === 0) {
-      return "Start your journey today! 🌟"
+    if (currentStreak === 0) {
+      return 'Start your journey today! 🌟'
     } else if (daysUntilRecord === 0) {
       return "New record! You're on fire! 🔥"
     } else if (daysUntilRecord === 1) {
-      return "Just 1 more day to beat your record!"
+      return 'Just 1 more day to beat your record!'
     } else if (daysUntilRecord <= 3) {
       return `Keep going! ${daysUntilRecord} more days to your record.`
     } else {
-      return `${currentStreak || 0} day streak! Keep it up!`
+      return `${currentStreak} day streak! Keep it up!`
     }
   }
-
-  useEffect(() => {
-    if ((currentStreak || 0) > (streakRecord || 0)) {
-      setStreakRecord((prev) => currentStreak || 0)
-    }
-  }, [currentStreak, streakRecord, setStreakRecord])
 
   return (
     <div className="rounded-2xl bg-card border border-border/50 p-5 shadow-sm">

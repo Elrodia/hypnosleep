@@ -1,43 +1,36 @@
 import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { PencilSimple, Moon, Headphones, Flame, CaretRight, SlidersHorizontal, UserCircle, CreditCard, Question, Info } from '@phosphor-icons/react'
-import { useKV } from '@github/spark/hooks'
 import { PreferencesPage } from './PreferencesPage'
 import { AccountPage } from './AccountPage'
 import { ProUpgradePage } from './ProUpgradePage'
 import { ReferralCard } from '../ReferralCard'
-
-interface UserProfile {
-  name: string
-  email: string
-  memberSince: string
-  avatarInitials: string
-}
+import { useAuth } from '@/lib/auth-context'
+import { getProgressStats, getStreak } from '@/lib/api-endpoints'
 
 export function ProfilePage() {
+  const { user } = useAuth()
   const [showPreferences, setShowPreferences] = useState(false)
   const [showAccount, setShowAccount] = useState(false)
   const [showSubscription, setShowSubscription] = useState(false)
-  const [profile] = useKV<UserProfile>('user-profile', {
-    name: 'Alex Morgan',
-    email: 'alex.morgan@email.com',
-    memberSince: '2024-01-15',
-    avatarInitials: 'AM'
-  })
 
-  const [totalSessions] = useKV<number>('total-sessions-completed', 42)
-  const [totalListened] = useKV<number>('total-minutes-listened', 1080)
-  const [currentStreak] = useKV<number>('current-streak', 12)
+  const { data: stats } = useQuery({ queryKey: ['progress', 'stats'], queryFn: getProgressStats })
+  const { data: streak } = useQuery({ queryKey: ['progress', 'streak'], queryFn: getStreak })
 
-  const safeProfile = profile || {
-    name: 'Alex Morgan',
-    email: 'alex.morgan@email.com',
-    memberSince: '2024-01-15',
-    avatarInitials: 'AM'
+  const safeProfile = {
+    name: user?.name ?? 'Welcome',
+    email: user?.email ?? '',
+    memberSince: user?.createdAt ?? new Date().toISOString(),
+    avatarInitials: (user?.name ?? user?.email ?? 'U')
+      .split(/\s+/)
+      .map((w) => w[0]?.toUpperCase() ?? '')
+      .slice(0, 2)
+      .join('') || 'U',
   }
 
-  const safeTotalSessions = totalSessions ?? 42
-  const safeTotalListened = totalListened ?? 1080
-  const safeCurrentStreak = currentStreak ?? 12
+  const safeTotalSessions = stats?.totalSessions ?? 0
+  const safeTotalListened = stats?.totalMinutes ?? 0
+  const safeCurrentStreak = streak?.currentStreak ?? 0
 
   const formatMemberSince = (dateString: string) => {
     const date = new Date(dateString)
@@ -52,14 +45,9 @@ export function ProfilePage() {
   }
 
   useEffect(() => {
-    const handleShowSubscription = () => {
-      setShowSubscription(true)
-    }
-
+    const handleShowSubscription = () => setShowSubscription(true)
     window.addEventListener('show-subscription', handleShowSubscription as EventListener)
-    return () => {
-      window.removeEventListener('show-subscription', handleShowSubscription as EventListener)
-    }
+    return () => window.removeEventListener('show-subscription', handleShowSubscription as EventListener)
   }, [])
 
   const settingsCategories = [

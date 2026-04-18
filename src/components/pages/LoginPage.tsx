@@ -1,22 +1,19 @@
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { GoogleLogo, GithubLogo, MicrosoftOutlookLogo } from '@phosphor-icons/react'
+import { startOAuth } from '@/lib/auth'
 
-interface LoginPageProps {
-  onLogin: () => void
-}
-
-export function LoginPage({ onLogin }: LoginPageProps) {
+export function LoginPage() {
   const handleGoogleLogin = () => {
-    onLogin()
+    startOAuth('google')
   }
 
   const handleGithubLogin = () => {
-    onLogin()
+    startOAuth('github')
   }
 
   const handleMicrosoftLogin = () => {
-    onLogin()
+    startOAuth('microsoft')
   }
 
   return (

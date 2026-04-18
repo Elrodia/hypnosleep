@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Microphone, CloudRain, Waves, Tree, Wind, RadioButton, Icon } from '@phosphor-icons/react'
-import { useKV } from '@github/spark/hooks'
+import { useKV } from '@/hooks/use-kv'
 import { Slider } from './ui/slider'
 
 interface SoundsModalProps {

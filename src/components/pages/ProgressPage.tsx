@@ -1,16 +1,13 @@
 import { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { CaretLeft, CaretRight, Clock, Headphones, Fire, Trophy } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
-import { useKV } from '@github/spark/hooks'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AnimatedCounter } from '@/components/AnimatedCounter'
 import { GoalsSection } from '@/components/GoalsSection'
 import { MoodTrend } from '@/components/MoodTrend'
 import { AIInsightCard } from '@/components/AIInsightCard'
-
-interface SessionData {
-  [date: string]: number
-}
+import { getHeatmap, getStreak, getProgressStats } from '@/lib/api-endpoints'
 
 interface TooltipData {
   date: string
@@ -22,8 +19,29 @@ interface TooltipData {
 
 export function ProgressPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [sessionData] = useKV<SessionData>('session-activity', {})
   const [tooltip, setTooltip] = useState<TooltipData | null>(null)
+
+  // Pull 120 days so we always have enough history to render the
+  // current calendar month plus the one before it.
+  const { data: heatmap } = useQuery({
+    queryKey: ['progress', 'heatmap', 120],
+    queryFn: () => getHeatmap(120),
+  })
+  const { data: streak } = useQuery({
+    queryKey: ['progress', 'streak'],
+    queryFn: getStreak,
+  })
+  const { data: stats } = useQuery({
+    queryKey: ['progress', 'stats'],
+    queryFn: getProgressStats,
+  })
+
+  /** Map of ISO date string → session count, derived from the heatmap. */
+  const sessionData = useMemo<Record<string, number>>(() => {
+    const out: Record<string, number> = {}
+    for (const p of heatmap ?? []) out[p.date] = p.count
+    return out
+  }, [heatmap])
 
   const { year, month, monthName, daysInMonth, firstDayOfWeek, today } = useMemo(() => {
     const year = currentDate.getFullYear()
@@ -48,7 +66,7 @@ export function ProgressPage() {
 
   const getSessionsForDay = (day: number): number => {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    return sessionData?.[dateStr] || 0
+    return sessionData[dateStr] ?? 0
   }
 
   const getMinutesForDay = (sessions: number): number => {
@@ -123,7 +141,7 @@ export function ProgressPage() {
       const checkDate = new Date(startOfWeek)
       checkDate.setDate(startOfWeek.getDate() + i)
       const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`
-      const sessions = sessionData?.[dateStr] || 0
+      const sessions = sessionData[dateStr] ?? 0
       weekSessions += sessions
       weekMinutes += sessions * 15
     }
@@ -134,8 +152,10 @@ export function ProgressPage() {
     }
   }, [sessionData])
 
-  const [currentStreak] = useKV<number>('current-streak', 5)
-  const [bestStreak] = useKV<number>('best-streak', 12)
+  const currentStreak = streak?.currentStreak ?? 0
+  const bestStreak = streak?.longestStreak ?? 0
+  const allTimeMinutes = stats?.totalMinutes ?? totalMinutes
+  const allTimeSessions = stats?.totalSessions ?? totalSessions
 
   return (
     <div className="p-4 pb-8">
@@ -296,11 +316,11 @@ export function ProgressPage() {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-card border border-border rounded-xl p-4">
-          <div className="text-2xl font-bold text-primary mb-1">{totalSessions}</div>
-          <div className="text-sm text-muted-foreground">Sessions this month</div>
+          <div className="text-2xl font-bold text-primary mb-1">{allTimeSessions}</div>
+          <div className="text-sm text-muted-foreground">Total sessions</div>
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
-          <div className="text-2xl font-bold text-primary mb-1">{totalMinutes}</div>
+          <div className="text-2xl font-bold text-primary mb-1">{allTimeMinutes}</div>
           <div className="text-sm text-muted-foreground">Total minutes</div>
         </div>
       </div>
