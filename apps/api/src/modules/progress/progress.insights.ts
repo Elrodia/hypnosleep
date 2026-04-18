@@ -71,17 +71,28 @@ export async function generateWeeklyInsight(
       ),
     );
 
-  const sessionIds = playEvents
-    .map((e) => e.sessionId)
-    .filter((id): id is string => typeof id === 'string' && id.length > 0);
+  const sessionPlayCounts = new Map<string, number>();
+  for (const event of playEvents) {
+    const sessionId = event.sessionId;
+    if (typeof sessionId === 'string' && sessionId.length > 0) {
+      sessionPlayCounts.set(sessionId, (sessionPlayCounts.get(sessionId) ?? 0) + 1);
+    }
+  }
+
+  const sessionIds = [...sessionPlayCounts.keys()];
 
   let categories: string[] = [];
   if (sessionIds.length > 0) {
     const cats = await mysqlDb
-      .select({ category: sessions.category })
+      .select({ id: sessions.id, category: sessions.category })
       .from(sessions)
       .where(inArray(sessions.id, sessionIds));
-    categories = cats.map((c) => c.category);
+    categories = cats.flatMap((c) =>
+      Array.from(
+        { length: sessionPlayCounts.get(c.id) ?? 0 },
+        () => c.category,
+      ),
+    );
   }
 
   const moods = await pgDb
