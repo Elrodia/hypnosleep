@@ -30,6 +30,12 @@ const envSchema = z.object({
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
     .default('info'),
   FRONTEND_URL: z.string().url().default('https://app.hypnosleep.app'),
+  /**
+   * Public base URL of the API, used to build OAuth callback URLs
+   * (e.g. `${API_URL}/api/auth/google/callback`). Must match what is
+   * registered with each OAuth provider.
+   */
+  API_URL: z.string().url().default('https://api.hypnosleep.app'),
 
   // --- Databases -----------------------------------------------------------
   DATABASE_URL: z.string().min(1),
@@ -40,6 +46,8 @@ const envSchema = z.object({
 
   // --- Auth ----------------------------------------------------------------
   JWT_SECRET: z.string().min(1),
+  /** jsonwebtoken `expiresIn` string (e.g. `30d`, `12h`). */
+  JWT_EXPIRES_IN: z.string().min(1).default('30d'),
 
   // --- AI ------------------------------------------------------------------
   GEMINI_API_KEY: z.string().min(1),
@@ -52,6 +60,11 @@ const envSchema = z.object({
   GITHUB_CLIENT_SECRET: z.string().min(1),
   MICROSOFT_CLIENT_ID: z.string().min(1),
   MICROSOFT_CLIENT_SECRET: z.string().min(1),
+  /**
+   * Microsoft Entra (Azure AD) tenant. Use `common` to allow both
+   * personal Microsoft accounts and any work/school account.
+   */
+  MICROSOFT_TENANT_ID: z.string().min(1).default('common'),
 
   // --- Object storage (S3-compatible, e.g. Cloudflare R2) ------------------
   S3_ACCESS_KEY: z.string().min(1),
