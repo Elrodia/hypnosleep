@@ -20,7 +20,7 @@ function requireUserId(req: Request): string {
   if (!user?.userId) {
     // Should be unreachable — the authenticate() middleware rejects
     // anonymous callers before this point.
-    throw validationFailed('Authenticated user id missing');
+    throw new Error('Authenticated user id missing');
   }
   return user.userId;
 }
