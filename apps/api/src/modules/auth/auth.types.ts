@@ -25,10 +25,13 @@ export interface JwtPayload {
 }
 
 /**
- * Optional OAuth `state` blob. We currently use it to carry a referral
- * code across the provider round-trip so that new users can be attributed
- * to the referrer that sent them.
+ * Optional OAuth `state` blob. Carries a cryptographically random
+ * `nonce` used for CSRF protection (bound to the user agent via an
+ * HttpOnly cookie and validated in the callback) and optionally a
+ * referral code so new users can be attributed to the referrer that
+ * sent them.
  */
 export interface OAuthState {
+  nonce: string;
   ref?: string;
 }
