@@ -58,6 +58,7 @@ export async function handleGenerateSession(
     // Build input for script generation
     const input: GenerateSessionInput = {
       userId: user.userId,
+      sessionId,
       prompt: body.prompt,
       category: body.category,
       voiceId: body.voiceId as GenerateSessionInput['voiceId'],

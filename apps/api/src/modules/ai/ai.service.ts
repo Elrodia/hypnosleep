@@ -1,240 +1,240 @@
-import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai';
+import type { GenerativeModel } from '@google/generative-ai';
+import { randomUUID } from 'node:crypto';
+import { callGemini, _setModel as _setGeminiModel } from './ai.gemini.js';
+import {
+  buildScriptPrompt,
+  buildRegenerateParagraphPrompt,
+} from './ai.prompts.js';
+import { deepSafetyCheck, quickSafetyCheck } from './ai.safety.js';
 import { logger } from '../../utils/logger.js';
-import { externalApiError, generationFailed, AppError } from '../../utils/errors.js';
+import {
+  externalApiError,
+  generationFailed,
+  AppError,
+} from '../../utils/errors.js';
 import type {
   GenerateSessionInput,
   ScriptGenerationResult,
   SafetyCheckResult,
 } from './ai.types.js';
-import type { InductionStyle, DepthLevel } from '../../config/constants.js';
 
-let genAI: GoogleGenerativeAI | null = null;
-let model: GenerativeModel | null = null;
+const MAX_RETRIES = 2;
 
 /**
- * Returns the Gemini generative model instance.
+ * Sensitive categories that warrant a second, LLM-based safety pass
+ * after the quick heuristic check.
  */
-function getModel(): GenerativeModel {
-  if (!model) {
-    const apiKey = process.env.GEMINI_API_KEY ?? '';
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY environment variable is not set');
-    }
+const SENSITIVE_CATEGORIES = new Set(['fears', 'habits']);
 
-    genAI = new GoogleGenerativeAI(apiKey);
-    const modelName = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
-    model = genAI.getGenerativeModel({ model: modelName });
+/**
+ * Best-effort audit log insert into the `ai_generations` Postgres table.
+ * Dynamically imports the DB client and schema so this module can still
+ * be imported in environments (tests, tooling) where env validation has
+ * not been performed.
+ */
+async function logGeneration(row: {
+  userId: string;
+  sessionId: string;
+  promptText: string;
+  voice: string;
+  tokensInput?: number;
+  tokensOutput?: number;
+  generationMs: number;
+  status: 'success' | 'failed';
+  errorMessage?: string | null;
+}): Promise<void> {
+  try {
+    const [{ pgDb }, { aiGenerations }] = await Promise.all([
+      import('../../db/postgres/client.js'),
+      import('../../db/postgres/schema/ai-generations.js'),
+    ]);
+    const model = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+    await pgDb.insert(aiGenerations).values({
+      userId: row.userId,
+      sessionId: row.sessionId,
+      promptText: row.promptText,
+      model,
+      tokensInput: row.tokensInput,
+      tokensOutput: row.tokensOutput,
+      generationMs: row.generationMs,
+      voice: row.voice,
+      status: row.status,
+      errorMessage: row.errorMessage ?? null,
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to log AI generation');
   }
-
-  return model;
 }
 
 /**
- * Builds the Gemini prompt for hypnosis script generation.
- */
-function buildScriptPrompt(input: GenerateSessionInput): string {
-  const inductionDescriptions: Record<InductionStyle, string> = {
-    progressive:
-      'Start with progressive muscle relaxation, guiding the listener to tense and release each muscle group from toes to head.',
-    countdown:
-      'Use a countdown induction from 10 to 1, with each number taking the listener deeper into relaxation.',
-    'body-scan':
-      'Guide the listener through a body scan, bringing awareness and relaxation to each part of the body sequentially.',
-  };
-
-  const depthDescriptions: Record<DepthLevel, string> = {
-    light: 'Keep suggestions gentle and surface-level. Suitable for beginners or short sessions.',
-    medium:
-      'Use moderate deepening techniques. Balance between relaxation and focused suggestion work.',
-    deep: 'Employ deep trance induction with layered deepening. Use vivid imagery and powerful embedded suggestions.',
-  };
-
-  return `You are an expert clinical hypnotherapist and scriptwriter. Generate a professional hypnosis script for an audio session.
-
-## Session Parameters
-- **User Goal:** ${input.prompt}
-- **Category:** ${input.category}
-- **Target Duration:** ${input.durationMinutes} minutes (aim for approximately ${input.durationMinutes * 130} words)
-- **Induction Style:** ${inductionDescriptions[input.inductionStyle]}
-- **Depth Level:** ${depthDescriptions[input.depthLevel]}
-- **Wake-up Ending:** ${input.wakeUpEnding ? 'Include a gentle count-up awakening sequence at the end' : 'End with suggestions for natural, restful sleep'}
-
-## Script Requirements
-1. Write in second person ("you"), speaking directly to the listener
-2. Use present tense and positive language only (no negations like "don't worry")
-3. Include natural pauses indicated by "..." for the TTS voice
-4. Structure the script with clear paragraphs separated by blank lines
-5. Include at least 3 embedded suggestions related to the user's goal
-6. Use sensory-rich language (visual, auditory, kinesthetic)
-7. Avoid any medical claims, diagnoses, or promises of curing conditions
-8. Do NOT include any stage directions, speaker labels, or formatting — output ONLY the spoken script text
-9. Do NOT mention hypnosis, hypnotherapy, or trance explicitly in the script
-
-## Output Format
-Return the script as plain text with paragraphs separated by blank lines.
-The FIRST line must be a short, compelling title for the session (max 60 chars), followed by a blank line, then the script body.
-
-## Safety
-- Never suggest the listener can cure diseases
-- Never suggest the listener should stop prescribed medication
-- Never include content that could cause distress or panic
-- Always maintain a calming, supportive, and empowering tone`;
-}
-
-/**
- * Generates a hypnosis script using Google Gemini.
- * @returns The generated script text, title, and token usage.
+ * Generates a hypnosis script via Gemini, with retry/backoff, token-usage
+ * tracking, and a best-effort audit log write to `ai_generations`.
+ *
+ * Transient Gemini failures are retried up to {@link MAX_RETRIES} times
+ * with linear backoff. Permanent failures (e.g. empty response, safety
+ * violations) are surfaced to the caller as typed {@link AppError}s.
  */
 export async function generateScript(
   input: GenerateSessionInput,
 ): Promise<ScriptGenerationResult> {
-  const genModel = getModel();
-  const prompt = buildScriptPrompt(input);
-
   const startTime = Date.now();
+  const prompt = buildScriptPrompt(input);
+  // Audit-log correlation id: prefer the caller-supplied sessionId (which
+  // will match the `sessions` row), otherwise synthesize a random UUID so
+  // the `session_id` NOT NULL column in `ai_generations` is always valid.
+  const auditSessionId = input.sessionId ?? randomUUID();
 
-  try {
-    const result = await genModel.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const { text, tokensInput, tokensOutput } = await callGemini(prompt);
 
-    if (!text || text.trim().length === 0) {
-      throw generationFailed('Gemini returned an empty response');
-    }
+      if (!text || text.trim().length === 0) {
+        throw generationFailed('Gemini returned an empty response');
+      }
 
-    const generationMs = Date.now() - startTime;
+      // Parse: first non-empty line is title, rest is body.
+      const lines = text.trim().split('\n');
+      const title = lines[0].replace(/^#\s*/, '').trim().slice(0, 60);
+      const scriptText = lines.slice(1).join('\n').trim();
 
-    // Parse title from first line
-    const lines = text.trim().split('\n');
-    const title = lines[0].replace(/^#\s*/, '').trim().slice(0, 60);
-    const scriptText = lines.slice(1).join('\n').trim();
+      const generationMs = Date.now() - startTime;
 
-    // Extract token usage from response metadata
-    const usageMetadata = response.usageMetadata;
-    const tokensInput = usageMetadata?.promptTokenCount ?? 0;
-    const tokensOutput = usageMetadata?.candidatesTokenCount ?? 0;
+      // Cheap heuristic safety pass — always runs.
+      const quick = quickSafetyCheck(scriptText);
+      let safetyFailure: string | null = null;
+      if (!quick.safe) {
+        safetyFailure = `safety_flags: ${quick.flags.join(',')}`;
+      } else if (SENSITIVE_CATEGORIES.has(input.category)) {
+        // Deep safety pass only for sensitive categories, to keep cost down.
+        const deep = await deepSafetyCheck(scriptText);
+        if (!deep.isSafe) {
+          safetyFailure = `safety_unsafe: ${deep.reason ?? 'flagged'}`;
+        }
+      }
 
-    logger.info(
-      {
-        title,
+      // Fire-and-forget audit log (never blocks the response).
+      void logGeneration({
+        userId: input.userId,
+        sessionId: auditSessionId,
+        promptText: input.prompt,
+        voice: input.voiceId,
         tokensInput,
         tokensOutput,
         generationMs,
-        scriptLength: scriptText.length,
-      },
-      'Script generated successfully',
-    );
+        status: safetyFailure ? 'failed' : 'success',
+        errorMessage: safetyFailure,
+      });
 
-    return {
-      scriptText,
-      title,
-      tokensInput,
-      tokensOutput,
-      generationMs,
-    };
-  } catch (err) {
-    if (err instanceof AppError) {
-      throw err;
+      if (safetyFailure) {
+        throw generationFailed(
+          'Generated content failed safety review. Please rephrase your request.',
+          { safetyFailure },
+        );
+      }
+
+      logger.info(
+        {
+          title,
+          tokensInput,
+          tokensOutput,
+          generationMs,
+          scriptLength: scriptText.length,
+        },
+        'Script generated successfully',
+      );
+
+      return { scriptText, title, tokensInput, tokensOutput, generationMs };
+    } catch (err) {
+      lastError = err;
+
+      // Do not retry permanent failures — just surface them.
+      if (err instanceof AppError) {
+        logger.error({ err }, 'Script generation failed (permanent)');
+        void logGeneration({
+          userId: input.userId,
+          sessionId: auditSessionId,
+          promptText: input.prompt,
+          voice: input.voiceId,
+          generationMs: Date.now() - startTime,
+          status: 'failed',
+          errorMessage: err.message,
+        });
+        throw err;
+      }
+
+      // Transient error: retry with linear backoff (1s, 2s).
+      if (attempt < MAX_RETRIES) {
+        const delayMs = 1000 * (attempt + 1);
+        logger.warn(
+          { attempt: attempt + 1, delayMs, err },
+          'Gemini call failed, retrying',
+        );
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        continue;
+      }
     }
-
-    logger.error({ err }, 'Gemini script generation failed');
-    throw externalApiError('gemini', 'Failed to generate hypnosis script');
   }
+
+  logger.error({ err: lastError }, 'Gemini script generation failed');
+  void logGeneration({
+    userId: input.userId,
+    sessionId: auditSessionId,
+    promptText: input.prompt,
+    voice: input.voiceId,
+    generationMs: Date.now() - startTime,
+    status: 'failed',
+    errorMessage:
+      lastError instanceof Error ? lastError.message : 'unknown error',
+  });
+  throw externalApiError('gemini', 'Failed to generate hypnosis script');
 }
 
 /**
- * Regenerates a single paragraph of an existing script using Gemini.
+ * Regenerates a single paragraph of an existing script. Uses the same
+ * Gemini model but without the retry pipeline — regeneration is
+ * interactive and the user can trivially retry from the UI.
  */
 export async function regenerateParagraph(
   currentParagraph: string,
   previousParagraph: string | null,
   nextParagraph: string | null,
 ): Promise<string> {
-  const genModel = getModel();
-
-  const contextParts: string[] = [];
-  if (previousParagraph) {
-    contextParts.push(`Previous paragraph for context: "${previousParagraph}"`);
-  }
-  contextParts.push(`Paragraph to rewrite: "${currentParagraph}"`);
-  if (nextParagraph) {
-    contextParts.push(`Next paragraph for context: "${nextParagraph}"`);
-  }
-
-  const prompt = `You are writing a hypnosis script. Rewrite the following paragraph to be more effective, calming, and hypnotic. Keep the same general theme and flow but improve the language, imagery, and suggestions.
-
-${contextParts.join('\n\n')}
-
-Respond with ONLY the rewritten paragraph, no explanations or additional text.`;
+  const prompt = buildRegenerateParagraphPrompt(
+    currentParagraph,
+    previousParagraph,
+    nextParagraph,
+  );
 
   try {
-    const result = await genModel.generateContent(prompt);
-    const text = result.response.text().trim();
-
-    if (!text) {
+    const { text } = await callGemini(prompt);
+    const trimmed = text.trim();
+    if (!trimmed) {
       throw generationFailed('Gemini returned an empty regeneration');
     }
-
-    return text;
+    return trimmed;
   } catch (err) {
-    if (err instanceof AppError) {
-      throw err;
-    }
-
+    if (err instanceof AppError) throw err;
     logger.error({ err }, 'Gemini paragraph regeneration failed');
     throw externalApiError('gemini', 'Failed to regenerate paragraph');
   }
 }
 
 /**
- * Checks generated script content for safety using Gemini.
- * Filters out medical claims, harmful content, etc.
+ * LLM-based safety review of an already-generated script. Kept as the
+ * single public safety entry point for the controller; internally it
+ * delegates to {@link deepSafetyCheck}.
  */
 export async function checkScriptSafety(
   scriptText: string,
 ): Promise<SafetyCheckResult> {
-  const genModel = getModel();
-
-  const prompt = `You are a safety reviewer for hypnosis scripts. Review the following script and determine if it's safe for consumer use.
-
-Flag the script as UNSAFE if it contains ANY of the following:
-1. Claims to cure, treat, or diagnose medical conditions
-2. Suggestions to stop taking prescribed medication
-3. Content that could cause panic, distress, or psychological harm
-4. Sexually explicit or inappropriate content
-5. Content encouraging self-harm or harm to others
-6. Instructions to perform dangerous physical actions while in a relaxed state
-
-Script to review:
-"""
-${scriptText}
-"""
-
-Respond in JSON format only:
-{ "safe": true } or { "safe": false, "reason": "brief explanation" }`;
-
-  try {
-    const result = await genModel.generateContent(prompt);
-    const text = result.response.text().trim();
-
-    // Parse JSON from response, handling potential markdown code blocks
-    const jsonStr = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const parsed = JSON.parse(jsonStr) as { safe: boolean; reason?: string };
-
-    return {
-      isSafe: parsed.safe,
-      reason: parsed.reason,
-    };
-  } catch (err) {
-    logger.error({ err }, 'Script safety check failed — defaulting to safe');
-    // If safety check itself fails, log and allow (don't block generation)
-    return { isSafe: true };
-  }
+  return deepSafetyCheck(scriptText);
 }
 
 /**
- * Allows injecting a mock model for testing.
+ * Test-only hook for injecting a mock generative model. Delegates to
+ * {@link _setGeminiModel} in `ai.gemini.ts`.
  */
 export function _setModel(mockModel: GenerativeModel | null): void {
-  model = mockModel;
+  _setGeminiModel(mockModel);
 }

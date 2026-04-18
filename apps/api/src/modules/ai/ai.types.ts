@@ -3,6 +3,12 @@ import type { SessionCategory, InductionStyle, DepthLevel, VoiceId, BackgroundSo
 /** Input for generating a new hypnosis session */
 export interface GenerateSessionInput {
   userId: string;
+  /**
+   * Pre-allocated session row id. Optional for backwards compatibility
+   * with older callers; when omitted the AI service will generate a
+   * random UUID purely for audit-log correlation.
+   */
+  sessionId?: string;
   prompt: string;
   category: SessionCategory;
   voiceId: VoiceId;
