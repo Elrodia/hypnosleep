@@ -85,13 +85,23 @@ import { AudioPlayerProvider, useAudioPlayer } from './contexts/AudioPlayerConte
 import { ToastProvider } from './contexts/ToastContext'
 import { toast } from 'sonner'
 import { useKV } from '@github/spark/hooks'
+import {
+  consumeOAuthCallback,
+  consumeOAuthError,
+  fetchCurrentUser,
+  type AuthUser,
+} from './lib/auth'
+
+type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<TabId>('home')
   const [showSplash, setShowSplash] = useState(true)
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useKV<boolean>('has-completed-onboarding', false)
   const [hasCompletedQuiz, setHasCompletedQuiz] = useKV<boolean>('has-completed-quiz', false)
-  const [isLoggedIn, setIsLoggedIn] = useKV<boolean>('is-logged-in', false)
+  const [authStatus, setAuthStatus] = useState<AuthStatus>('loading')
+  const [, setCurrentUser] = useState<AuthUser | null>(null)
+  const isLoggedIn = authStatus === 'authenticated'
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showQuiz, setShowQuiz] = useState(false)
   const [showResults, setShowResults] = useState(false)
@@ -105,7 +115,42 @@ function AppContent() {
   } | null>('quiz-data', null)
   const { player, togglePlayPause, setProgress, showFeedback, setShowFeedback, completedSession, stop } = useAudioPlayer()
 
+  // Resolve auth state on mount: handle the OAuth callback redirect,
+  // then ask the backend who we are. This replaces the Spark KV
+  // `is-logged-in` flag that 404s in production.
   useEffect(() => {
+    let cancelled = false
+
+    if (consumeOAuthError()) {
+      toast.error('Sign-in failed. Please try again.')
+    } else {
+      consumeOAuthCallback()
+    }
+
+    void fetchCurrentUser().then((user) => {
+      if (cancelled) return
+      if (user) {
+        setCurrentUser(user)
+        setAuthStatus('authenticated')
+      } else {
+        setCurrentUser(null)
+        setAuthStatus('unauthenticated')
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    // Keep the splash screen visible until we know whether the user is
+    // authenticated, so we don't flash the landing page for logged-in
+    // users while `/api/auth/me` is in flight.
+    if (authStatus === 'loading') {
+      return
+    }
+
     const timer = setTimeout(() => {
       setShowSplash(false)
       if (!isLoggedIn) {
@@ -121,7 +166,7 @@ function AppContent() {
     }, 2500)
 
     return () => clearTimeout(timer)
-  }, [hasCompletedOnboarding, hasCompletedQuiz, isLoggedIn, quizData, showResults])
+  }, [authStatus, hasCompletedOnboarding, hasCompletedQuiz, isLoggedIn, quizData, showResults])
 
   useEffect(() => {
     const handleNavigateToTab = (event: CustomEvent<TabId>) => {
@@ -180,15 +225,6 @@ function AppContent() {
     setShowResults(false)
   }
 
-  const handleLogin = () => {
-    setIsLoggedIn(true)
-    if (!hasCompletedOnboarding) {
-      setShowOnboarding(true)
-    } else if (!hasCompletedQuiz) {
-      setShowQuiz(true)
-    }
-  }
-
   const renderPage = () => {
     switch (activeTab) {
       case 'home':
@@ -208,7 +244,7 @@ function AppContent() {
 
   if (!showSplash && !isLoggedIn) {
     if (showLogin) {
-      return <LoginPage onLogin={handleLogin} />
+      return <LoginPage />
     }
     return (
       <Suspense fallback={<div className="min-h-screen bg-background" />}>
