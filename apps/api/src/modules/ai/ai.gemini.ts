@@ -16,8 +16,9 @@ let model: GenerativeModel | null = null;
 /**
  * Returns the singleton Gemini generative model instance, lazily
  * constructing it from `GEMINI_API_KEY` / `GEMINI_MODEL` the first time
- * it is needed. Configured for JSON-only output with a creative-but-stable
- * sampling profile tuned for hypnosis script generation.
+ * it is needed. Uses a creative-but-stable sampling profile tuned for
+ * hypnosis script generation; response formatting is determined by callers
+ * and prompts rather than enforced as JSON in `generationConfig`.
  */
 export function getModel(): GenerativeModel {
   if (!model) {
