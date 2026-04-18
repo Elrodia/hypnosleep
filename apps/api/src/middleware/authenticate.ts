@@ -55,3 +55,48 @@ export function authenticate() {
     }
   };
 }
+
+/**
+ * SSE-friendly variant of {@link authenticate} that accepts the JWT
+ * either via the standard `Authorization: Bearer <jwt>` header **or**
+ * via a `?token=<jwt>` query parameter.
+ *
+ * The browser's `EventSource` API cannot set request headers, so the
+ * frontend appends `?token=...` to the SSE endpoint URL. Using a
+ * dedicated middleware (rather than always honouring the query
+ * parameter) keeps the surface area for token leakage in URLs/logs
+ * narrow — this should only be wired onto endpoints that genuinely
+ * cannot use headers.
+ *
+ * Note: server-access logs may capture full URLs. If you change the
+ * server's logging configuration, ensure `?token=` is redacted.
+ */
+export function authenticateFromQuery() {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    const secret = process.env.JWT_SECRET ?? '';
+    if (!secret) {
+      next(unauthenticated('Authentication is not configured'));
+      return;
+    }
+
+    const queryToken =
+      typeof req.query.token === 'string' ? req.query.token : null;
+    const headerToken = req.headers.authorization?.startsWith('Bearer ')
+      ? req.headers.authorization.slice(7)
+      : null;
+    const token = headerToken ?? queryToken;
+
+    if (!token) {
+      next(unauthenticated('Missing authentication token'));
+      return;
+    }
+
+    try {
+      const decoded = verify(token, secret) as JwtPayload;
+      req.user = decoded;
+      next();
+    } catch {
+      next(unauthenticated('Invalid or expired token'));
+    }
+  };
+}

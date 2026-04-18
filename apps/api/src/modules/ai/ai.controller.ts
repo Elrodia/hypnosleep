@@ -94,6 +94,7 @@ export async function handleGenerateSession(
       voiceId: input.voiceId,
       backgroundSound: input.backgroundSound,
       durationMinutes: input.durationMinutes,
+      isPro: user.plan === 'pro',
     });
 
     // Step 4: Increment usage counter
@@ -159,35 +160,12 @@ export async function handleRegenerateParagraph(
 /**
  * GET /api/sessions/:id/events
  * SSE endpoint for real-time generation progress.
+ *
+ * The actual handler lives in `modules/sessions/sessions.sse.ts` —
+ * this re-export is kept only as a back-compat shim for any caller
+ * that still imports from this module.
  */
-export function handleSessionEvents(
-  req: Request,
-  res: Response,
-): void {
-  const sessionId = req.params.id;
-
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    Connection: 'keep-alive',
-    'X-Accel-Buffering': 'no',
-  });
-
-  // Send an SSE comment as an initial connection acknowledgement without
-  // emitting an out-of-contract GenerationProgressEvent payload.
-  res.write(`: connected to generation stream for session ${sessionId}\n\n`);
-
-  // In production, this would subscribe to a Redis pub/sub channel
-  // keyed by sessionId and forward events to the SSE stream.
-  // For now, we set up the SSE handler structure.
-  const heartbeat = setInterval(() => {
-    res.write(`: heartbeat\n\n`);
-  }, 15000);
-
-  req.on('close', () => {
-    clearInterval(heartbeat);
-  });
-}
+export { sessionEventsHandler as handleSessionEvents } from '../sessions/sessions.sse.js';
 
 // --- Helpers ---
 

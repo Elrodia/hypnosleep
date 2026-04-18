@@ -1,12 +1,12 @@
 import { Router } from 'express';
-import { authenticate } from '../../middleware/authenticate.js';
+import { authenticate, authenticateFromQuery } from '../../middleware/authenticate.js';
 import { rateLimit } from '../../middleware/rate-limit.js';
 import { RATE_LIMITS } from '../../config/constants.js';
 import {
   handleGenerateSession,
   handleRegenerateParagraph,
-  handleSessionEvents,
 } from './ai.controller.js';
+import { sessionEventsHandler } from '../sessions/sessions.sse.js';
 
 const router = Router();
 
@@ -31,12 +31,17 @@ router.post(
   handleRegenerateParagraph,
 );
 
-/** SSE endpoint for generation progress */
+/**
+ * SSE endpoint for live generation progress. Uses
+ * {@link authenticateFromQuery} because the browser's `EventSource`
+ * API cannot set an `Authorization` header — the frontend appends
+ * `?token=...` to the URL instead.
+ */
 router.get(
   '/sessions/:id/events',
   rateLimit(RATE_LIMITS.API_GLOBAL.window, RATE_LIMITS.API_GLOBAL.max),
-  authenticate(),
-  handleSessionEvents,
+  authenticateFromQuery(),
+  sessionEventsHandler,
 );
 
 export const aiRoutes = router;

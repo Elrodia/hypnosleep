@@ -7,6 +7,7 @@ import { logger } from './utils/logger.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { registerRoutes } from './routes.js';
 import { createAudioGenerationWorker } from './queues/audio-generation.worker.js';
+import { closeQueue } from './queues/audio-generation.queue.js';
 
 const PORT = env.PORT;
 const FRONTEND_URL = env.FRONTEND_URL;
@@ -127,8 +128,19 @@ const shutdown = async (signal: string) => {
   logger.info({ signal }, 'Received shutdown signal');
 
   if (worker) {
-    await worker.close();
+    // Drain in-flight jobs before exiting so a Railway redeploy
+    // doesn't abort an audio generation mid-pipeline.
+    try {
+      await worker.close();
+    } catch (err) {
+      logger.warn({ err }, 'Failed to close audio generation worker cleanly');
+    }
   }
+  // Close the queue's Redis connection so the process can exit
+  // cleanly even if the worker was never started.
+  await closeQueue().catch((err) => {
+    logger.warn({ err }, 'Failed to close audio queue cleanly');
+  });
 
   process.exit(0);
 };
