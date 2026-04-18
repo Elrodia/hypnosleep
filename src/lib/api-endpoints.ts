@@ -93,7 +93,6 @@ export type SessionCategory =
   | 'habits'
   | 'focus'
   | 'anxiety'
-  | 'focus'
   | 'custom'
   | string
 
