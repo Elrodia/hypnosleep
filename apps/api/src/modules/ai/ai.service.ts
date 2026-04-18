@@ -191,13 +191,9 @@ export async function generateScript(
         throw err;
       }
 
-      // Known permanent configuration errors — fail fast rather than
-      // burning retry budget on errors that will never resolve (e.g. a
-      // missing API key).
-      if (err instanceof Error && /GEMINI_API_KEY/.test(err.message)) {
-        logger.error({ err }, 'Gemini misconfigured, not retrying');
-        break;
-      }
+      // Known permanent configuration errors arrive as AppErrors (see
+      // `getModel` in ai.gemini.ts) and are handled in the branch above —
+      // no regex matching on error messages needed here.
 
       // Transient error: retry with linear backoff (1s, 2s).
       if (attempt < MAX_RETRIES) {

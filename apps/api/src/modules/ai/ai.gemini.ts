@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai';
+import { externalApiError } from '../../utils/errors.js';
 
 /**
  * Raw response returned by {@link callGemini}, exposing the generated text
@@ -24,7 +25,10 @@ export function getModel(): GenerativeModel {
   if (!model) {
     const apiKey = process.env.GEMINI_API_KEY ?? '';
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY environment variable is not set');
+      // Thrown as a typed AppError so callers can treat missing config as
+      // a permanent failure and skip retry/backoff, rather than having to
+      // pattern-match on the error message.
+      throw externalApiError('gemini', 'GEMINI_API_KEY environment variable is not set');
     }
 
     genAI = new GoogleGenerativeAI(apiKey);
