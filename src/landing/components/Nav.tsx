@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Menu, X, Moon } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 import { Button } from './shared/Button'
 import { posthog } from '../lib/posthog'
+import { Logo } from '../../components/Logo'
 
 interface NavProps {
   onCtaClick: (location: string) => void
@@ -54,12 +55,7 @@ export function Nav({ onCtaClick, onLogin }: NavProps) {
       >
         <div className="mx-auto max-w-7xl flex items-center justify-between px-5 sm:px-8 h-16">
           <a href="#top" className="flex items-center gap-2" aria-label="HypnoSleep home">
-            <span
-              aria-hidden
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#7c5cfc] to-[#5b8def] text-white"
-            >
-              <Moon size={16} strokeWidth={2.2} />
-            </span>
+            <Logo variant="mark" size={32} className="rounded-full" />
             <span className="ls-display text-lg tracking-tight">HypnoSleep</span>
           </a>
 

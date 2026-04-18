@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Bell } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import { useKV } from '@github/spark/hooks'
+import { Logo } from './Logo'
 
 export function Header() {
   const [hasNotification, setHasNotification] = useKV('header-notification', 'true')
@@ -16,9 +17,7 @@ export function Header() {
     <header className="fixed top-0 left-0 right-0 h-14 border-b border-border/50 bg-card/30 backdrop-blur-xl z-50">
       <div className="flex items-center justify-between h-full px-4">
         <div className="flex items-center gap-2">
-          <span className="text-xl" role="img" aria-label="crescent moon">
-            🌙
-          </span>
+          <Logo variant="mark" size={28} className="rounded-md" />
           <h1 className="text-xl font-serif tracking-wide text-foreground">
             HypnoSleep
           </h1>
