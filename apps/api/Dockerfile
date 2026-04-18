@@ -27,8 +27,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Install edge-tts Python package
-RUN pip3 install --break-system-packages edge-tts
+# Install edge-tts Python package (pinned for reproducible builds).
+RUN pip3 install --break-system-packages --no-cache-dir edge-tts==6.1.10
 
 WORKDIR /app
 
@@ -38,8 +38,10 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/scripts ./scripts
 
-# Create directories for assets
-RUN mkdir -p assets/backgrounds
+# Copy background ambient loops bundled with the repo so the FFmpeg
+# mixer (apps/api/src/modules/audio/audio.mixer.ts) can find them at
+# `${cwd}/assets/backgrounds/<name>.mp3`.
+COPY --from=builder /app/assets ./assets
 
 EXPOSE 3000
 
