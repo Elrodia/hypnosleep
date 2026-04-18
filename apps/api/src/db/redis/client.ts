@@ -3,14 +3,18 @@ import type { Redis as RedisType } from 'ioredis';
 import { logger } from '../../utils/logger.js';
 
 /**
- * Eager Redis singleton. Used for caching, rate limiting, and BullMQ
- * queue plumbing. Throws at module load if `REDIS_URL` is unset so
- * misconfiguration is caught at boot rather than first request.
+ * Shared Redis singleton. Used for caching, rate limiting, and BullMQ
+ * queue plumbing.
+ *
+ * `REDIS_URL` is **optional** (see `apps/api/README.md` and the env
+ * schema): when it is unset, rate limiting and the audio worker degrade
+ * gracefully. We therefore must not throw at module import — doing so
+ * crashes the entire server at boot because `ai.controller.ts` (and
+ * anything else in the route graph) imports this module statically,
+ * which in turn makes the Railway healthcheck on `/api/health` fail
+ * with "service unavailable".
  */
 const url = process.env.REDIS_URL;
-if (!url) {
-  throw new Error('REDIS_URL is not set');
-}
 
 // ioredis v5 ships as CommonJS. Using the default export is the
 // canonical, spec-compliant import form and avoids NodeNext ESM/CJS
@@ -25,31 +29,41 @@ const RedisCtor = IORedis as unknown as new (
   options?: RedisOptions,
 ) => RedisType;
 
-export const redis = new RedisCtor(url, {
-  maxRetriesPerRequest: 3,
-  enableReadyCheck: true,
-  lazyConnect: false,
-});
+export const redis: RedisType | null = url
+  ? new RedisCtor(url, {
+      maxRetriesPerRequest: 3,
+      enableReadyCheck: true,
+      lazyConnect: false,
+    })
+  : null;
 
-redis.on('error', (err) => {
-  logger.error({ err }, 'Redis connection error');
-});
+if (redis) {
+  redis.on('error', (err) => {
+    logger.error({ err }, 'Redis connection error');
+  });
 
-redis.on('connect', () => {
-  logger.info('Redis connected');
-});
+  redis.on('connect', () => {
+    logger.info('Redis connected');
+  });
+} else {
+  logger.warn('REDIS_URL not set — Redis-backed features will be skipped');
+}
 
 /**
- * Back-compat accessor: returns the shared `redis` instance. Kept so
- * existing callers (queues, middleware) don't have to change imports.
+ * Back-compat accessor: returns the shared `redis` instance, or `null`
+ * when `REDIS_URL` is not configured. Callers that require Redis must
+ * handle the `null` case explicitly (e.g. by falling back to an
+ * in-memory path or a no-op).
  */
-export function getRedis(): RedisType {
+export function getRedis(): RedisType | null {
   return redis;
 }
 
 /**
- * Closes the Redis connection gracefully.
+ * Closes the Redis connection gracefully (no-op if Redis is disabled).
  */
 export async function closeRedis(): Promise<void> {
-  await redis.quit();
+  if (redis) {
+    await redis.quit();
+  }
 }

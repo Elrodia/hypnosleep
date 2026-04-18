@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /**
- * `@/db/redis/client` eagerly instantiates `ioredis` at module load and
- * throws if `REDIS_URL` is unset. The helpers just import `{ redis }`
- * from that module, so we mock the whole client module with an in-memory
- * fake that implements just the Redis surface the helpers touch.
+ * `@/db/redis/client` instantiates `ioredis` at module load when
+ * `REDIS_URL` is set (and exports `null` otherwise). The helpers import
+ * `{ redis }` from that module, so we mock the whole client module with
+ * an in-memory fake that implements just the Redis surface the helpers
+ * touch.
  */
 
 type ZEntry = { member: string; score: number };

@@ -31,6 +31,10 @@ export function rateLimit(windowSec: number, maxRequests: number) {
       // Try Redis-backed rate limiting first
       const { getRedis } = await import('../db/redis/client.js');
       const redis = getRedis();
+      if (!redis) {
+        // Fall through to the in-memory path below.
+        throw new Error('redis-unavailable');
+      }
 
       const redisKey = key;
       const current = await redis.incr(redisKey);

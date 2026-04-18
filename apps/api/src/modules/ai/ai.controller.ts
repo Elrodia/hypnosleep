@@ -200,6 +200,7 @@ async function getMonthlyUsage(userId: string): Promise<number> {
   // Falls back to 0 if Redis is unavailable.
   try {
     const redis = getRedis();
+    if (!redis) return 0;
     const key = `usage:${userId}:${getCurrentPeriod()}`;
     const count = await redis.get(key);
     return count ? parseInt(count, 10) : 0;
@@ -214,6 +215,7 @@ async function getMonthlyUsage(userId: string): Promise<number> {
 async function incrementMonthlyUsage(userId: string): Promise<void> {
   try {
     const redis = getRedis();
+    if (!redis) return;
     const key = `usage:${userId}:${getCurrentPeriod()}`;
     await redis.incr(key);
     // Set TTL to end of next month (safe buffer)

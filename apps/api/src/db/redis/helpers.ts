@@ -23,6 +23,17 @@ export async function checkRateLimit(
   const windowStart = now - windowSec * 1000;
   const redisKey = `ratelimit:${key}`;
 
+  // When Redis is not configured the API is expected to degrade
+  // gracefully (see `env.ts`): allow the request and let callers
+  // fall back to their own in-memory strategy if they have one.
+  if (!redis) {
+    return {
+      allowed: true,
+      remaining: Math.max(0, limit - 1),
+      resetAt: now + windowSec * 1000,
+    };
+  }
+
   const tx = redis.multi();
   tx.zremrangebyscore(redisKey, 0, windowStart);
   tx.zcard(redisKey);
@@ -57,6 +68,12 @@ export async function cached<T>(
   ttlSec: number,
   loader: () => Promise<T>,
 ): Promise<T> {
+  // No Redis → just call through to the loader so behaviour remains
+  // correct, just uncached.
+  if (!redis) {
+    return loader();
+  }
+
   const hit = await redis.get(key);
   if (hit) {
     try {
@@ -76,6 +93,11 @@ export async function cached<T>(
  * memory reclaim happens asynchronously on the Redis side.
  */
 export async function invalidateCache(pattern: string): Promise<void> {
+  // Nothing to invalidate if there's no Redis.
+  if (!redis) {
+    return;
+  }
+
   let cursor = '0';
 
   do {
