@@ -72,7 +72,7 @@ export async function uploadFile(
       CacheControl: 'public, max-age=31536000, immutable',
     }),
   );
-  logger.info({ key, sizeBytes: body.length }, 'Uploaded to Bucket S3');
+  logger.info({ key, sizeBytes: body.length }, 'Uploaded to S3 bucket');
   return key;
 }
 
@@ -94,7 +94,7 @@ export async function deleteFile(key: string): Promise<void> {
   await getClient().send(
     new DeleteObjectCommand({ Bucket: getBucket(), Key: key }),
   );
-  logger.info({ key }, 'Deleted from Bucket S3');
+  logger.info({ key }, 'Deleted from S3 bucket');
 }
 
 /**
