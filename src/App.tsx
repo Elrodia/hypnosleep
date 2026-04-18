@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, lazy, Suspense, type ComponentType } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { TabBar, TabId } from './components/TabBar'
 import { Header } from './components/Header'
@@ -10,7 +10,62 @@ import { ProfilePage } from './components/pages/ProfilePage'
 import { LoginPage } from './components/pages/LoginPage'
 // Lazy-load the marketing landing page so its JS and CSS are not shipped
 // with the authenticated app bundle.
-const LandingPage = lazy(() =>
+//
+// Dynamically imported chunks are emitted with content-hashed filenames
+// (e.g. `LandingPage-BgsnaQ-Z.js`). When a new version of the app is
+// deployed, any tab still running the previous version will request a
+// chunk filename that no longer exists on the server, producing a
+// "Failed to fetch dynamically imported module" error. To recover
+// gracefully we retry the import a couple of times and, if it still
+// fails, force a one-shot hard reload so the user picks up the latest
+// build instead of being stuck on the error fallback.
+function lazyWithRetry<T extends ComponentType<any>>(
+  factory: () => Promise<{ default: T }>,
+) {
+  return lazy(async () => {
+    const RELOAD_KEY = 'landing-chunk-reloaded'
+    let lastError: unknown
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const mod = await factory()
+        // Successfully loaded; clear any stale reload flag.
+        try {
+          sessionStorage.removeItem(RELOAD_KEY)
+        } catch {
+          /* ignore storage errors */
+        }
+        return mod
+      } catch (err) {
+        lastError = err
+        // Brief backoff before retrying transient network failures.
+        await new Promise((r) => setTimeout(r, 250 * (attempt + 1)))
+      }
+    }
+
+    // All retries failed. If this looks like a stale chunk error and we
+    // haven't already attempted a reload, hard-refresh once.
+    const message = lastError instanceof Error ? lastError.message : String(lastError)
+    const isChunkError = /dynamically imported module|Importing a module script failed|Failed to fetch/i.test(message)
+    if (typeof window !== 'undefined' && isChunkError) {
+      try {
+        const alreadyReloaded = sessionStorage.getItem(RELOAD_KEY)
+        if (!alreadyReloaded) {
+          sessionStorage.setItem(RELOAD_KEY, '1')
+          window.location.reload()
+          // Return a never-resolving promise so React keeps the Suspense
+          // fallback visible until the reload happens.
+          return new Promise<{ default: T }>(() => {})
+        }
+      } catch {
+        /* ignore storage errors */
+      }
+    }
+
+    throw lastError
+  })
+}
+
+const LandingPage = lazyWithRetry(() =>
   import('./landing/LandingPage').then((m) => ({ default: m.LandingPage })),
 )
 import { QuizPage } from './components/pages/QuizPage'
