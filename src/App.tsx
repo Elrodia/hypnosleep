@@ -19,7 +19,7 @@ import { LoginPage } from './components/pages/LoginPage'
 // gracefully we retry the import a couple of times and, if it still
 // fails, force a one-shot hard reload so the user picks up the latest
 // build instead of being stuck on the error fallback.
-function lazyWithRetry<T extends ComponentType<P>, P>(
+function lazyWithRetry<T extends ComponentType<any>>(
   factory: () => Promise<{ default: T }>,
 ) {
   return lazy(async () => {
