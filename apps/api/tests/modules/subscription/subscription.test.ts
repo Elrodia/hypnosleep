@@ -769,6 +769,59 @@ describe('subscription.webhook', () => {
         currentPeriodEnd: new Date(),
         canceledAt: null,
       });
+      // Referrer is still trialing, so Stripe trial_end extension is safe.
+      const referrerTrialEnd = new Date(Date.now() + 3 * 24 * 3600 * 1000);
+      state.subscriptions.set('s2', {
+        id: 's2',
+        userId: 'referrer',
+        plan: 'monthly',
+        stripeCustomerId: 'cus_2',
+        stripeSubscriptionId: 'sub_2',
+        status: 'trialing',
+        trialEndsAt: referrerTrialEnd,
+        currentPeriodEnd: new Date(),
+        canceledAt: null,
+      });
+      state.referrals.set('r1', {
+        id: 'r1',
+        referrerId: 'referrer',
+        referredId: 'user-1',
+        rewardApplied: false,
+      });
+
+      await __test.handlePaymentSucceeded({
+        subscription: 'sub_1',
+        amount_paid: 1999,
+      } as never);
+
+      expect(state.referrals.get('r1')?.rewardApplied).toBe(true);
+      expect(stripeFake.subscriptions.update).toHaveBeenCalledWith(
+        'sub_2',
+        expect.objectContaining({ proration_behavior: 'none' }),
+      );
+      // trial_end should be extended from the existing trial end, not `now`.
+      const updateCall = state.stripeSubscriptionsUpdated[0];
+      const expectedTrialEnd =
+        Math.floor(referrerTrialEnd.getTime() / 1000) + 7 * 24 * 3600;
+      expect((updateCall.params as { trial_end: number }).trial_end).toBe(expectedTrialEnd);
+      expect(state.events.some((e) => e.eventType === 'referral_reward_applied')).toBe(true);
+      expect(state.events.some((e) => e.eventType === 'payment_succeeded')).toBe(true);
+    });
+
+    it('skips the Stripe trial extension when the referrer is already on an active subscription', async () => {
+      seedUser({ id: 'referrer' });
+      seedUser({ id: 'user-1', referredBy: 'referrer' });
+      state.subscriptions.set('s1', {
+        id: 's1',
+        userId: 'user-1',
+        plan: 'monthly',
+        stripeCustomerId: 'cus_1',
+        stripeSubscriptionId: 'sub_1',
+        status: 'active',
+        trialEndsAt: null,
+        currentPeriodEnd: new Date(),
+        canceledAt: null,
+      });
       state.subscriptions.set('s2', {
         id: 's2',
         userId: 'referrer',
@@ -792,13 +845,11 @@ describe('subscription.webhook', () => {
         amount_paid: 1999,
       } as never);
 
+      // Reward still marked applied (no retry loop) and analytics event
+      // still fired, but we do NOT hit Stripe with a doomed update.
       expect(state.referrals.get('r1')?.rewardApplied).toBe(true);
-      expect(stripeFake.subscriptions.update).toHaveBeenCalledWith(
-        'sub_2',
-        expect.objectContaining({ proration_behavior: 'none' }),
-      );
       expect(state.events.some((e) => e.eventType === 'referral_reward_applied')).toBe(true);
-      expect(state.events.some((e) => e.eventType === 'payment_succeeded')).toBe(true);
+      expect(stripeFake.subscriptions.update).not.toHaveBeenCalled();
     });
 
     it('does nothing when the reward has already been applied', async () => {

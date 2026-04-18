@@ -297,10 +297,21 @@ async function handlePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
 }
 
 /**
- * Extend the referrer's active subscription by 7 days via Stripe. If
- * the referrer doesn't yet have a subscription, there's nothing to
- * extend here — {@link createCheckoutSession} honours the bonus on
- * their first checkout instead.
+ * Grant the referrer's 7-day reward on the Stripe side.
+ *
+ * Stripe only allows changing `trial_end` while the subscription is
+ * still in `trialing` status, so we branch on state:
+ *   - trialing  → extend the existing trial by 7 days (from the current
+ *                 `trial_end`, not `now`, so we don't shorten it for a
+ *                 referrer who still has trial time left).
+ *   - active / past_due / anything else → Stripe rejects `trial_end`
+ *                 updates; we log a warning and skip. The reward is
+ *                 still recorded as an analytics event and marked
+ *                 applied, so we don't retry in a loop. A follow-up
+ *                 could issue a customer-balance credit here instead.
+ *   - no referrer subscription yet → nothing to do; the bonus is
+ *     honoured on the referrer's first checkout by
+ *     {@link createCheckoutSession}.
  */
 async function applyReferralReward(referrerId: string): Promise<void> {
   const [referrerSub] = await mysqlDb
@@ -310,19 +321,26 @@ async function applyReferralReward(referrerId: string): Promise<void> {
     .limit(1);
 
   if (referrerSub) {
-    try {
-      await stripe.subscriptions.update(referrerSub.stripeSubscriptionId, {
-        trial_end: Math.floor(Date.now() / 1000) + 7 * 24 * 3600,
-        proration_behavior: 'none',
-      });
-    } catch (err) {
-      // Stripe rejects `trial_end` extensions on already-active
-      // subscriptions; in that case a coupon-based credit is the right
-      // long-term fix. For now we log and continue — the referral row
-      // is still marked applied so we don't retry in a loop.
-      logger.warn(
-        { err, referrerId },
-        'Could not extend referrer subscription; reward logged but not applied in Stripe',
+    if (referrerSub.status === 'trialing') {
+      const baseSec = referrerSub.trialEndsAt
+        ? Math.floor(referrerSub.trialEndsAt.getTime() / 1000)
+        : Math.floor(Date.now() / 1000);
+      const newTrialEnd = baseSec + 7 * 24 * 3600;
+      try {
+        await stripe.subscriptions.update(referrerSub.stripeSubscriptionId, {
+          trial_end: newTrialEnd,
+          proration_behavior: 'none',
+        });
+      } catch (err) {
+        logger.warn(
+          { err, referrerId },
+          'Could not extend referrer trial; reward recorded but not applied in Stripe',
+        );
+      }
+    } else {
+      logger.info(
+        { referrerId, status: referrerSub.status },
+        'Referrer subscription is past trial; reward recorded but not applied in Stripe',
       );
     }
   }
