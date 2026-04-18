@@ -100,9 +100,22 @@ const envSchema = z.object({
   // API at runtime. Keep them in the schema for documentation but make
   // them optional so the API doesn't refuse to boot in environments
   // that don't set Vite client vars.
+  // --- Client-visible Stripe config (Vite, injected at build time) ---------
+  // These are frontend build-time variables and are not consumed by the
+  // API at runtime. Keep them in the schema for documentation but make
+  // them optional so the API doesn't refuse to boot in environments
+  // that don't set Vite client vars.
   VITE_STRIPE_PUBLISHABLE_KEY: z.string().min(1).optional(),
   VITE_STRIPE_MONTHLY_LINK: z.string().min(1).optional(),
   VITE_STRIPE_ANNUAL_LINK: z.string().min(1).optional(),
+
+  // --- Monitoring ----------------------------------------------------------
+  /** Sentry DSN for server-side error reporting. When unset, Sentry is disabled. */
+  SENTRY_DSN: optionalString(),
+  /** PostHog project API key for server-side analytics. When unset, analytics are no-ops. */
+  POSTHOG_API_KEY: optionalString(),
+  /** Optional PostHog host override (defaults to the PostHog Cloud endpoint). */
+  POSTHOG_HOST: optionalString(),
 });
 
 export type Env = z.infer<typeof envSchema>;
