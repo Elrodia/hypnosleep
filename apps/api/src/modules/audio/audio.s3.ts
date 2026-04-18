@@ -24,11 +24,13 @@ function getClient(): S3Client {
   const accessKeyId = process.env.S3_ACCESS_KEY;
   const secretAccessKey = process.env.S3_SECRET_KEY;
   const endpoint = process.env.S3_ENDPOINT;
-  const region = process.env.S3_REGION ?? 'auto';
+  const region = process.env.S3_REGION;
   const forcePathStyle = process.env.S3_FORCE_PATH_STYLE === 'true';
 
-  if (!accessKeyId || !secretAccessKey || !endpoint) {
-    throw new Error('S3 credentials are not configured');
+  if (!accessKeyId || !secretAccessKey || !endpoint || !region) {
+    throw new Error(
+      'S3 configuration is incomplete. Expected S3_ACCESS_KEY, S3_SECRET_KEY, S3_ENDPOINT, and S3_REGION to be set.',
+    );
   }
 
   s3Client = new S3Client({
