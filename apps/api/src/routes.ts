@@ -6,6 +6,7 @@ import { authRouter } from './modules/auth/auth.routes.js';
 import { subscriptionRouter } from './modules/subscription/subscription.routes.js';
 import { progressRouter } from './modules/progress/progress.routes.js';
 import { profileRouter } from './modules/profile/profile.routes.js';
+import { kvRouter } from './modules/kv/kv.routes.js';
 
 /**
  * Registers all API routes on the Express app.
@@ -41,6 +42,11 @@ export function registerRoutes(app: Express): void {
   // Profile management (preferences, referral stats, GDPR export,
   // account deletion).
   app.use('/api/profile', profileRouter);
+
+  // Per-user key/value store used by the frontend to persist UI state
+  // (onboarding flags, preferences, cached stats) across devices. Backed
+  // by Redis; keys are namespaced per authenticated user.
+  app.use('/api/kv', kvRouter);
 
   // Health check
   app.get('/api/health', (_req, res) => {
