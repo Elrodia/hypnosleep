@@ -4,6 +4,8 @@ import { aiRoutes } from './modules/ai/ai.routes.js';
 import { sessionsRoutes } from './modules/sessions/sessions.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { subscriptionRouter } from './modules/subscription/subscription.routes.js';
+import { progressRouter } from './modules/progress/progress.routes.js';
+import { profileRouter } from './modules/profile/profile.routes.js';
 
 /**
  * Registers all API routes on the Express app.
@@ -32,6 +34,13 @@ export function registerRoutes(app: Express): void {
 
   // AI generation routes (regenerate paragraph, etc.)
   app.use('/api', aiRoutes);
+
+  // Progress tracking (mood logs, streaks, heatmap, weekly AI insight).
+  app.use('/api/progress', progressRouter);
+
+  // Profile management (preferences, referral stats, GDPR export,
+  // account deletion).
+  app.use('/api/profile', profileRouter);
 
   // Health check
   app.get('/api/health', (_req, res) => {
