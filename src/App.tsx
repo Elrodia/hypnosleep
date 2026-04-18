@@ -16,7 +16,7 @@ import { LoginPage } from './components/pages/LoginPage'
 // deployed, any tab still running the previous version will request a
 // chunk filename that no longer exists on the server, producing a
 // "Failed to fetch dynamically imported module" error. To recover
-// gracefully we retry the import a couple of times and, if it still
+// gracefully we retry the import a few times and, if it still
 // fails, force a one-shot hard reload so the user picks up the latest
 // build instead of being stuck on the error fallback.
 function lazyWithRetry<T extends ComponentType<any>>(
@@ -24,8 +24,9 @@ function lazyWithRetry<T extends ComponentType<any>>(
 ) {
   return lazy(async () => {
     const RELOAD_KEY = 'landing-chunk-reloaded'
+    const maxAttempts = 3
     let lastError: unknown
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const mod = await factory()
         // Successfully loaded; clear any stale reload flag.
@@ -38,7 +39,11 @@ function lazyWithRetry<T extends ComponentType<any>>(
       } catch (err) {
         lastError = err
         // Brief backoff before retrying transient network failures.
-        await new Promise((r) => setTimeout(r, 250 * (attempt + 1)))
+        // Skip the backoff after the final attempt so we don't add an
+        // unnecessary delay before the reload / error path.
+        if (attempt < maxAttempts - 1) {
+          await new Promise((r) => setTimeout(r, 250 * (attempt + 1)))
+        }
       }
     }
 

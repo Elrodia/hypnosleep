@@ -209,6 +209,7 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
 
   const goTo = useCallback(
     (index: number) => {
+      if (index === currentSlide) return
       setDirection(index > currentSlide ? 1 : -1)
       setCurrentSlide(index)
     },
@@ -234,6 +235,21 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
   // Keyboard navigation: ←/→ to move, Enter on the last slide to complete.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't hijack browser/OS shortcuts (e.g. Alt/Meta+Arrow for
+      // back/forward) or keystrokes targeted at editable elements.
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+      const target = e.target as HTMLElement | null
+      if (target) {
+        const tag = target.tagName
+        if (
+          tag === 'INPUT' ||
+          tag === 'TEXTAREA' ||
+          tag === 'SELECT' ||
+          target.isContentEditable
+        ) {
+          return
+        }
+      }
       if (e.key === 'ArrowRight') {
         e.preventDefault()
         if (isLast) {
