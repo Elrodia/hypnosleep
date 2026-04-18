@@ -60,9 +60,24 @@ app.use(compression());
 // `https://app.hypnosleep.app`, so CORS headers are unnecessary (and the
 // browser never issues a preflight).
 if (!SAME_ORIGIN) {
+  // Build the allowlist from each entry's `.origin` (scheme + host + port).
+  // `FRONTEND_URL` is validated as a full URL and may include a path, but
+  // the browser's `Origin` request header is always origin-only, so a
+  // direct string compare against `FRONTEND_URL` can silently fail CORS.
+  const toOrigin = (candidate: string): string | null => {
+    try {
+      return new URL(candidate).origin;
+    } catch {
+      return null;
+    }
+  };
+  const allowedOrigins = [FRONTEND_URL, 'https://hypnosleep.app']
+    .map(toOrigin)
+    .filter((o): o is string => o !== null);
+
   app.use(
     cors({
-      origin: [FRONTEND_URL, 'https://hypnosleep.app'],
+      origin: allowedOrigins,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
@@ -229,11 +244,37 @@ const server = app.listen(PORT, () => {
 });
 
 // --- Graceful shutdown ---
+// Max time (ms) to wait for in-flight HTTP requests to drain before
+// force-exiting. Platforms like Railway send SIGKILL after ~30s, so
+// stay comfortably under that.
+const SHUTDOWN_TIMEOUT_MS = 25_000;
+
 const shutdown = async (signal: string) => {
   logger.info({ signal }, 'Received shutdown signal');
 
-  // Stop accepting new HTTP connections while in-flight requests drain.
-  server.close();
+  // Stop accepting new HTTP connections and wait for in-flight requests
+  // to finish. `server.close()` is asynchronous — without awaiting it we
+  // could tear down the queue/worker (or `process.exit`) while requests
+  // are still being served.
+  const closeServer = new Promise<void>((resolve) => {
+    server.close((err) => {
+      if (err) {
+        logger.warn({ err }, 'HTTP server close reported an error');
+      }
+      resolve();
+    });
+  });
+  const closeTimeout = new Promise<void>((resolve) => {
+    const t = setTimeout(() => {
+      logger.warn(
+        { timeoutMs: SHUTDOWN_TIMEOUT_MS },
+        'Timed out waiting for HTTP server to close — continuing shutdown',
+      );
+      resolve();
+    }, SHUTDOWN_TIMEOUT_MS);
+    t.unref();
+  });
+  await Promise.race([closeServer, closeTimeout]);
 
   if (worker) {
     // Drain in-flight jobs before exiting so a Railway redeploy
@@ -253,10 +294,9 @@ const shutdown = async (signal: string) => {
   // Flush any pending PostHog analytics events.
   await shutdownPostHog();
 
-  // Give outstanding I/O a moment to flush before exiting.
-  await new Promise((r) => setTimeout(r, 1000));
-
-  process.exit(0);
+  // Let the event loop drain naturally now that all resources are closed.
+  // (We intentionally don't call `process.exit(0)` — leaving it to the
+  // runtime means any still-pending I/O can finish flushing.)
 };
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
