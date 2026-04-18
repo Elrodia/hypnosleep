@@ -50,14 +50,13 @@ export function Logo({
 }: LogoProps) {
   const { src, w, h } = INTRINSIC[variant]
 
+  const resolvedSize = size ?? 32
+  const v = typeof resolvedSize === 'number' ? `${resolvedSize}px` : resolvedSize
+
   let sizedStyle: CSSProperties = {}
   if (variant === 'mark') {
-    if (size !== undefined) {
-      const v = typeof size === 'number' ? `${size}px` : size
-      sizedStyle = { width: v, height: v }
-    }
-  } else if (size !== undefined) {
-    const v = typeof size === 'number' ? `${size}px` : size
+    sizedStyle = { width: v, height: v }
+  } else {
     // Height-controlled; width stays auto-proportional via aspect-ratio.
     sizedStyle = { height: v, width: 'auto', aspectRatio: `${w} / ${h}` }
   }

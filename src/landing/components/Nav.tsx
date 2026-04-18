@@ -55,7 +55,7 @@ export function Nav({ onCtaClick, onLogin }: NavProps) {
       >
         <div className="mx-auto max-w-7xl flex items-center justify-between px-5 sm:px-8 h-16">
           <a href="#top" className="flex items-center gap-2" aria-label="HypnoSleep home">
-            <Logo variant="mark" size={32} className="rounded-full" />
+            <Logo variant="mark" size={32} className="rounded-full" alt="" />
             <span className="ls-display text-lg tracking-tight">HypnoSleep</span>
           </a>
 
