@@ -16,7 +16,7 @@ import {
 import { toast } from 'sonner'
 import { SleepTimerModal } from './SleepTimerModal'
 import { SoundsModal } from './SoundsModal'
-import { useKV } from '@github/spark/hooks'
+import { useKV } from '@/hooks/use-kv'
 
 interface FullScreenPlayerProps {
   isOpen: boolean

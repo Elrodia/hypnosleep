@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Sparkle, ShareNetwork } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
-import { useKV } from '@github/spark/hooks'
+import { useKV } from '@/hooks/use-kv'
+import { getAuthToken } from '@/lib/auth'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 
@@ -113,11 +114,25 @@ The summary should:
 2. Second sentence: Provide a specific, actionable insight based on their mood ratings and session patterns
 
 Be conversational, encouraging, and specific. Use "you/your" language. Keep it under 50 words total.`
+        // Prompt kept as a reference — the backend /api/progress/weekly-insight
+        // endpoint owns the Gemini call and persists the result in
+        // PostgreSQL so the same insight is served all week.
+        void promptText
 
-        const insight = await window.spark.llm(promptText, 'gpt-4o-mini')
-        
-        setCachedInsight(insight)
-        setLastRefresh(new Date().toISOString())
+        const token = getAuthToken()
+        const res = await fetch('/api/progress/weekly-insight', {
+          headers: token ? { Authorization: 'Bearer ' + token } : undefined,
+        })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const body = (await res.json()) as { data?: { insight?: string } }
+        const insight = body.data?.insight
+
+        if (insight) {
+          setCachedInsight(insight)
+          setLastRefresh(new Date().toISOString())
+        } else {
+          throw new Error('Empty insight response')
+        }
       } catch (error) {
         console.error('Failed to generate insight:', error)
         setCachedInsight('You completed ' + weeklyStats.thisWeekSessions + ' sessions this week. Keep up the great work building your mindfulness practice!')

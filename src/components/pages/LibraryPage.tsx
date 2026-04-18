@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useKV } from '@github/spark/hooks'
+import { useKV } from '@/hooks/use-kv'
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

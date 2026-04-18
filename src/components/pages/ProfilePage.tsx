@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { PencilSimple, Moon, Headphones, Flame, CaretRight, SlidersHorizontal, UserCircle, CreditCard, Question, Info } from '@phosphor-icons/react'
-import { useKV } from '@github/spark/hooks'
+import { useKV } from '@/hooks/use-kv'
 import { PreferencesPage } from './PreferencesPage'
 import { AccountPage } from './AccountPage'
 import { ProUpgradePage } from './ProUpgradePage'

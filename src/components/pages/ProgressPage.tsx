@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { CaretLeft, CaretRight, Clock, Headphones, Fire, Trophy } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
-import { useKV } from '@github/spark/hooks'
+import { useKV } from '@/hooks/use-kv'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AnimatedCounter } from '@/components/AnimatedCounter'
 import { GoalsSection } from '@/components/GoalsSection'

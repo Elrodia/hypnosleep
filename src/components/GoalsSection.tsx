@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Shield, Moon, Cigarette, Heart, Ghost, Target, Scales, Pencil, Check, Plus, Sparkle } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
-import { useKV } from '@github/spark/hooks'
+import { useKV } from '@/hooks/use-kv'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 

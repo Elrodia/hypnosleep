@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ShareNetwork, Heart, Play, Trash, Lock } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
-import { useKV } from '@github/spark/hooks'
+import { useKV } from '@/hooks/use-kv'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 

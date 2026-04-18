@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
-import { useKV } from '@github/spark/hooks'
+import { useKV } from '@/hooks/use-kv'
 import { Play, Leaf, Star, Cloud, Eye, Heart, CaretRight, TrendUp, Headphones } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import { StreakWidget } from '@/components/StreakWidget'

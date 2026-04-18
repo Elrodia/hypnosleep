@@ -229,38 +229,75 @@ const server = app.listen(PORT, () => {
 });
 
 // --- Graceful shutdown ---
-const shutdown = async (signal: string) => {
-  logger.info({ signal }, 'Received shutdown signal');
-
-  // Stop accepting new HTTP connections while in-flight requests drain.
-  server.close();
-
-  if (worker) {
-    // Drain in-flight jobs before exiting so a Railway redeploy
-    // doesn't abort an audio generation mid-pipeline.
-    try {
-      await worker.close();
-    } catch (err) {
-      logger.warn({ err }, 'Failed to close audio generation worker cleanly');
-    }
-  }
-  // Close the queue's Redis connection so the process can exit
-  // cleanly even if the worker was never started.
-  await closeQueue().catch((err) => {
-    logger.warn({ err }, 'Failed to close audio queue cleanly');
+// Wrapping `server.close` in a promise lets us actually await the
+// drain before the process exits. Without this, Railway's rolling
+// deploy can SIGKILL us mid-request because `server.close()` kicks
+// off drain asynchronously but returns immediately.
+const closeHttpServer = (): Promise<void> =>
+  new Promise((resolve) => {
+    server.close((err) => {
+      if (err) {
+        // Drain errors are non-fatal — we still want to continue
+        // closing the queue, worker, and analytics — but log so
+        // operators can see when a shutdown didn't complete cleanly.
+        logger.warn({ err }, 'HTTP server close reported an error');
+      }
+      resolve();
+    });
   });
 
-  // Flush any pending PostHog analytics events.
-  await shutdownPostHog();
+/** Hard ceiling on shutdown work. Railway sends SIGKILL ~30s after
+ *  SIGTERM; exit cleanly before that so we don't lose flush buffers. */
+const SHUTDOWN_TIMEOUT_MS = 20_000;
 
-  // Give outstanding I/O a moment to flush before exiting.
-  await new Promise((r) => setTimeout(r, 1000));
+let shuttingDown = false;
+
+const shutdown = async (signal: string) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logger.info({ signal }, 'Received shutdown signal');
+
+  // Bound total shutdown time so a hung downstream can't keep us
+  // alive past Railway's grace period.
+  const hardTimeout = setTimeout(() => {
+    logger.warn({ ms: SHUTDOWN_TIMEOUT_MS }, 'Shutdown timeout — forcing exit');
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT_MS);
+  // Don't let the timeout itself keep the event loop alive if the
+  // clean path wins the race.
+  hardTimeout.unref();
+
+  try {
+    // Stop accepting new HTTP connections and wait for in-flight
+    // requests to drain.
+    await closeHttpServer();
+
+    if (worker) {
+      // Drain in-flight jobs before exiting so a Railway redeploy
+      // doesn't abort an audio generation mid-pipeline.
+      try {
+        await worker.close();
+      } catch (err) {
+        logger.warn({ err }, 'Failed to close audio generation worker cleanly');
+      }
+    }
+    // Close the queue's Redis connection so the process can exit
+    // cleanly even if the worker was never started.
+    await closeQueue().catch((err) => {
+      logger.warn({ err }, 'Failed to close audio queue cleanly');
+    });
+
+    // Flush any pending PostHog analytics events.
+    await shutdownPostHog();
+  } finally {
+    clearTimeout(hardTimeout);
+  }
 
   process.exit(0);
 };
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));
 
 process.on('unhandledRejection', (err) => {
   logger.fatal({ err }, 'Unhandled promise rejection');

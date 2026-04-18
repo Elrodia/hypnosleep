@@ -1,5 +1,5 @@
 import { Gift, Copy, WhatsappLogo, XLogo, EnvelopeSimple } from '@phosphor-icons/react'
-import { useKV } from '@github/spark/hooks'
+import { useKV } from '@/hooks/use-kv'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 

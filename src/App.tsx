@@ -84,7 +84,7 @@ import { PaymentSuccessScreen } from './components/PaymentSuccessScreen'
 import { AudioPlayerProvider, useAudioPlayer } from './contexts/AudioPlayerContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { toast } from 'sonner'
-import { useKV } from '@github/spark/hooks'
+import { useKV } from '@/hooks/use-kv'
 import {
   consumeOAuthCallback,
   consumeOAuthError,

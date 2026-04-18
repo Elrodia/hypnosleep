@@ -68,26 +68,24 @@ export function ScriptEditorModal({ isOpen, onClose, initialScript, onSave }: Sc
       if (previousParagraph) contextInfo.push(`Previous paragraph for context: "${previousParagraph}"`)
       contextInfo.push(`Paragraph to rewrite: "${selectedParagraph}"`)
       if (nextParagraph) contextInfo.push(`Next paragraph for context: "${nextParagraph}"`)
-      
+
       const promptText = `You are writing a hypnosis script. Rewrite the following paragraph to be more effective, calming, and hypnotic. Keep the same general theme and flow but improve the language, imagery, and suggestions.
 
 ${contextInfo.join('\n\n')}
 
 Respond with ONLY the rewritten paragraph, no explanations or additional text.`
+      // Kept as reference for when a backend endpoint is wired. The
+      // previous implementation called Spark's hosted LLM which is
+      // no longer available.
+      void promptText
 
-      const regeneratedText = await window.spark.llm(promptText, 'gpt-4o-mini')
-      
-      const newParagraphs = [...paragraphs]
-      newParagraphs[paragraphIndex] = regeneratedText.trim()
-      
-      const newScript = newParagraphs.join('\n\n')
-      setScript(newScript)
-      
-      setModifiedParagraphs(prev => new Set([...prev, paragraphIndex]))
-      
-      toast.success('Paragraph regenerated with AI!')
+      // Inline AI regeneration requires a session id we don't have at
+      // this callsite; surface a friendly message instead of silently
+      // no-op'ing so the user understands why nothing changed.
+      throw new Error('AI regeneration is not available in this editor yet')
     } catch (error) {
-      toast.error('Failed to regenerate paragraph')
+      const msg = error instanceof Error ? error.message : 'Failed to regenerate paragraph'
+      toast.error(msg)
       console.error(error)
     } finally {
       setIsRegenerating(false)
