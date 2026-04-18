@@ -226,7 +226,7 @@ def rasterize(svg_text: str, out_path: str, width: int, height: int) -> None:
         pass
     # Fallback: use rsvg-convert if available
     try:
-        p = subprocess.run(
+        subprocess.run(
             ["rsvg-convert", "-w", str(width), "-h", str(height), "-o", out_path],
             input=svg_text.encode("utf-8"),
             check=True, capture_output=True,

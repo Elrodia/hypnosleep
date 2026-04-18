@@ -36,7 +36,7 @@ export function Footer() {
 
       <div className="mx-auto mt-12 max-w-7xl px-5 sm:px-8 flex flex-col sm:flex-row items-start sm:items-center gap-5 justify-between border-t border-white/5 pt-6">
         <div className="flex items-center gap-2">
-          <Logo variant="mark" size={28} className="rounded-full" />
+          <Logo variant="mark" size={28} className="rounded-full" alt="" />
           <span className="ls-display text-base">HypnoSleep</span>
           <span className="ml-3 text-xs text-[color:var(--ls-text-secondary)]">
             © 2026 HypnoSleep. Made with <span aria-label="love">❤️</span> in Belgium.

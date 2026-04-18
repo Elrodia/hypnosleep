@@ -41,7 +41,7 @@ export function SplashScreen() {
         ))}
 
         <div className="relative shadow-lg shadow-primary/50 rounded-full overflow-hidden">
-          <Logo variant="mark" size={72} />
+          <Logo variant="mark" size={72} alt="" />
         </div>
       </div>
 

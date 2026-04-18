@@ -17,7 +17,7 @@ export function Header() {
     <header className="fixed top-0 left-0 right-0 h-14 border-b border-border/50 bg-card/30 backdrop-blur-xl z-50">
       <div className="flex items-center justify-between h-full px-4">
         <div className="flex items-center gap-2">
-          <Logo variant="mark" size={28} className="rounded-md" />
+          <Logo variant="mark" size={28} className="rounded-md" alt="" />
           <h1 className="text-xl font-serif tracking-wide text-foreground">
             HypnoSleep
           </h1>
