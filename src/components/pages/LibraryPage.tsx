@@ -129,7 +129,6 @@ export function LibraryPage() {
         onBack={handleBackFromDetail}
         onPlay={handlePlayFromDetail}
         onDeleted={() => {
-          deleteMutation.mutate(selectedSessionId)
           setSelectedSessionId(null)
         }}
       />
