@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { Logo } from './Logo'
 
 export function SplashScreen() {
   return (
@@ -18,9 +19,9 @@ export function SplashScreen() {
               borderImage: 'linear-gradient(135deg, #7c5cfc, #9d7bff) 1',
               borderImageSlice: 1,
             }}
-            initial={{ 
-              width: 60, 
-              height: 60, 
+            initial={{
+              width: 60,
+              height: 60,
               opacity: 0.8,
               borderColor: '#7c5cfc',
             }}
@@ -38,9 +39,9 @@ export function SplashScreen() {
             }}
           />
         ))}
-        
-        <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-[#7c5cfc] to-[#9d7bff] flex items-center justify-center shadow-lg shadow-primary/50">
-          <span className="text-3xl">🌙</span>
+
+        <div className="relative shadow-lg shadow-primary/50 rounded-full overflow-hidden">
+          <Logo variant="mark" size={72} />
         </div>
       </div>
 

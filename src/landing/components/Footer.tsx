@@ -1,4 +1,5 @@
-import { Moon, Twitter, Instagram, Youtube } from 'lucide-react'
+import { Twitter, Instagram, Youtube } from 'lucide-react'
+import { Logo } from '../../components/Logo'
 
 const columns: { title: string; links: string[] }[] = [
   { title: 'Product', links: ['Features', 'Pricing', 'Templates', 'Roadmap'] },
@@ -35,12 +36,7 @@ export function Footer() {
 
       <div className="mx-auto mt-12 max-w-7xl px-5 sm:px-8 flex flex-col sm:flex-row items-start sm:items-center gap-5 justify-between border-t border-white/5 pt-6">
         <div className="flex items-center gap-2">
-          <span
-            aria-hidden
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#7c5cfc] to-[#5b8def] text-white"
-          >
-            <Moon size={14} strokeWidth={2.2} />
-          </span>
+          <Logo variant="mark" size={28} className="rounded-full" />
           <span className="ls-display text-base">HypnoSleep</span>
           <span className="ml-3 text-xs text-[color:var(--ls-text-secondary)]">
             © 2026 HypnoSleep. Made with <span aria-label="love">❤️</span> in Belgium.
