@@ -331,10 +331,12 @@ vi.mock('drizzle-orm', () => ({
     field: col.__field,
     value,
   }),
-  inArray: (col: { __field: string }, values: unknown[]): Pred => ({
-    op: 'and',
-    children: values.map((v) => ({ op: 'eq', field: col.__field, value: v }) as Pred),
-  }),
+  inArray: (col: { __field: string }, values: unknown[]): Pred =>
+    ({
+      op: 'in',
+      field: col.__field,
+      values,
+    }) as Pred,
   sql: () => ({}),
   desc: () => ({}),
 }));
