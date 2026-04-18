@@ -228,6 +228,7 @@ app.use(errorHandler);
 
 // --- Start ---
 let worker: ReturnType<typeof createAudioGenerationWorker> | null = null;
+let shuttingDown = false;
 
 const server = app.listen(PORT, () => {
   logger.info({ port: PORT, env: env.NODE_ENV }, '🚀 HypnoSleep API server started');
@@ -248,7 +249,6 @@ const server = app.listen(PORT, () => {
 // force-exiting. Platforms like Railway send SIGKILL after ~30s, so
 // stay comfortably under that.
 const SHUTDOWN_TIMEOUT_MS = 25_000;
-let shuttingDown = false;
 
 const shutdown = async (signal: string) => {
   if (shuttingDown) return;
