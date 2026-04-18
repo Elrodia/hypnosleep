@@ -66,5 +66,5 @@ authRouter.get('/github/callback', authRateLimit, ...callbackHandlers('github'))
 authRouter.get('/microsoft/callback', authRateLimit, ...callbackHandlers('microsoft'));
 
 // --- Session helpers -----------------------------------------------------
-authRouter.get('/me', requireAuth, handleGetMe);
-authRouter.post('/logout', requireAuth, handleLogout);
+authRouter.get('/me', authRateLimit, requireAuth, handleGetMe);
+authRouter.post('/logout', authRateLimit, requireAuth, handleLogout);
