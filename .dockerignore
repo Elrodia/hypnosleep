@@ -1,0 +1,33 @@
+**/node_modules
+**/dist
+**/dist-ssr
+**/*-dist
+**/.tsbuildinfo
+**/*.tsbuildinfo
+
+# VCS / editor
+.git
+.github
+.gitignore
+.vscode
+.idea
+.DS_Store
+
+# Logs & local env
+*.log
+logs
+.env
+.env.*
+!.env.production
+
+# Test + CI artefacts
+**/coverage
+**/agent-eval-report*
+packages
+pids
+.file-manifest
+.devcontainer
+
+# Docs don't need to land in the build context
+*.md
+!README.md

@@ -1,0 +1,18 @@
+# Railway build & deploy configuration.
+#
+# Railway picks up this file at the repo root and uses the Dockerfile
+# next to it to build a single image containing both the Vite SPA and
+# the Express API. Attach Redis, PostgreSQL, MySQL and an S3-compatible
+# bucket as Railway plugins / services and wire them via env vars
+# (see apps/api/README.md for the full list).
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "node dist/server.js"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

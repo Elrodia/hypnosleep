@@ -1,4 +1,6 @@
 import express from 'express';
+import path from 'node:path';
+import fs from 'node:fs';
 import pinoHttp from 'pino-http';
 import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
@@ -8,6 +10,14 @@ import { createAudioGenerationWorker } from './queues/audio-generation.worker.js
 
 const PORT = env.PORT;
 const FRONTEND_URL = env.FRONTEND_URL;
+const API_URL = env.API_URL;
+const SAME_ORIGIN = (() => {
+  try {
+    return new URL(FRONTEND_URL).origin === new URL(API_URL).origin;
+  } catch {
+    return false;
+  }
+})();
 
 const app = express();
 
@@ -25,24 +35,72 @@ app.use(
   }),
 );
 
-// CORS
-app.use((_req, res, next) => {
-  const frontendUrl = FRONTEND_URL;
-  res.header('Access-Control-Allow-Origin', frontendUrl);
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
+// CORS — only needed when the frontend is served from a different origin.
+// In the unified Railway deployment the SPA and the API share
+// `https://app.hypnosleep.app`, so CORS headers are unnecessary (and the
+// browser never issues a preflight).
+if (!SAME_ORIGIN) {
+  app.use((_req, res, next) => {
+    res.header('Access-Control-Allow-Origin', FRONTEND_URL);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
 
-  if (_req.method === 'OPTIONS') {
-    res.sendStatus(204);
-    return;
-  }
+    if (_req.method === 'OPTIONS') {
+      res.sendStatus(204);
+      return;
+    }
 
-  next();
-});
+    next();
+  });
+}
 
-// --- Routes ---
+// --- API routes ---
 registerRoutes(app);
+
+// --- Static frontend (Vite build) + SPA fallback --------------------------
+// When `STATIC_DIR` points at a directory containing a built SPA (an
+// `index.html` plus asset files), serve it from the same Express process
+// so the frontend and API share a single origin. Any unmatched non-`/api`
+// GET falls back to `index.html` so client-side routing works on refresh.
+const staticDir = env.STATIC_DIR ? path.resolve(env.STATIC_DIR) : null;
+const indexHtml = staticDir ? path.join(staticDir, 'index.html') : null;
+
+if (staticDir && indexHtml && fs.existsSync(indexHtml)) {
+  app.use(
+    express.static(staticDir, {
+      // Hashed Vite assets are immutable; `index.html` must not be cached
+      // so deploys roll out immediately.
+      index: false,
+      setHeaders: (res, filePath) => {
+        if (path.basename(filePath) === 'index.html') {
+          res.setHeader('Cache-Control', 'no-cache');
+        } else if (/\.(?:js|css|woff2?|png|jpe?g|svg|webp|gif|ico|mp3|wav|ogg)$/i.test(filePath)) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      },
+    }),
+  );
+
+  app.get(/^(?!\/api\/).*/, (req, res, next) => {
+    // Don't hijack non-GET requests or explicit file extensions — let them
+    // 404 through the normal Express flow.
+    if (req.method !== 'GET') {
+      next();
+      return;
+    }
+    res.sendFile(indexHtml, (err) => {
+      if (err) next(err);
+    });
+  });
+
+  logger.info({ staticDir }, 'Serving built SPA from Express');
+} else if (env.STATIC_DIR) {
+  logger.warn(
+    { staticDir: env.STATIC_DIR },
+    'STATIC_DIR set but index.html not found — SPA will not be served',
+  );
+}
 
 // --- Error handler (must be last) ---
 app.use(errorHandler);

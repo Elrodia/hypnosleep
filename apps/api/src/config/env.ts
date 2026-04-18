@@ -34,8 +34,20 @@ const envSchema = z.object({
    * Public base URL of the API, used to build OAuth callback URLs
    * (e.g. `${API_URL}/api/auth/google/callback`). Must match what is
    * registered with each OAuth provider.
+   *
+   * Defaults to the same origin as `FRONTEND_URL` because the Railway
+   * deployment serves the API and the SPA behind a single domain
+   * (`https://app.hypnosleep.app`). Override in environments where the
+   * API is hosted on a different origin.
    */
-  API_URL: z.string().url().default('https://api.hypnosleep.app'),
+  API_URL: z.string().url().default('https://app.hypnosleep.app'),
+
+  /**
+   * Absolute path to the built Vite SPA that the API should serve as
+   * static assets (with SPA fallback). When unset, the API only serves
+   * `/api/*` routes — useful for local backend-only development.
+   */
+  STATIC_DIR: optionalString(),
 
   // --- Databases -----------------------------------------------------------
   DATABASE_URL: z.string().min(1),
