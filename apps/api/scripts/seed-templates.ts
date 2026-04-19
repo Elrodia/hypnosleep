@@ -1,8 +1,9 @@
 /**
  * One-shot seed script that renders AI-scripted, voice-narrated,
  * background-mixed audio for every `is_template = true` session in
- * MySQL whose `status` is still `'generating'`, then flips it to
- * `'ready'`.
+ * MySQL whose `status` is still `'generating'` or `'failed'` (so a
+ * previously-failed run can be retried on the next deploy), then
+ * flips it to `'ready'`.
  *
  * Intended to be run **once per deploy** after migrations have applied
  * (`0002_seed_templates` creates the rows without audio). Running it
@@ -25,7 +26,7 @@
  * Load any required env (DATABASE_URL_MYSQL etc.) via your process
  * manager or `--env-file .env` (Node ≥ 20) before running.
  */
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { mysqlDb } from '../src/db/mysql/client.js';
 import { sessions } from '../src/db/mysql/schema/sessions.js';
 import { generateScript } from '../src/modules/ai/ai.service.js';
@@ -152,7 +153,16 @@ async function main(): Promise<void> {
       backgroundSound: sessions.backgroundSound,
     })
     .from(sessions)
-    .where(and(eq(sessions.isTemplate, true), eq(sessions.status, 'generating')));
+    // Retry rows that previously failed so a single bad run doesn't
+    // permanently poison the library — idempotent because already-
+    // `ready` rows are excluded and `seedOne` overwrites title /
+    // script / audio / duration / status atomically.
+    .where(
+      and(
+        eq(sessions.isTemplate, true),
+        inArray(sessions.status, ['generating', 'failed']),
+      ),
+    );
 
   if (pending.length === 0) {
     logger.info('No pending templates — nothing to seed.');

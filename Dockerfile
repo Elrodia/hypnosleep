@@ -86,6 +86,14 @@ COPY --from=api-builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=api-builder /app/apps/api/dist ./apps/api/dist
 COPY --from=api-builder /app/apps/api/scripts ./apps/api/scripts
 
+# Release-time tooling inputs: drizzle configs + TypeScript source.
+# Needed by the Railway `releaseCommand` (see ../../railway.toml) which
+# runs `drizzle-kit migrate` (reads the config files + SQL migration
+# folders under `src/db/*/migrations`) and `tsx scripts/seed-templates`
+# (imports from `src/*`) before the API is promoted to serving traffic.
+COPY --from=api-builder /app/apps/api/drizzle.config.mysql.ts /app/apps/api/drizzle.config.postgres.ts ./apps/api/
+COPY --from=api-builder /app/apps/api/src ./apps/api/src
+
 # Built SPA — served by Express via STATIC_DIR.
 COPY --from=frontend-builder /app/dist ./public
 

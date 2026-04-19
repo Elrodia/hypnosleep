@@ -11,6 +11,13 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
+# `releaseCommand` runs once before the new container is promoted to
+# serving traffic. We apply database migrations (MySQL + Postgres)
+# and then seed any pending/failed template rows so a fresh deploy
+# ships with a populated library. The seed step is best-effort: if
+# it fails (e.g. Gemini rate limit) we still start the API — a
+# subsequent deploy will retry the templates that stayed `failed`.
+releaseCommand = "npm run db:migrate && (npx tsx scripts/seed-templates.ts || echo 'Template seeding failed — continuing deploy')"
 startCommand = "node dist/server.js"
 # `/health` is registered before the rate limiter and before the Sentry
 # error handler, so Railway's probes never get 429'd or accidentally

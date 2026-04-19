@@ -10,7 +10,7 @@ import { events } from '../../db/postgres/schema/events.js';
 import { getRedis } from '../../db/redis/client.js';
 import { cached } from '../../db/redis/helpers.js';
 import { enqueueAudioGeneration } from '../../queues/audio-generation.queue.js';
-import { generateScript, checkScriptSafety } from '../ai/ai.service.js';
+import { generateScript } from '../ai/ai.service.js';
 import {
   getStreamUrl,
   deleteFile,
@@ -23,7 +23,6 @@ import {
   proRequired,
   rateLimitExceeded,
   validationFailed,
-  generationFailed,
 } from '../../utils/errors.js';
 import { logger } from '../../utils/logger.js';
 import {
@@ -170,7 +169,10 @@ export async function createGenerationSession(
 
   try {
     // Step 1: Gemini script generation (includes retry + token
-    // accounting + audit log via ai.service).
+    // accounting + audit log via ai.service). The quick heuristic
+    // safety pass runs inside `generateScript`, and sensitive
+    // categories (`fears`, `habits`) additionally get an LLM-backed
+    // deep safety review there — no second pass needed here.
     const scriptResult = await generateScript({
       userId,
       sessionId,
@@ -184,23 +186,7 @@ export async function createGenerationSession(
       wakeUpEnding: input.wakeUpAtEnd,
     });
 
-    // Step 2: belt-and-braces deep safety review. `generateScript`
-    // already runs the quick heuristic and may run a deep check for
-    // sensitive categories; this guarantees at least one LLM-backed
-    // review before we spend money on TTS.
-    const safety = await checkScriptSafety(scriptResult.scriptText);
-    if (!safety.isSafe) {
-      logger.warn(
-        { sessionId, reason: safety.reason },
-        'Generated script flagged as unsafe — refusing to enqueue audio',
-      );
-      throw generationFailed(
-        'The generated script did not pass our safety review. Please try a different prompt.',
-        { reason: safety.reason ?? 'unknown' },
-      );
-    }
-
-    // Step 3: persist the session row with the real title + script.
+    // Step 2: persist the session row with the real title + script.
     await mysqlDb.insert(sessions).values({
       id: sessionId,
       userId,
@@ -214,7 +200,7 @@ export async function createGenerationSession(
       isTemplate: false,
     });
 
-    // Step 4: enqueue audio generation with the real script.
+    // Step 3: enqueue audio generation with the real script.
     await enqueueAudioGeneration({
       sessionId,
       userId,

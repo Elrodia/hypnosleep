@@ -29,6 +29,7 @@
     "bullmq": "^5.30.0",
     "compression": "^1.7.5",
     "cors": "^2.8.5",
+    "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "execa": "^9.6.1",
     "express": "^4.21.0",
@@ -46,6 +47,7 @@
     "pino-http": "^10.3.0",
     "posthog-node": "^4.4.1",
     "stripe": "^17.3.0",
+    "tsx": "^4.19.0",
     "uuid": "^11.1.0",
     "zod": "^3.25.0"
   },
@@ -60,8 +62,6 @@
     "@types/passport-google-oauth20": "^2.0.16",
     "@types/pg": "^8.11.10",
     "@types/uuid": "^10.0.0",
-    "drizzle-kit": "^0.31.10",
-    "tsx": "^4.19.0",
     "typescript": "~5.7.2",
     "vitest": "^2.1.0"
   }

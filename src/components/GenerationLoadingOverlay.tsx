@@ -1,6 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, PenNib, Waveform, MusicNote, Sparkle, Check } from '@phosphor-icons/react'
-import { useEffect, useState } from 'react'
 
 interface GenerationStep {
   id: number
@@ -12,50 +11,59 @@ interface GenerationStep {
 interface GenerationLoadingOverlayProps {
   isOpen: boolean
   onCancel: () => void
+  /**
+   * Current backend step name as reported by the SSE stream. One of
+   * `queued | script | tts | mix | upload | done | error`. When
+   * omitted the overlay falls back to a simple indeterminate display.
+   */
+  step?: string
+  /** 0–100 progress percent as reported by the backend. */
+  percent?: number
+  /** Optional human-readable status message from the backend. */
+  message?: string
 }
 
-export function GenerationLoadingOverlay({ isOpen, onCancel }: GenerationLoadingOverlayProps) {
-  const [steps, setSteps] = useState<GenerationStep[]>([
-    { id: 1, label: 'Crafting your script...', icon: <PenNib weight="duotone" />, status: 'active' },
-    { id: 2, label: 'Generating audio...', icon: <Waveform weight="duotone" />, status: 'pending' },
-    { id: 3, label: 'Adding background sounds...', icon: <MusicNote weight="duotone" />, status: 'pending' },
-    { id: 4, label: 'Finalizing session...', icon: <Sparkle weight="duotone" />, status: 'pending' },
-  ])
+// Maps each canonical backend step to the user-facing row it belongs
+// to. `upload` and `done` both drive the "Finalizing session..." row
+// (index 3); `error` is rendered without an explicit active row.
+const STEP_INDEX: Record<string, number> = {
+  queued: 0,
+  script: 0,
+  tts: 1,
+  mix: 2,
+  upload: 3,
+  done: 3,
+}
 
-  useEffect(() => {
-    if (!isOpen) {
-      setSteps([
-        { id: 1, label: 'Crafting your script...', icon: <PenNib weight="duotone" />, status: 'active' },
-        { id: 2, label: 'Generating audio...', icon: <Waveform weight="duotone" />, status: 'pending' },
-        { id: 3, label: 'Adding background sounds...', icon: <MusicNote weight="duotone" />, status: 'pending' },
-        { id: 4, label: 'Finalizing session...', icon: <Sparkle weight="duotone" />, status: 'pending' },
-      ])
-      return
-    }
+export function GenerationLoadingOverlay({
+  isOpen,
+  onCancel,
+  step,
+  percent,
+  message,
+}: GenerationLoadingOverlayProps) {
+  const baseSteps: Omit<GenerationStep, 'status'>[] = [
+    { id: 1, label: 'Crafting your script...', icon: <PenNib weight="duotone" /> },
+    { id: 2, label: 'Generating audio...', icon: <Waveform weight="duotone" /> },
+    { id: 3, label: 'Adding background sounds...', icon: <MusicNote weight="duotone" /> },
+    { id: 4, label: 'Finalizing session...', icon: <Sparkle weight="duotone" /> },
+  ]
 
-    const timings = [0, 7000, 14000, 21000]
-    const timeouts: ReturnType<typeof setTimeout>[] = []
+  const activeIdx = STEP_INDEX[step ?? 'queued'] ?? 0
+  const allDone = step === 'done'
+  const steps: GenerationStep[] = baseSteps.map((s, idx) => {
+    let status: GenerationStep['status'] = 'pending'
+    if (allDone || idx < activeIdx) status = 'complete'
+    else if (idx === activeIdx) status = 'active'
+    return { ...s, status }
+  })
 
-    timings.forEach((delay, index) => {
-      const timeout = setTimeout(() => {
-        setSteps(prev => {
-          const updated = [...prev]
-          if (index > 0) {
-            updated[index - 1].status = 'complete'
-          }
-          if (index < updated.length) {
-            updated[index].status = 'active'
-          }
-          return updated
-        })
-      }, delay)
-      timeouts.push(timeout)
-    })
-
-    return () => {
-      timeouts.forEach(timeout => clearTimeout(timeout))
-    }
-  }, [isOpen])
+  // Round and clamp the backend percent so the progress bar stays
+  // within a sane 0–100 range even if something upstream misbehaves.
+  const clampedPercent = Math.max(
+    0,
+    Math.min(100, Math.round(percent ?? 0)),
+  )
 
   return (
     <AnimatePresence>
@@ -205,14 +213,29 @@ export function GenerationLoadingOverlay({ isOpen, onCancel }: GenerationLoading
               ))}
             </motion.div>
 
-            <motion.p
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5, duration: 0.4 }}
-              className="text-sm text-muted-foreground mb-6"
+              className="w-full mb-6 space-y-2"
             >
-              Estimated time: <span className="text-foreground font-medium">~30 seconds</span>
-            </motion.p>
+              {/* Live progress bar driven by the backend SSE stream. */}
+              <div className="h-1.5 w-full rounded-full bg-secondary/40 overflow-hidden">
+                <motion.div
+                  className="h-full bg-primary"
+                  animate={{ width: `${clampedPercent}%` }}
+                  transition={{ duration: 0.4, ease: 'easeOut' }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span className="truncate pr-2">
+                  {message ?? 'Preparing your session...'}
+                </span>
+                <span className="tabular-nums text-foreground font-medium shrink-0">
+                  {clampedPercent}%
+                </span>
+              </div>
+            </motion.div>
 
             <motion.button
               initial={{ opacity: 0 }}
