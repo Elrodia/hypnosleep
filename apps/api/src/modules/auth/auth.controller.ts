@@ -27,6 +27,52 @@ interface RedisOAuthTx {
   ref?: string;
 }
 
+export type OAuthFailureReason =
+  | 'state_missing'
+  | 'state_mismatch'
+  | 'provider_error'
+  | 'email_provider_mismatch'
+  | 'rate_limited'
+  | 'callback_failed';
+
+export function getOAuthRequestId(req: Request): string {
+  const candidate = (req as Request & { id?: unknown }).id;
+  return typeof candidate === 'string' && candidate.length > 0 ? candidate : randomUUID();
+}
+
+function getOAuthRequestMeta(req: Request): { origin: string | null; userAgent: string | null } {
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : null;
+  const userAgent = typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null;
+  return { origin, userAgent };
+}
+
+export function redirectOAuthError(
+  res: Response,
+  opts: { reason: OAuthFailureReason; rid: string },
+): void {
+  const redirectUrl = new URL('/auth/error', env.FRONTEND_URL);
+  redirectUrl.searchParams.set('reason', opts.reason);
+  redirectUrl.searchParams.set('rid', opts.rid);
+  res.redirect(redirectUrl.toString());
+}
+
+export function logOAuthFailure(
+  req: Request,
+  opts: { provider: OAuthProvider; reason: OAuthFailureReason; rid: string; message: string },
+): void {
+  const meta = getOAuthRequestMeta(req);
+  logger.warn(
+    {
+      provider: opts.provider,
+      reason: opts.reason,
+      rid: opts.rid,
+      origin: meta.origin,
+      'user-agent': meta.userAgent,
+    },
+    opts.message,
+  );
+}
+
 /**
  * Begin an OAuth flow: generate a cryptographically random nonce, pin
  * it to this user agent via an HttpOnly cookie, and return the
@@ -166,14 +212,19 @@ function getAffectedRows(result: unknown): number {
   return typeof affectedRows === 'number' ? affectedRows : 0;
 }
 
-export async function consumeOAuthState(req: Request, res: Response): Promise<OAuthState | null> {
+export async function consumeOAuthState(
+  req: Request,
+  res: Response,
+): Promise<{ state: OAuthState | null; reason: OAuthFailureReason | null }> {
   const cookieNonce = readCookie(req, OAUTH_STATE_COOKIE);
   // Always clear the cookie — it's single-use regardless of outcome.
   res.clearCookie(OAUTH_STATE_COOKIE, { path: OAUTH_STATE_COOKIE_PATH });
 
   const state = decodeOAuthState(req.query.state);
-  if (!state) return null;
-  if (cookieNonce && !safeEqual(cookieNonce, state.nonce)) return null;
+  if (!state) return { state: null, reason: 'state_missing' };
+  if (cookieNonce && !safeEqual(cookieNonce, state.nonce)) {
+    return { state: null, reason: 'state_mismatch' };
+  }
 
   let redisPayload: RedisOAuthTx | null = null;
   if (env.REDIS_URL) {
@@ -183,7 +234,9 @@ export async function consumeOAuthState(req: Request, res: Response): Promise<OA
         const raw = await redis.get(`${OAUTH_TX_REDIS_PREFIX}${state.tx}`);
         if (raw) {
           const parsed = JSON.parse(raw) as RedisOAuthTx;
-          if (!parsed?.nonce || !safeEqual(parsed.nonce, state.nonce)) return null;
+          if (!parsed?.nonce || !safeEqual(parsed.nonce, state.nonce)) {
+            return { state: null, reason: 'state_mismatch' };
+          }
           redisPayload = parsed;
         }
       } catch (err) {
@@ -205,7 +258,7 @@ export async function consumeOAuthState(req: Request, res: Response): Promise<OA
       ),
     );
 
-  if (getAffectedRows(updateResult) !== 1) return null;
+  if (getAffectedRows(updateResult) !== 1) return { state: null, reason: 'state_mismatch' };
 
   let ref = redisPayload?.ref;
   if (!ref) {
@@ -226,7 +279,7 @@ export async function consumeOAuthState(req: Request, res: Response): Promise<OA
     }
   }
 
-  return { ...state, ...(ref ? { ref } : {}) };
+  return { state: { ...state, ...(ref ? { ref } : {}) }, reason: null };
 }
 
 /**
@@ -262,11 +315,22 @@ async function applyReferral(user: User, ref: string): Promise<void> {
  * `localStorage` and then redirecting to `/home` or `/onboarding`.
  */
 export async function handleOAuthCallback(req: Request, res: Response): Promise<void> {
+  const provider = req.path.includes('/github')
+    ? 'github'
+    : req.path.includes('/microsoft')
+      ? 'microsoft'
+      : 'google';
+  const rid = getOAuthRequestId(req);
   try {
-    const state = await consumeOAuthState(req, res);
-    if (!state) {
-      logger.warn('OAuth callback rejected: missing or invalid state nonce');
-      res.redirect(`${env.FRONTEND_URL}/auth/error`);
+    const { state, reason } = await consumeOAuthState(req, res);
+    if (!state || reason) {
+      logOAuthFailure(req, {
+        provider,
+        reason: reason ?? 'state_missing',
+        rid,
+        message: 'OAuth callback rejected: missing or invalid state nonce',
+      });
+      redirectOAuthError(res, { reason: reason ?? 'state_missing', rid });
       return;
     }
 
@@ -284,8 +348,14 @@ export async function handleOAuthCallback(req: Request, res: Response): Promise<
     const token = issueJwt(user);
     res.redirect(`${env.FRONTEND_URL}/auth/callback?token=${encodeURIComponent(token)}`);
   } catch (err) {
-    logger.error({ err }, 'OAuth callback failed');
-    res.redirect(`${env.FRONTEND_URL}/auth/error`);
+    logOAuthFailure(req, {
+      provider,
+      reason: 'callback_failed',
+      rid,
+      message: 'OAuth callback failed',
+    });
+    logger.error({ err, provider, rid }, 'OAuth callback failure details');
+    redirectOAuthError(res, { reason: 'callback_failed', rid });
   }
 }
 

@@ -1,6 +1,5 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import passport from 'passport';
-import { env } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
 import { rateLimit } from '../../middleware/rate-limit.js';
 import { RATE_LIMITS } from '../../config/constants.js';
@@ -10,9 +9,12 @@ import { microsoftStrategy } from './strategies/microsoft.strategy.js';
 import { requireAuth } from './auth.middleware.js';
 import {
   beginOAuthState,
+  getOAuthRequestId,
   handleGetMe,
   handleLogout,
   handleOAuthCallback,
+  logOAuthFailure,
+  redirectOAuthError,
 } from './auth.controller.js';
 import type { OAuthProvider } from './auth.types.js';
 
@@ -60,10 +62,29 @@ function callbackHandlers(provider: OAuthProvider) {
         { session: false },
         (err: unknown, user: Express.User | false | null) => {
           if (err || !user) {
+            const rid = getOAuthRequestId(req);
+            const reason =
+              typeof err === 'object' &&
+              err &&
+              'message' in err &&
+              typeof err.message === 'string' &&
+              err.message.includes('EMAIL_PROVIDER_MISMATCH')
+                ? 'email_provider_mismatch'
+                : 'provider_error';
+            logOAuthFailure(req, {
+              provider,
+              reason,
+              rid,
+              message: 'OAuth authentication failed',
+            });
             if (err) {
-              logger.warn({ err, provider }, 'OAuth authentication failed');
+              const errName =
+                typeof err === 'object' && err && 'name' in err && typeof err.name === 'string'
+                  ? err.name
+                  : 'OAuthError';
+              logger.warn({ provider, rid, errName }, 'OAuth provider returned an error');
             }
-            res.redirect(`${env.FRONTEND_URL}/auth/error`);
+            redirectOAuthError(res, { reason, rid });
             return;
           }
 

@@ -79,7 +79,7 @@ interface AuthErrorParams {
   error: string | null
   reason: string | null
   message: string | null
-  requestId: string | null
+  rid: string | null
 }
 
 function resolveRoute(): AppRoute {
@@ -93,14 +93,14 @@ function resolveRoute(): AppRoute {
 
 function parseAuthErrorParams(): AuthErrorParams {
   if (typeof window === 'undefined') {
-    return { error: null, reason: null, message: null, requestId: null }
+    return { error: null, reason: null, message: null, rid: null }
   }
   const params = new URLSearchParams(window.location.search)
   return {
     error: params.get('error'),
     reason: params.get('reason'),
     message: params.get('message'),
-    requestId: params.get('requestId'),
+    rid: params.get('rid') ?? params.get('requestId'),
   }
 }
 
@@ -306,7 +306,7 @@ function AppContent() {
         error={authErrorParams.error}
         reason={authErrorParams.reason}
         message={authErrorParams.message}
-        requestId={authErrorParams.requestId}
+        requestId={authErrorParams.rid}
         onRetry={() => {
           clearCallbackUrl()
           setRoute('app')

@@ -13,6 +13,15 @@ interface AuthErrorPageProps {
 }
 
 const normalize = (value?: string | null) => value?.trim().toLowerCase() ?? ''
+const REASON_MESSAGES: Record<string, string> = {
+  state_missing: 'Your sign-in session is missing required verification data. Please restart sign-in.',
+  state_mismatch: 'Your sign-in verification did not match this browser session. Please try again.',
+  provider_error: 'The sign-in provider returned an error before authentication completed. Please retry.',
+  email_provider_mismatch:
+    'This email is already linked to a different sign-in provider. Use the original provider for this account.',
+  rate_limited: 'Too many sign-in attempts were detected. Please wait a moment and try again.',
+  callback_failed: 'The sign-in callback failed unexpectedly. Please retry in a moment.',
+}
 
 function resolveAuthErrorMessage({
   error,
@@ -22,6 +31,10 @@ function resolveAuthErrorMessage({
   const rawReason = normalize(reason)
   const rawError = normalize(error)
   const rawMessage = message?.trim()
+
+  if (rawReason in REASON_MESSAGES) {
+    return REASON_MESSAGES[rawReason]
+  }
 
   if (rawReason.includes('cookie') || rawError.includes('cookie')) {
     return 'Your browser appears to be blocking sign-in cookies. Please allow cookies for this site and try again.'
