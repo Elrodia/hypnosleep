@@ -87,6 +87,10 @@ async function seedOne(row: {
     return;
   }
 
+  // Guard against zero-duration rows: the Zod schema for generation
+  // requires ≥ 5-minute sessions (`MIN_SESSION_DURATION_SEC`), so we
+  // clamp to the same floor here in case a seed row was inserted
+  // with a shorter duration.
   const durationMinutes = Math.max(5, Math.round(row.durationSec / 60));
   const background = (row.backgroundSound ?? 'silence') as BackgroundSound;
 

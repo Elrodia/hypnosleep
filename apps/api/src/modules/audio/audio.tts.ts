@@ -172,7 +172,7 @@ export async function synthesizeVoiceChunks(
   onChunkDone?: ChunkProgressCallback,
 ): Promise<string[]> {
   if (chunks.length === 0) {
-    throw new AppError('GENERATION_FAILED', 'synthesizeVoiceChunks called with empty chunks', 500);
+    throw new AppError('GENERATION_FAILED', 'Cannot synthesise voice: script is empty', 500);
   }
   const paths: string[] = [];
   try {

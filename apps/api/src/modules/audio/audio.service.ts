@@ -105,7 +105,7 @@ export async function generateAudio(
     if (chunks.length === 0) {
       throw new AppError(
         'GENERATION_FAILED',
-        'Script is empty after chunking',
+        'The generated script is empty',
         500,
       );
     } else if (chunks.length === 1) {
