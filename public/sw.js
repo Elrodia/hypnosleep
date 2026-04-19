@@ -82,7 +82,15 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         })
-        .catch(() => cached);
+        .catch(() => {
+          // Network failed — return cached version if available, otherwise
+          // let the browser handle the failure normally.
+          if (cached) return cached;
+          return new Response("Network error", {
+            status: 408,
+            headers: { "Content-Type": "text/plain" },
+          });
+        });
 
       return cached || networkFetch;
     })
