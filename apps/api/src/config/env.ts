@@ -41,6 +41,12 @@ const envSchema = z.object({
    * API is hosted on a different origin.
    */
   API_URL: z.string().url().default('https://app.hypnosleep.app'),
+  /** Railway-provided public URL (if running on Railway). */
+  RAILWAY_STATIC_URL: optionalString(),
+  /** Railway-provided public domain, without protocol (if running on Railway). */
+  RAILWAY_PUBLIC_DOMAIN: optionalString(),
+  /** Optional Railway public URL override when provided by platform/runtime. */
+  RAILWAY_PUBLIC_URL: optionalString(),
 
   /**
    * Absolute path to the built Vite SPA that the API should serve as
@@ -114,6 +120,96 @@ const envSchema = z.object({
 });
 
 export type Env = z.infer<typeof envSchema>;
+
+
+export const OAUTH_PROVIDERS = ['google', 'github', 'microsoft'] as const;
+
+export type OAuthProviderName = (typeof OAUTH_PROVIDERS)[number];
+
+export function buildOAuthCallbackUrls(apiUrl: string): Record<OAuthProviderName, string> {
+  return {
+    google: `${apiUrl}/api/auth/google/callback`,
+    github: `${apiUrl}/api/auth/github/callback`,
+    microsoft: `${apiUrl}/api/auth/microsoft/callback`,
+  };
+}
+
+export function isSecureAuthCookie(nodeEnv: Env['NODE_ENV']): boolean {
+  return nodeEnv === 'production';
+}
+
+function parseUrlOrThrow(name: string, value: string): URL {
+  try {
+    return new URL(value);
+  } catch {
+    throw new AppError('INVALID_ENV', `${name} must be a valid absolute URL`, 500, {
+      fieldErrors: { [name]: ['Invalid URL format'] },
+    });
+  }
+}
+
+function normalizeRailwayDomain(raw: string): string | null {
+  const value = raw.trim();
+  if (!value) return null;
+  try {
+    if (value.includes('://')) {
+      return new URL(value).hostname.toLowerCase();
+    }
+    return value.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+export interface AuthRuntimeDiagnostics {
+  callbackUrls: Record<OAuthProviderName, string>;
+  secureCookie: boolean;
+  nodeEnv: Env['NODE_ENV'];
+  frontendOrigin: string;
+  apiOrigin: string;
+  railwayDomain: string | null;
+  railwayApiDomainMismatch: boolean;
+}
+
+/**
+ * Validates public auth-facing URLs and computes non-secret diagnostics.
+ */
+export function validateAuthRuntimeConfig(currentEnv: Env): AuthRuntimeDiagnostics {
+  const frontend = parseUrlOrThrow('FRONTEND_URL', currentEnv.FRONTEND_URL);
+  const api = parseUrlOrThrow('API_URL', currentEnv.API_URL);
+
+  if (currentEnv.NODE_ENV === 'production') {
+    if (frontend.protocol !== 'https:') {
+      throw new AppError('INVALID_ENV', 'FRONTEND_URL must use HTTPS in production', 500, {
+        fieldErrors: { FRONTEND_URL: ['Must start with https:// in production'] },
+      });
+    }
+    if (api.protocol !== 'https:') {
+      throw new AppError('INVALID_ENV', 'API_URL must use HTTPS in production', 500, {
+        fieldErrors: { API_URL: ['Must start with https:// in production'] },
+      });
+    }
+  }
+
+  const railwayDomain =
+    normalizeRailwayDomain(currentEnv.RAILWAY_PUBLIC_DOMAIN ?? '') ??
+    normalizeRailwayDomain(currentEnv.RAILWAY_PUBLIC_URL ?? '') ??
+    normalizeRailwayDomain(currentEnv.RAILWAY_STATIC_URL ?? '');
+
+  const apiDomain = api.hostname.toLowerCase();
+  const railwayApiDomainMismatch =
+    Boolean(railwayDomain) && railwayDomain !== apiDomain;
+
+  return {
+    callbackUrls: buildOAuthCallbackUrls(currentEnv.API_URL),
+    secureCookie: isSecureAuthCookie(currentEnv.NODE_ENV),
+    nodeEnv: currentEnv.NODE_ENV,
+    frontendOrigin: frontend.origin,
+    apiOrigin: api.origin,
+    railwayDomain,
+    railwayApiDomainMismatch,
+  };
+}
 
 /**
  * Parses and validates `process.env`. Throws a typed {@link AppError} if
