@@ -114,17 +114,24 @@ export async function beginOAuthState(
     typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'].trim() : '';
   const ip = truncateIp(req.ip || '');
 
-  await mysqlDb.insert(oauthTransactions).values({
-    id: txId,
-    provider: opts.provider,
-    stateNonce: nonce,
-    pkceVerifier: opts.pkceVerifier ?? null,
-    referralCode: opts.ref ?? null,
-    userAgentHash: userAgent ? sha256Hex(userAgent) : null,
-    ipHash: ip ? sha256Hex(ip) : null,
-    expiresAt,
-  });
+  let mysqlPersisted = false;
+  try {
+    await mysqlDb.insert(oauthTransactions).values({
+      id: txId,
+      provider: opts.provider,
+      stateNonce: nonce,
+      pkceVerifier: opts.pkceVerifier ?? null,
+      referralCode: opts.ref ?? null,
+      userAgentHash: userAgent ? sha256Hex(userAgent) : null,
+      ipHash: ip ? sha256Hex(ip) : null,
+      expiresAt,
+    });
+    mysqlPersisted = true;
+  } catch (err) {
+    logger.warn({ err, txId }, 'Failed to persist OAuth transaction in MySQL; attempting Redis fallback');
+  }
 
+  let redisPersisted = false;
   if (env.REDIS_URL) {
     const redis = getRedis();
     if (redis) {
@@ -139,10 +146,19 @@ export async function beginOAuthState(
           'EX',
           OAUTH_STATE_TTL_SECONDS,
         );
+        redisPersisted = true;
       } catch (err) {
+        if (!mysqlPersisted) {
+          logger.warn({ err, txId }, 'Failed to persist OAuth transaction in Redis fallback');
+          throw err;
+        }
         logger.warn({ err, txId }, 'Failed to cache OAuth transaction in Redis; using DB fallback');
       }
     }
+  }
+
+  if (!mysqlPersisted && !redisPersisted) {
+    throw new Error('Unable to persist OAuth transaction');
   }
 
   res.cookie(OAUTH_STATE_COOKIE, nonce, {
@@ -227,25 +243,6 @@ export async function consumeOAuthState(
     return { state: null, reason: 'state_mismatch' };
   }
 
-  let redisPayload: RedisOAuthTx | null = null;
-  if (env.REDIS_URL) {
-    const redis = getRedis();
-    if (redis) {
-      try {
-        const raw = await redis.get(`${OAUTH_TX_REDIS_PREFIX}${state.tx}`);
-        if (raw) {
-          const parsed = JSON.parse(raw) as RedisOAuthTx;
-          if (!parsed?.nonce || !safeEqual(parsed.nonce, state.nonce)) {
-            return { state: null, reason: 'state_mismatch' };
-          }
-          redisPayload = parsed;
-        }
-      } catch (err) {
-        logger.warn({ err, txId: state.tx }, 'Redis read for OAuth transaction failed; using DB fallback');
-      }
-    }
-  }
-
   const now = new Date();
   const updateResult = await mysqlDb
     .update(oauthTransactions)
@@ -259,17 +256,40 @@ export async function consumeOAuthState(
       ),
     );
 
-  if (getAffectedRows(updateResult) !== 1) return { state: null, reason: 'state_mismatch' };
-
-  let ref = redisPayload?.ref;
-  if (!ref) {
-    const rows = await mysqlDb
-      .select({ referralCode: oauthTransactions.referralCode })
-      .from(oauthTransactions)
-      .where(eq(oauthTransactions.id, state.tx))
-      .limit(1);
-    ref = rows[0]?.referralCode ?? undefined;
+  if (getAffectedRows(updateResult) !== 1) {
+    if (env.REDIS_URL) {
+      const redis = getRedis();
+      if (redis) {
+        try {
+          const key = `${OAUTH_TX_REDIS_PREFIX}${state.tx}`;
+          const raw = await redis.eval(
+            "local value = redis.call('GET', KEYS[1]); if value then redis.call('DEL', KEYS[1]); end; return value;",
+            1,
+            key,
+          );
+          if (typeof raw === 'string') {
+            const parsed = JSON.parse(raw) as RedisOAuthTx;
+            if (parsed?.nonce && safeEqual(parsed.nonce, state.nonce)) {
+              return {
+                state: { ...state, ...(parsed.ref ? { ref: parsed.ref } : {}) },
+                reason: null,
+              };
+            }
+          }
+        } catch (err) {
+          logger.warn({ err, txId: state.tx }, 'Redis consume for OAuth transaction failed; using DB result');
+        }
+      }
+    }
+    return { state: null, reason: 'state_mismatch' };
   }
+
+  const rows = await mysqlDb
+    .select({ referralCode: oauthTransactions.referralCode })
+    .from(oauthTransactions)
+    .where(eq(oauthTransactions.id, state.tx))
+    .limit(1);
+  const ref = rows[0]?.referralCode ?? undefined;
 
   if (env.REDIS_URL) {
     const redis = getRedis();
