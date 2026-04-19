@@ -75,6 +75,13 @@ import { updateProfile, type UserPreferences } from '@/lib/api-endpoints'
  */
 type AppRoute = 'app' | 'auth-callback' | 'auth-error' | 'payment-success'
 
+interface AuthErrorParams {
+  error: string | null
+  reason: string | null
+  message: string | null
+  requestId: string | null
+}
+
 function resolveRoute(): AppRoute {
   if (typeof window === 'undefined') return 'app'
   const p = window.location.pathname
@@ -82,6 +89,19 @@ function resolveRoute(): AppRoute {
   if (p === '/auth/error') return 'auth-error'
   if (p === '/upgrade/success' || p === '/payment/success') return 'payment-success'
   return 'app'
+}
+
+function parseAuthErrorParams(): AuthErrorParams {
+  if (typeof window === 'undefined') {
+    return { error: null, reason: null, message: null, requestId: null }
+  }
+  const params = new URLSearchParams(window.location.search)
+  return {
+    error: params.get('error'),
+    reason: params.get('reason'),
+    message: params.get('message'),
+    requestId: params.get('requestId'),
+  }
 }
 
 /**
@@ -101,6 +121,7 @@ function AppContent() {
   const isLoggedIn = status === 'authenticated'
 
   const [route, setRoute] = useState<AppRoute>(() => resolveRoute())
+  const [authErrorParams] = useState<AuthErrorParams>(() => parseAuthErrorParams())
   const [activeTab, setActiveTab] = useState<TabId>('home')
   const [showSplash, setShowSplash] = useState(true)
 
@@ -282,6 +303,10 @@ function AppContent() {
     }
     return (
       <AuthErrorPage
+        error={authErrorParams.error}
+        reason={authErrorParams.reason}
+        message={authErrorParams.message}
+        requestId={authErrorParams.requestId}
         onRetry={() => {
           clearCallbackUrl()
           setRoute('app')
