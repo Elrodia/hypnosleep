@@ -439,7 +439,7 @@ export async function listSessions(
 export async function getSessionById(
   userId: string,
   sessionId: string,
-): Promise<DbSession & { scriptPreview: string | null }> {
+): Promise<DbSession & { scriptPreview: string | null; progress: ProgressSnapshot | null }> {
   const [row] = await mysqlDb
     .select()
     .from(sessions)
@@ -452,10 +452,63 @@ export async function getSessionById(
     throw forbidden('You do not have access to this session');
   }
 
+  // For in-flight generations, surface the last worker-emitted
+  // progress event so a page reload mid-generation can re-render the
+  // progress bar without opening a fresh SSE stream.
+  const progress = row.status === 'generating'
+    ? await readProgressSnapshot(sessionId)
+    : null;
+
   return {
     ...row,
     scriptPreview: row.scriptText ? row.scriptText.slice(0, 200) : null,
+    progress,
   };
+}
+
+/**
+ * Shape returned on `GET /api/sessions/:id` for in-flight generations,
+ * mirroring the last SSE event so reloads can re-render the progress
+ * bar. All fields correspond to `ProgressEvent` from
+ * `queues/events.bus.ts`.
+ */
+export interface ProgressSnapshot {
+  step: string;
+  percent: number;
+  message: string;
+}
+
+/**
+ * Reads the last-emitted worker progress event from Redis. Written by
+ * `audio-generation.worker.ts` under `progressMirrorKey(sessionId)`
+ * with a {@link https://bit.ly/3rB7JvK short TTL}. Returns `null` when
+ * Redis is not configured, the key has expired, or the payload is
+ * malformed — callers should treat `null` as "no progress yet" rather
+ * than surfacing it as an error.
+ */
+async function readProgressSnapshot(
+  sessionId: string,
+): Promise<ProgressSnapshot | null> {
+  const redis = getRedis();
+  if (!redis) return null;
+  try {
+    const raw = await redis.get(`session:progress:${sessionId}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      step?: string;
+      progress?: number;
+      message?: string;
+    };
+    if (!parsed.step) return null;
+    return {
+      step: parsed.step,
+      percent: parsed.progress ?? 0,
+      message: parsed.message ?? '',
+    };
+  } catch (err) {
+    logger.debug({ err, sessionId }, 'Failed to read progress snapshot');
+    return null;
+  }
 }
 
 /**

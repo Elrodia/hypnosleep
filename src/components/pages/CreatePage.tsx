@@ -244,6 +244,22 @@ export function CreatePage() {
           setShowPaywall(true)
           return
         }
+        // Safety / script-generation failures carry a machine-readable
+        // `reason` (e.g. "self-harm", "medical advice") in `details`.
+        // Surface it verbatim so the user knows *why* their prompt was
+        // rejected. The prompt itself stays in `inputValue` (we never
+        // clear it on error) so they can edit-and-retry without
+        // retyping.
+        if (err.code === 'GENERATION_FAILED') {
+          const details = err.details as { reason?: string } | undefined
+          const reason = details?.reason?.trim()
+          toast.error(
+            reason
+              ? `${err.message} (${reason})`
+              : err.message || 'Could not generate session.',
+          )
+          return
+        }
         toast.error(err.message || 'Could not generate session.')
         return
       }

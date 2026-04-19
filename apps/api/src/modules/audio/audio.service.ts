@@ -1,4 +1,6 @@
-import { unlink, stat } from 'node:fs/promises';
+import { unlink, stat, access } from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
+import { join } from 'node:path';
 import {
   synthesizeVoice,
   synthesizeVoiceChunks,
@@ -143,13 +145,35 @@ export async function generateAudio(
     if (input.background === 'silence') {
       mixedPath = voicePath;
     } else {
-      await emit('mix', MIX_PERCENT, 'Mixing with background...');
-      mixedPath = await mixWithBackground({
-        voicePath,
-        background: input.background,
-      });
-      tempFiles.push(mixedPath);
-      logger.debug({ mixedPath, sessionId: input.sessionId }, 'Mixed with background');
+      // Graceful degradation: if the expected background asset is
+      // missing (e.g. a fresh deploy hasn't run the download script
+      // yet), log and fall through to voice-only rather than failing
+      // the whole generation job.
+      const bgFile = join(
+        process.cwd(),
+        'assets',
+        'backgrounds',
+        `${input.background}.mp3`,
+      );
+      const bgAvailable = await access(bgFile, fsConstants.R_OK).then(
+        () => true,
+        () => false,
+      );
+      if (!bgAvailable) {
+        logger.warn(
+          { bgFile, sessionId: input.sessionId, background: input.background },
+          'Background asset missing — producing voice-only mix',
+        );
+        mixedPath = voicePath;
+      } else {
+        await emit('mix', MIX_PERCENT, 'Mixing with background...');
+        mixedPath = await mixWithBackground({
+          voicePath,
+          background: input.background,
+        });
+        tempFiles.push(mixedPath);
+        logger.debug({ mixedPath, sessionId: input.sessionId }, 'Mixed with background');
+      }
     }
 
     // ── Step 3: probe duration + size ────────────────────────────
