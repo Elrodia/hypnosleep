@@ -32,6 +32,7 @@ export interface JwtPayload {
  * sent them.
  */
 export interface OAuthState {
+  tx: string;
   nonce: string;
   ref?: string;
 }

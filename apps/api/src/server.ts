@@ -14,6 +14,7 @@ import { registerRoutes } from './routes.js';
 import { createAudioGenerationWorker } from './queues/audio-generation.worker.js';
 import { closeQueue } from './queues/audio-generation.queue.js';
 import { shutdownPostHog } from './services/posthog.service.js';
+import { startOAuthTransactionsCleanupJob } from './modules/auth/oauth-transactions.cleanup.js';
 
 // --- Sentry: initialize FIRST so early errors are captured ----------------
 if (env.SENTRY_DSN) {
@@ -228,6 +229,7 @@ app.use(errorHandler);
 
 // --- Start ---
 let worker: ReturnType<typeof createAudioGenerationWorker> | null = null;
+const oauthTransactionsCleanupTimer = startOAuthTransactionsCleanupJob();
 let shuttingDown = false;
 
 const server = app.listen(PORT, () => {
@@ -282,6 +284,7 @@ const shutdown = async (signal: string) => {
   await Promise.race([closeHttpServer(), closeTimeout]);
 
   try {
+    clearInterval(oauthTransactionsCleanupTimer);
     if (worker) {
       // Drain in-flight jobs before exiting so a Railway redeploy
       // doesn't abort an audio generation mid-pipeline.

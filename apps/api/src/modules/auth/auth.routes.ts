@@ -31,9 +31,9 @@ passport.use('microsoft', microsoftStrategy as unknown as passport.Strategy);
  * `state` parameter so both survive the provider redirect.
  */
 function initOAuth(provider: OAuthProvider) {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const ref = typeof req.query.ref === 'string' ? req.query.ref : undefined;
-    const state = beginOAuthState(res, { ref });
+    const state = await beginOAuthState(req, res, { provider, ref });
     passport.authenticate(provider, { session: false, state })(req, res, next);
   };
 }
