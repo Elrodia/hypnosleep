@@ -1,19 +1,31 @@
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { GoogleLogo, GithubLogo, MicrosoftOutlookLogo } from '@phosphor-icons/react'
-import { startOAuth } from '@/lib/auth'
+import { canUseOAuthBrowserState, startOAuth, type OAuthProvider } from '@/lib/auth'
+import { toast } from 'sonner'
 
 export function LoginPage() {
+  const handleOAuthLogin = (provider: OAuthProvider) => {
+    if (!canUseOAuthBrowserState()) {
+      toast.error(
+        'OAuth login requires cookies and browser storage. Please allow cookies and disable strict anti-tracking protection, then try again.'
+      )
+      return
+    }
+
+    startOAuth(provider)
+  }
+
   const handleGoogleLogin = () => {
-    startOAuth('google')
+    handleOAuthLogin('google')
   }
 
   const handleGithubLogin = () => {
-    startOAuth('github')
+    handleOAuthLogin('github')
   }
 
   const handleMicrosoftLogin = () => {
-    startOAuth('microsoft')
+    handleOAuthLogin('microsoft')
   }
 
   return (
