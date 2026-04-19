@@ -6,7 +6,7 @@ import compression from 'compression';
 import cors from 'cors';
 import pinoHttp from 'pino-http';
 import * as Sentry from '@sentry/node';
-import { env } from './config/env.js';
+import { env, validateAuthRuntimeConfig } from './config/env.js';
 import { logger } from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { ipRateLimit } from './middleware/rate-limit.js';
@@ -28,6 +28,31 @@ if (env.SENTRY_DSN) {
 const PORT = env.PORT;
 const FRONTEND_URL = env.FRONTEND_URL;
 const API_URL = env.API_URL;
+const authRuntimeConfig = validateAuthRuntimeConfig(env);
+
+if (env.NODE_ENV === 'production' && authRuntimeConfig.railwayApiDomainMismatch) {
+  logger.error(
+    {
+      railwayDomain: authRuntimeConfig.railwayDomain,
+      apiUrl: env.API_URL,
+      apiOrigin: authRuntimeConfig.apiOrigin,
+    },
+    'Railway public domain does not match API_URL. Refusing to start in production.',
+  );
+  throw new Error('Invalid auth runtime config: Railway domain mismatch');
+}
+
+logger.info(
+  {
+    frontendUrl: env.FRONTEND_URL,
+    apiUrl: env.API_URL,
+    callbackUrls: authRuntimeConfig.callbackUrls,
+    secureCookie: authRuntimeConfig.secureCookie,
+    nodeEnv: authRuntimeConfig.nodeEnv,
+  },
+  'OAuth runtime configuration',
+);
+
 const SAME_ORIGIN = (() => {
   try {
     return new URL(FRONTEND_URL).origin === new URL(API_URL).origin;

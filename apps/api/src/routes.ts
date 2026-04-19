@@ -7,6 +7,8 @@ import { subscriptionRouter } from './modules/subscription/subscription.routes.j
 import { progressRouter } from './modules/progress/progress.routes.js';
 import { profileRouter } from './modules/profile/profile.routes.js';
 import { kvRouter } from './modules/kv/kv.routes.js';
+import { authenticate } from './middleware/authenticate.js';
+import { env, validateAuthRuntimeConfig } from './config/env.js';
 
 /**
  * Registers all API routes on the Express app.
@@ -55,6 +57,18 @@ export function registerRoutes(app: Express): void {
         status: 'ok',
         timestamp: new Date().toISOString(),
         version: process.env.npm_package_version ?? '1.0.0',
+      },
+    });
+  });
+
+  // Protected diagnostic endpoint for OAuth/public auth runtime config.
+  app.get('/api/health/auth-config', authenticate(), (_req, res) => {
+    const diagnostics = validateAuthRuntimeConfig(env);
+    res.json({
+      data: {
+        nodeEnv: diagnostics.nodeEnv,
+        secureCookie: diagnostics.secureCookie,
+        callbackUrls: diagnostics.callbackUrls,
       },
     });
   });
