@@ -8,8 +8,6 @@ import { queryClient } from './lib/queryClient'
 import { AuthProvider } from './lib/auth-context'
 
 import "./main.css"
-import "./styles/theme.css"
-import "./index.css"
 
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary FallbackComponent={ErrorFallback}>
@@ -20,3 +18,12 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
    </ErrorBoundary>
 )
+
+// Register service worker for PWA support.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // Service worker registration failed — app still works without it.
+    })
+  })
+}
