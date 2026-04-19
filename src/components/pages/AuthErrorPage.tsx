@@ -20,6 +20,7 @@ const REASON_MESSAGES: Record<string, string> = {
   email_provider_mismatch:
     'This email is already linked to a different sign-in provider. Use the original provider for this account.',
   rate_limited: 'Too many sign-in attempts were detected. Please wait a moment and try again.',
+  initiation_failed: 'We could not start the sign-in flow. Please retry in a moment.',
   callback_failed: 'The sign-in callback failed unexpectedly. Please retry in a moment.',
 }
 

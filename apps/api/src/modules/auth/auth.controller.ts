@@ -33,6 +33,7 @@ export type OAuthFailureReason =
   | 'provider_error'
   | 'email_provider_mismatch'
   | 'rate_limited'
+  | 'initiation_failed'
   | 'callback_failed';
 
 export function getOAuthRequestId(req: Request): string {

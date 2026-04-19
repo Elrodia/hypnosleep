@@ -31,12 +31,36 @@ passport.use('microsoft', microsoftStrategy as unknown as passport.Strategy);
  * CSRF nonce (pinned to the user agent via an HttpOnly cookie) and
  * packs it — along with an optional `?ref=CODE` — into the OAuth
  * `state` parameter so both survive the provider redirect.
+ *
+ * The handler is `async` (it awaits a MySQL write to persist the OAuth
+ * transaction) but Express 4 does not forward promise rejections from
+ * route handlers to `next(err)`. Without the explicit try/catch below,
+ * any failure in `beginOAuthState` — a transient DB blip, a Redis write
+ * timeout surfaced as a throw, etc. — would become an unhandled
+ * rejection and the request would hang forever, leaving the browser
+ * stuck on an endless loading screen after the user clicks
+ * "Continue with <Provider>". Catch, log, and redirect to the frontend
+ * error page instead.
  */
 function initOAuth(provider: OAuthProvider) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const ref = typeof req.query.ref === 'string' ? req.query.ref : undefined;
-    const state = await beginOAuthState(req, res, { provider, ref });
-    passport.authenticate(provider, { session: false, state })(req, res, next);
+    const rid = getOAuthRequestId(req);
+    try {
+      const ref = typeof req.query.ref === 'string' ? req.query.ref : undefined;
+      const state = await beginOAuthState(req, res, { provider, ref });
+      passport.authenticate(provider, { session: false, state })(req, res, next);
+    } catch (err) {
+      logOAuthFailure(req, {
+        provider,
+        reason: 'initiation_failed',
+        rid,
+        message: 'OAuth initiation failed',
+      });
+      logger.error({ err, provider, rid }, 'OAuth initiation failure details');
+      if (!res.headersSent) {
+        redirectOAuthError(res, { reason: 'initiation_failed', rid });
+      }
+    }
   };
 }
 
