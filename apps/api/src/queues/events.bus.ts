@@ -66,6 +66,16 @@ class GenerationEventBus extends EventEmitter {
 
 export const generationBus = new GenerationEventBus();
 
+/**
+ * Redis key used to mirror the most recent {@link ProgressEvent} for a
+ * session. Centralised here so the worker (writer) and the SSE handler
+ * + sessions service (readers) all agree on the exact key format and
+ * a single refactor changes them in lock-step.
+ */
+export function progressMirrorKey(sessionId: string): string {
+  return `session:progress:${sessionId}`;
+}
+
 // Many concurrent users may subscribe simultaneously. The default
 // max-listener cap (10) would print noisy warnings well before we
 // reach a meaningful scale, so raise it to a value that comfortably

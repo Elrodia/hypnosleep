@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { eq, and } from 'drizzle-orm';
 import { mysqlDb } from '../../db/mysql/client.js';
 import { sessions } from '../../db/mysql/schema/sessions.js';
-import { generationBus, type ProgressEvent } from '../../queues/events.bus.js';
+import { generationBus, progressMirrorKey, type ProgressEvent } from '../../queues/events.bus.js';
 import { logger } from '../../utils/logger.js';
 import type { JwtPayload } from '../../middleware/authenticate.js';
 
@@ -127,7 +127,7 @@ export async function sessionEventsHandler(
     const { getRedis } = await import('../../db/redis/client.js');
     const redis = getRedis();
     if (redis) {
-      const raw = await redis.get(`session:progress:${sessionId}`);
+      const raw = await redis.get(progressMirrorKey(sessionId));
       if (raw) {
         try {
           const mirrored = JSON.parse(raw) as ProgressEvent;
