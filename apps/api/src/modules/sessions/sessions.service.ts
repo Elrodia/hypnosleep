@@ -467,10 +467,10 @@ export interface ProgressSnapshot {
 /**
  * Reads the last-emitted worker progress event from Redis. Written by
  * `audio-generation.worker.ts` under `progressMirrorKey(sessionId)`
- * with a {@link https://bit.ly/3rB7JvK short TTL}. Returns `null` when
- * Redis is not configured, the key has expired, or the payload is
- * malformed — callers should treat `null` as "no progress yet" rather
- * than surfacing it as an error.
+ * with a short TTL so stale progress snapshots expire quickly. Returns
+ * `null` when Redis is not configured, the key has expired, or the
+ * payload is malformed — callers should treat `null` as "no progress
+ * yet" rather than surfacing it as an error.
  */
 async function readProgressSnapshot(
   sessionId: string,
