@@ -127,10 +127,14 @@ export const OAUTH_PROVIDERS = ['google', 'github', 'microsoft'] as const;
 export type OAuthProviderName = (typeof OAUTH_PROVIDERS)[number];
 
 export function buildOAuthCallbackUrls(apiUrl: string): Record<OAuthProviderName, string> {
+  // Build URLs against the parsed origin so a trailing slash or accidental
+  // path segment on `API_URL` can't produce double slashes or duplicated
+  // path prefixes in the registered OAuth callback URLs.
+  const origin = new URL(apiUrl).origin;
   return {
-    google: `${apiUrl}/api/auth/google/callback`,
-    github: `${apiUrl}/api/auth/github/callback`,
-    microsoft: `${apiUrl}/api/auth/microsoft/callback`,
+    google: new URL('/api/auth/google/callback', origin).toString(),
+    github: new URL('/api/auth/github/callback', origin).toString(),
+    microsoft: new URL('/api/auth/microsoft/callback', origin).toString(),
   };
 }
 
@@ -191,6 +195,41 @@ export function validateAuthRuntimeConfig(currentEnv: Env): AuthRuntimeDiagnosti
     }
   }
 
+  // `API_URL` is used to derive OAuth callback URLs by appending
+  // `/api/auth/...`, so it must represent a pure public origin. Anything
+  // beyond `/` in the pathname or any search/hash component would silently
+  // produce invalid callback URLs registered with OAuth providers.
+  if (api.pathname !== '' && api.pathname !== '/') {
+    throw new AppError(
+      'INVALID_ENV',
+      'API_URL must not include a path — it must be a bare origin',
+      500,
+      {
+        fieldErrors: { API_URL: [`Unexpected pathname "${api.pathname}"`] },
+      },
+    );
+  }
+  if (api.search !== '') {
+    throw new AppError(
+      'INVALID_ENV',
+      'API_URL must not include a query string',
+      500,
+      {
+        fieldErrors: { API_URL: [`Unexpected query "${api.search}"`] },
+      },
+    );
+  }
+  if (api.hash !== '') {
+    throw new AppError(
+      'INVALID_ENV',
+      'API_URL must not include a hash fragment',
+      500,
+      {
+        fieldErrors: { API_URL: [`Unexpected hash "${api.hash}"`] },
+      },
+    );
+  }
+
   const railwayDomain =
     normalizeRailwayDomain(currentEnv.RAILWAY_PUBLIC_DOMAIN ?? '') ??
     normalizeRailwayDomain(currentEnv.RAILWAY_PUBLIC_URL ?? '') ??
@@ -201,7 +240,7 @@ export function validateAuthRuntimeConfig(currentEnv: Env): AuthRuntimeDiagnosti
     Boolean(railwayDomain) && railwayDomain !== apiDomain;
 
   return {
-    callbackUrls: buildOAuthCallbackUrls(currentEnv.API_URL),
+    callbackUrls: buildOAuthCallbackUrls(api.origin),
     secureCookie: isSecureAuthCookie(currentEnv.NODE_ENV),
     nodeEnv: currentEnv.NODE_ENV,
     frontendOrigin: frontend.origin,

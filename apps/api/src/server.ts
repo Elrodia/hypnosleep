@@ -31,15 +31,20 @@ const API_URL = env.API_URL;
 const authRuntimeConfig = validateAuthRuntimeConfig(env);
 
 if (env.NODE_ENV === 'production' && authRuntimeConfig.railwayApiDomainMismatch) {
+  const mismatchDetails = {
+    railwayDomain: authRuntimeConfig.railwayDomain,
+    apiUrl: env.API_URL,
+    apiOrigin: authRuntimeConfig.apiOrigin,
+  };
   logger.error(
-    {
-      railwayDomain: authRuntimeConfig.railwayDomain,
-      apiUrl: env.API_URL,
-      apiOrigin: authRuntimeConfig.apiOrigin,
-    },
+    mismatchDetails,
     'Railway public domain does not match API_URL. Refusing to start in production.',
   );
-  throw new Error('Invalid auth runtime config: Railway domain mismatch');
+  throw new Error(
+    `Invalid auth runtime config: Railway domain mismatch (railwayDomain=${String(
+      mismatchDetails.railwayDomain,
+    )}, apiUrl=${mismatchDetails.apiUrl}, apiOrigin=${mismatchDetails.apiOrigin})`,
+  );
 }
 
 logger.info(

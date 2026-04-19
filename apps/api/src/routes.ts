@@ -10,6 +10,12 @@ import { kvRouter } from './modules/kv/kv.routes.js';
 import { authenticate } from './middleware/authenticate.js';
 import { env, validateAuthRuntimeConfig } from './config/env.js';
 
+// Compute auth runtime diagnostics once at module load. `env` is static
+// for the process lifetime, so re-parsing `API_URL` / Railway domains on
+// every request would be wasteful and could drift from the values that
+// were validated and logged at startup.
+const authRuntimeDiagnostics = validateAuthRuntimeConfig(env);
+
 /**
  * Registers all API routes on the Express app.
  */
@@ -63,12 +69,11 @@ export function registerRoutes(app: Express): void {
 
   // Protected diagnostic endpoint for OAuth/public auth runtime config.
   app.get('/api/health/auth-config', authenticate(), (_req, res) => {
-    const diagnostics = validateAuthRuntimeConfig(env);
     res.json({
       data: {
-        nodeEnv: diagnostics.nodeEnv,
-        secureCookie: diagnostics.secureCookie,
-        callbackUrls: diagnostics.callbackUrls,
+        nodeEnv: authRuntimeDiagnostics.nodeEnv,
+        secureCookie: authRuntimeDiagnostics.secureCookie,
+        callbackUrls: authRuntimeDiagnostics.callbackUrls,
       },
     });
   });
