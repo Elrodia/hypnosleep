@@ -220,7 +220,15 @@ export function GenerationLoadingOverlay({
               className="w-full mb-6 space-y-2"
             >
               {/* Live progress bar driven by the backend SSE stream. */}
-              <div className="h-1.5 w-full rounded-full bg-secondary/40 overflow-hidden">
+              <div
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={clampedPercent}
+                aria-valuetext={`${clampedPercent}% — ${message ?? 'Preparing your session...'}`}
+                aria-label="Session generation progress"
+                className="h-1.5 w-full rounded-full bg-secondary/40 overflow-hidden"
+              >
                 <motion.div
                   className="h-full bg-primary"
                   animate={{ width: `${clampedPercent}%` }}
@@ -228,7 +236,11 @@ export function GenerationLoadingOverlay({
                 />
               </div>
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span className="truncate pr-2">
+                <span
+                  className="truncate pr-2"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
                   {message ?? 'Preparing your session...'}
                 </span>
                 <span className="tabular-nums text-foreground font-medium shrink-0">

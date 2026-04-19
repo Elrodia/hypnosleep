@@ -7,6 +7,7 @@ import { sessions } from '../db/mysql/schema/sessions.js';
 import { logger } from '../utils/logger.js';
 import {
   generationBus,
+  progressMirrorKey,
   type ProgressEvent,
   type ProgressStep,
 } from './events.bus.js';
@@ -20,15 +21,6 @@ import type { AudioGenerationJobData } from '../modules/ai/ai.types.js';
  * stick around after the job settles.
  */
 const PROGRESS_MIRROR_TTL_SEC = 10 * 60;
-
-/**
- * Redis key used to mirror the last {@link ProgressEvent} for a
- * session. Read by `GET /api/sessions/:id` so reloads can re-render
- * an in-flight generation without reconnecting SSE from scratch.
- */
-export function progressMirrorKey(sessionId: string): string {
-  return `session:progress:${sessionId}`;
-}
 
 /**
  * BullMQ worker that processes audio generation jobs.

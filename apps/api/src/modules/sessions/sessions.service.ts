@@ -10,6 +10,7 @@ import { events } from '../../db/postgres/schema/events.js';
 import { getRedis } from '../../db/redis/client.js';
 import { cached } from '../../db/redis/helpers.js';
 import { enqueueAudioGeneration } from '../../queues/audio-generation.queue.js';
+import { progressMirrorKey } from '../../queues/events.bus.js';
 import { generateScript } from '../ai/ai.service.js';
 import {
   getStreamUrl,
@@ -466,8 +467,9 @@ export interface ProgressSnapshot {
 
 /**
  * Reads the last-emitted worker progress event from Redis. Written by
- * `audio-generation.worker.ts` under `progressMirrorKey(sessionId)`
- * with a short TTL so stale progress snapshots expire quickly. Returns
+ * `audio-generation.worker.ts` under the {@link progressMirrorKey}
+ * defined in `queues/events.bus.ts`, with a short TTL so stale progress
+ * snapshots expire quickly. Returns
  * `null` when Redis is not configured, the key has expired, or the
  * payload is malformed — callers should treat `null` as "no progress
  * yet" rather than surfacing it as an error.
@@ -478,7 +480,7 @@ async function readProgressSnapshot(
   const redis = getRedis();
   if (!redis) return null;
   try {
-    const raw = await redis.get(`session:progress:${sessionId}`);
+    const raw = await redis.get(progressMirrorKey(sessionId));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as {
       step?: string;
