@@ -119,6 +119,30 @@ export async function sessionEventsHandler(
     message: 'Waiting in queue...',
   } satisfies ProgressEvent);
 
+  // If the worker has already started but the client only now
+  // connects (e.g. after a page reload), replay the most recent
+  // progress event from Redis so the progress bar catches up
+  // immediately instead of waiting for the next worker tick.
+  try {
+    const { getRedis } = await import('../../db/redis/client.js');
+    const redis = getRedis();
+    if (redis) {
+      const raw = await redis.get(`session:progress:${sessionId}`);
+      if (raw) {
+        try {
+          const mirrored = JSON.parse(raw) as ProgressEvent;
+          if (mirrored?.step) {
+            send('progress', mirrored);
+          }
+        } catch {
+          // Malformed mirror entry — ignore; worker will emit fresh ones.
+        }
+      }
+    }
+  } catch (err) {
+    logger.debug({ err, sessionId }, 'Failed to replay mirrored progress');
+  }
+
   let ended = false;
   const finish = (reason: string): void => {
     if (ended) return;

@@ -1,32 +1,59 @@
 import { Worker, type Job } from 'bullmq';
 import { eq } from 'drizzle-orm';
 import { QUEUE_NAMES } from '../config/constants.js';
-import { synthesizeSpeech, mixAudioWithBackground } from '../modules/ai/tts.service.js';
-import { uploadAudio } from '../services/r2.service.js';
+import { generateAudio } from '../modules/audio/audio.service.js';
 import { mysqlDb } from '../db/mysql/client.js';
 import { sessions } from '../db/mysql/schema/sessions.js';
 import { logger } from '../utils/logger.js';
-import { generationBus, type ProgressEvent, type ProgressStep } from './events.bus.js';
+import {
+  generationBus,
+  type ProgressEvent,
+  type ProgressStep,
+} from './events.bus.js';
+import { getRedis } from '../db/redis/client.js';
 import type { AudioGenerationJobData } from '../modules/ai/ai.types.js';
+
+/**
+ * TTL for the "last progress event" mirror kept in Redis per session.
+ * Long enough that a user can reload during generation and still see
+ * a meaningful progress bar; short enough that stale events don't
+ * stick around after the job settles.
+ */
+const PROGRESS_MIRROR_TTL_SEC = 10 * 60;
+
+/**
+ * Redis key used to mirror the last {@link ProgressEvent} for a
+ * session. Read by `GET /api/sessions/:id` so reloads can re-render
+ * an in-flight generation without reconnecting SSE from scratch.
+ */
+export function progressMirrorKey(sessionId: string): string {
+  return `session:progress:${sessionId}`;
+}
 
 /**
  * BullMQ worker that processes audio generation jobs.
  *
- * Pipeline:
- *  1. Synthesize speech from script text via Edge TTS
- *  2. Mix voice audio with background sound via FFmpeg
- *  3. Upload the final audio to S3-compatible storage
- *  4. Update the `sessions` MySQL row with the audio URL & status
+ * Pipeline (delegated to `modules/audio/audio.service.generateAudio`):
  *
- * Each step emits a {@link ProgressEvent} on the in-process
- * {@link generationBus} so the SSE handler in
- * `modules/sessions/sessions.sse.ts` can stream live progress to the
- * frontend. The bus is in-process by design (single Railway dyno);
- * see `events.bus.ts` for the rationale and the migration path.
+ *   1. Chunked Edge-TTS synthesis (paragraph-boundary splits),
+ *   2. FFmpeg mix with a looped background loop + symmetric fades
+ *      (skipped when `background === 'silence'`),
+ *   3. Duration + file-size probe of the final MP3,
+ *   4. Upload to S3-compatible storage under `audio/{userId}/{sessionId}.mp3`.
+ *
+ * Each pipeline step emits a {@link ProgressEvent} on the in-process
+ * {@link generationBus} so the SSE handler can stream live progress
+ * to the frontend. The bus is in-process by design (single Railway
+ * dyno); see `events.bus.ts` for the rationale and migration path.
+ *
+ * The last event for a session is also *mirrored* to Redis with a
+ * {@link PROGRESS_MIRROR_TTL_SEC} TTL so `GET /api/sessions/:id` can
+ * return the latest progress snapshot to clients that reload the
+ * page mid-generation.
  *
  * Errors are caught here so we can:
- *  - Mark the session as `failed` in MySQL
- *  - Emit an `error` progress event (so the SSE client closes cleanly)
+ *  - Mark the session as `failed` in MySQL,
+ *  - Emit an `error` progress event (so the SSE client closes cleanly),
  *  - Re-throw so BullMQ records the failure and triggers retries
  *    according to the queue's `attempts` policy.
  */
@@ -48,13 +75,13 @@ export function createAudioGenerationWorker(): Worker<AudioGenerationJobData> {
         title,
         voiceId,
         backgroundSound,
-        durationMinutes,
       } = job.data;
 
       /**
-       * Helper that updates BullMQ progress AND emits a SSE-bus event
-       * in lock-step. Errors from the bus are swallowed because event
-       * delivery is best-effort and must never fail a job.
+       * Emit a progress event on the in-process bus, mirror it to
+       * Redis, and forward to BullMQ's `updateProgress`. Errors are
+       * swallowed because event delivery is best-effort and must
+       * never fail the job itself.
        */
       const emit = (
         step: ProgressStep,
@@ -62,10 +89,7 @@ export function createAudioGenerationWorker(): Worker<AudioGenerationJobData> {
         message: string,
         extra: Partial<ProgressEvent> = {},
       ): void => {
-        // Fire-and-forget: BullMQ progress updates are async but we
-        // don't need to await them for SSE delivery. Log failures at
-        // debug level so they're observable without masking the bus
-        // emission, which is the user-visible path.
+        const payload: ProgressEvent = { step, progress, message, ...extra };
         void job.updateProgress(progress).catch((err) => {
           logger.debug(
             { err, sessionId, step },
@@ -73,66 +97,87 @@ export function createAudioGenerationWorker(): Worker<AudioGenerationJobData> {
           );
         });
         try {
-          generationBus.emitProgress(sessionId, {
-            step,
-            progress,
-            message,
-            ...extra,
-          });
+          generationBus.emitProgress(sessionId, payload);
         } catch (err) {
           logger.warn({ err, sessionId }, 'Failed to emit progress event');
+        }
+        // Mirror to Redis so `GET /api/sessions/:id` can surface
+        // in-flight progress on a reload. Fire-and-forget.
+        const redis = getRedis();
+        if (redis) {
+          void redis
+            .set(
+              progressMirrorKey(sessionId),
+              JSON.stringify(payload),
+              'EX',
+              PROGRESS_MIRROR_TTL_SEC,
+            )
+            .catch((err) => {
+              logger.debug(
+                { err, sessionId },
+                'Failed to mirror progress to Redis',
+              );
+            });
         }
       };
 
       logger.info(
-        { sessionId, userId, voiceId, backgroundSound },
+        { sessionId, userId, voiceId, backgroundSound, title },
         'Audio generation job started',
       );
 
       try {
-        // Step 1: Generate voice audio via Edge TTS
-        emit('tts', 20, 'Generating soothing voice audio...');
-        const voiceAudio = await synthesizeSpeech(scriptText, voiceId);
+        // Initial "script ready" marker — script was already generated
+        // synchronously in `createGenerationSession`, so the worker's
+        // first real step is TTS. We still emit a `script` ping here
+        // so the client's progress bar leaves the `queued` state
+        // immediately.
+        emit('script', 10, 'Script ready, preparing audio...');
 
-        // Step 2: Mix with background sound via FFmpeg
-        emit('mix', 50, 'Mixing in background sounds...');
-        const durationSec = durationMinutes * 60;
-        const finalAudio = await mixAudioWithBackground(
-          voiceAudio,
-          backgroundSound,
-          durationSec,
-        );
+        const result = await generateAudio({
+          userId,
+          sessionId,
+          scriptText,
+          voiceId,
+          background: backgroundSound,
+          onProgress: ({ step, percent, message }) => {
+            emit(step, percent, message);
+          },
+        });
 
-        // Step 3: Upload to S3-compatible storage
-        emit('upload', 80, 'Uploading your session...');
-        const audioKey = `sessions/${userId}/${sessionId}.mp3`;
-        const audioUrl = await uploadAudio(audioKey, finalAudio);
-
-        // Step 4: Update session record in database
+        // Persist final row state. We store the S3 *key* in
+        // `audio_url` as a marker of readiness — presigned URLs are
+        // minted on demand by `getAudioUrl` in sessions.service.
         await mysqlDb
           .update(sessions)
           .set({
             status: 'ready',
-            audioUrl,
-            scriptText,
-            durationSec,
+            audioUrl: result.audioKey,
+            durationSec: result.durationSec,
           })
           .where(eq(sessions.id, sessionId));
 
-        emit('done', 100, 'Your session is ready!', { audioUrl });
+        emit('done', 100, 'Your session is ready!', {
+          audioUrl: result.audioKey,
+        });
 
         logger.info(
           {
             sessionId,
-            audioUrl,
+            audioKey: result.audioKey,
             title,
-            audioSizeBytes: finalAudio.length,
-            durationSec,
+            fileSizeBytes: result.fileSizeBytes,
+            durationSec: result.durationSec,
           },
           'Audio generation complete — session ready',
         );
 
-        return { sessionId, audioUrl, status: 'ready' as const, durationSec };
+        return {
+          sessionId,
+          audioKey: result.audioKey,
+          status: 'ready' as const,
+          durationSec: result.durationSec,
+        };
       } catch (err) {
         const message = (err as Error).message ?? 'Unknown error';
         logger.error({ err, sessionId }, 'Audio generation job failed');

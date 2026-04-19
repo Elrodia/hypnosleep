@@ -15,6 +15,13 @@
       "when": 1776540328335,
       "tag": "0001_new_thunderbolts",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1776595200000,
+      "tag": "0002_seed_templates",
+      "breakpoints": true
     }
   ]
 }

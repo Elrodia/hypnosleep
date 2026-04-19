@@ -21,7 +21,7 @@ export const VOICES = {
 export type VoiceId = keyof typeof VOICES;
 
 /** Available background sounds */
-export const BACKGROUND_SOUNDS = ['rain', 'ocean', 'forest', 'wind', 'silence'] as const;
+export const BACKGROUND_SOUNDS = ['rain', 'ocean', 'forest', 'wind', 'white_noise', 'silence'] as const;
 export type BackgroundSound = (typeof BACKGROUND_SOUNDS)[number];
 
 /** Session statuses */
@@ -35,6 +35,7 @@ export const SESSION_CATEGORIES = [
   'fears',
   'habits',
   'focus',
+  'anxiety',
   'custom',
 ] as const;
 export type SessionCategory = (typeof SESSION_CATEGORIES)[number];

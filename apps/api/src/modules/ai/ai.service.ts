@@ -152,7 +152,10 @@ export async function generateScript(
       if (safetyFailure) {
         throw generationFailed(
           'Generated content failed safety review. Please rephrase your request.',
-          { safetyFailure },
+          // `reason` matches the key used by the deep-safety path in
+          // `sessions.service` and the one the frontend reads when
+          // rendering the rejection toast.
+          { reason: safetyFailure },
         );
       }
 

@@ -42,6 +42,15 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/scripts ./scripts
 
+# Copy the TypeScript source + drizzle configs needed by the Railway
+# `releaseCommand` (see ../../railway.toml): `drizzle-kit migrate`
+# reads the `drizzle.config.*.ts` files and the `src/db/*/migrations`
+# folders, and `tsx scripts/seed-templates.ts` imports from `../src/*`
+# at release time. Shipping these adds ~MB-scale source files to the
+# image but keeps the release pipeline self-contained.
+COPY --from=builder /app/drizzle.config.mysql.ts /app/drizzle.config.postgres.ts ./
+COPY --from=builder /app/src ./src
+
 # Copy background ambient loops bundled with the repo so the FFmpeg
 # mixer (apps/api/src/modules/audio/audio.mixer.ts) can find them at
 # `${cwd}/assets/backgrounds/<name>.mp3`.

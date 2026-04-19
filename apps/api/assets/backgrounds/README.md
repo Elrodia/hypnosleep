@@ -18,6 +18,16 @@ The normal `generateAudio()` `"silence"` option skips the FFmpeg
 background-mix step, so it does not require a `silence.mp3` asset.
 If another code path calls the background-mixing logic directly with a
 silent track, document that requirement separately.
+
+## Missing-file fallback
+
+`audio.service.ts` checks each asset with `fs.access` before invoking
+FFmpeg. When a specific file is missing (e.g. a fresh deploy hasn't run
+the download script yet), the pipeline **degrades gracefully to a
+voice-only mix** and logs a `warn` entry rather than failing the whole
+generation job. The UX is strictly worse than a mixed session but it
+prevents day-0 assets gaps from bricking the generate flow.
+
 ## Encoding
 
 All loops should be:
@@ -32,3 +42,17 @@ All loops should be:
 Use only royalty-free assets (e.g. Pixabay, Freesound CC0). Do **not**
 commit copyrighted material. Each file's source/licence should be noted
 in commit messages when it is added.
+
+To populate this directory at deploy time without committing the MP3s
+to git, host them on a CDN/bucket you control and run:
+
+```bash
+BG_SOURCE_BASE=https://cdn.example.com/hypnosleep/bg \
+  apps/api/scripts/download-backgrounds.sh
+```
+
+See `apps/api/scripts/download-backgrounds.sh` for the exact file list
+and behaviour. The `Dockerfile` already copies everything under
+`apps/api/assets/` into the runtime image, so any files placed here
+before `docker build` are picked up automatically.
+

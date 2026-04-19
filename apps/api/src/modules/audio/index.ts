@@ -1,7 +1,14 @@
-export { synthesizeVoice, type TtsOptions } from './audio.tts.js';
+export {
+  synthesizeVoice,
+  synthesizeVoiceChunks,
+  splitScriptIntoChunks,
+  type TtsOptions,
+  type ChunkProgressCallback,
+} from './audio.tts.js';
 export {
   mixWithBackground,
   probeDuration,
+  concatMp3Files,
   type MixOptions,
   type BackgroundSound,
 } from './audio.mixer.js';
@@ -15,4 +22,5 @@ export {
   generateAudio,
   type GenerateAudioInput,
   type GeneratedAudio,
+  type AudioProgressCallback,
 } from './audio.service.js';

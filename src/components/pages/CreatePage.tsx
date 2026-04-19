@@ -123,6 +123,13 @@ export function CreatePage() {
   const [showPaywall, setShowPaywall] = useState(false)
   const [paywallTrigger, setPaywallTrigger] = useState<'session-limit' | 'premium-voice'>('session-limit')
 
+  // Live generation progress driven by the backend SSE stream. The
+  // overlay (GenerationLoadingOverlay) reads these to highlight the
+  // correct step instead of relying on fake timers.
+  const [generationStep, setGenerationStep] = useState<string>('queued')
+  const [generationPercent, setGenerationPercent] = useState<number>(0)
+  const [generationMessage, setGenerationMessage] = useState<string>('Waiting in queue...')
+
   // Holds the current SSE EventSource so we can close it on cancel /
   // unmount. Kept in a ref so re-renders don't orphan subscriptions.
   const eventSourceRef = useRef<EventSource | null>(null)
@@ -146,8 +153,24 @@ export function CreatePage() {
 
   /**
    * Subscribe to the SSE progress stream for a newly-generated
-   * session. Resolves when the backend emits a `done` event with the
-   * final (ready-state) session payload, or rejects on `error`.
+   * session.
+   *
+   * The backend (see `apps/api/src/modules/sessions/sessions.sse.ts`)
+   * emits just two named events:
+   *
+   *   - `progress` — every update, including the terminal
+   *     `{ step: 'done', progress: 100, audioUrl }` and
+   *     `{ step: 'error', message, error }` payloads.
+   *   - `close` — a book-end sent right before `res.end()`.
+   *
+   * We therefore key off `event.step` inside the `progress` handler
+   * rather than listening for `done` / `error` as named events
+   * (previous implementation did, which meant successful generations
+   * closed the stream → `onerror` fired → the promise rejected with
+   * "Lost connection" even though the audio was ready).
+   *
+   * Resolves with the final session detail when `step === 'done'`;
+   * rejects with the server-provided message when `step === 'error'`.
    */
   const subscribeToGeneration = (sessionId: string) =>
     new Promise<SessionDetail>((resolve, reject) => {
@@ -162,54 +185,74 @@ export function CreatePage() {
       const es = new EventSource(url)
       eventSourceRef.current = es
 
+      // Track whether we've already resolved/rejected so a subsequent
+      // `onerror` (which `EventSource` fires automatically when the
+      // server closes the connection after a terminal event) does not
+      // overwrite a successful completion with a spurious failure.
+      let settled = false
       const done = (fn: () => void) => {
+        if (settled) return
+        settled = true
         es.close()
         if (eventSourceRef.current === es) eventSourceRef.current = null
         fn()
       }
 
+      es.addEventListener('progress', (ev) => {
+        let payload: {
+          step?: string
+          progress?: number
+          message?: string
+          audioUrl?: string
+          error?: string
+        } = {}
+        try {
+          payload = JSON.parse((ev as MessageEvent).data)
+        } catch {
+          // Malformed payload / keepalive — nothing to do.
+          return
+        }
+
+        if (typeof payload.step === 'string') setGenerationStep(payload.step)
+        if (typeof payload.progress === 'number') setGenerationPercent(payload.progress)
+        if (typeof payload.message === 'string') setGenerationMessage(payload.message)
+
+        if (payload.step === 'done') {
+          done(async () => {
+            try {
+              const detail = await getSession(sessionId)
+              resolve(detail)
+            } catch (err) {
+              reject(err)
+            }
+          })
+          return
+        }
+
+        if (payload.step === 'error') {
+          const msg = payload.error || payload.message || 'Generation failed'
+          done(() => reject(new Error(msg)))
+        }
+      })
+
       es.onerror = () => {
-        // The browser auto-reconnects, but once the server closes we
-        // should stop and resolve/reject based on what we already saw.
+        // Only treat this as a failure if we haven't already finished.
+        // The browser auto-reconnects; once the server has closed the
+        // stream after a terminal `progress` event there's nothing to
+        // reconnect to, and `done()` is a no-op for the settled case.
         done(() => reject(new Error('Lost connection to generation stream')))
       }
-
-      es.addEventListener('progress', (ev) => {
-        try {
-          const payload = JSON.parse((ev as MessageEvent).data) as { percent?: number; stage?: string }
-          void payload
-        } catch {
-          /* ignore malformed keepalives */
-        }
-      })
-
-      es.addEventListener('done', () => {
-        done(async () => {
-          try {
-            const detail = await getSession(sessionId)
-            resolve(detail)
-          } catch (err) {
-            reject(err)
-          }
-        })
-      })
-
-      es.addEventListener('error', (ev) => {
-        let message = 'Generation failed'
-        try {
-          const payload = JSON.parse((ev as MessageEvent).data ?? '{}') as { message?: string }
-          if (payload?.message) message = payload.message
-        } catch {
-          /* ignore */
-        }
-        done(() => reject(new Error(message)))
-      })
     })
 
   const handleGenerate = async () => {
     if (!inputValue.trim()) return
 
     setIsGenerating(true)
+    // Reset progress state so a prior cancelled/failed run doesn't
+    // leak into the new one.
+    setGenerationStep('queued')
+    setGenerationPercent(0)
+    setGenerationMessage('Waiting in queue...')
     try {
       const category = selectedCategory ?? inferCategory(inputValue)
       const { sessionId } = await generateSession({
@@ -242,6 +285,22 @@ export function CreatePage() {
         if (err.code === 'PREMIUM_VOICE') {
           setPaywallTrigger('premium-voice')
           setShowPaywall(true)
+          return
+        }
+        // Safety / script-generation failures carry a machine-readable
+        // `reason` (e.g. "self-harm", "medical advice") in `details`.
+        // Surface it verbatim so the user knows *why* their prompt was
+        // rejected. The prompt itself stays in `inputValue` (we never
+        // clear it on error) so they can edit-and-retry without
+        // retyping.
+        if (err.code === 'GENERATION_FAILED') {
+          const details = err.details as { reason?: string } | undefined
+          const reason = details?.reason?.trim()
+          toast.error(
+            reason
+              ? `${err.message} (${reason})`
+              : err.message || 'Could not generate session.',
+          )
           return
         }
         toast.error(err.message || 'Could not generate session.')
@@ -686,7 +745,13 @@ export function CreatePage() {
       />
     </div>
 
-      <GenerationLoadingOverlay isOpen={isGenerating} onCancel={handleCancelGeneration} />
+      <GenerationLoadingOverlay
+        isOpen={isGenerating}
+        onCancel={handleCancelGeneration}
+        step={generationStep}
+        percent={generationPercent}
+        message={generationMessage}
+      />
 
       {generatedSession && (
         <>

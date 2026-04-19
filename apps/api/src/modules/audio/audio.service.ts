@@ -1,9 +1,30 @@
-import { unlink, stat } from 'node:fs/promises';
-import { synthesizeVoice } from './audio.tts.js';
-import { mixWithBackground, probeDuration, type BackgroundSound } from './audio.mixer.js';
+import { unlink, stat, access } from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
+import { join } from 'node:path';
+import {
+  synthesizeVoice,
+  synthesizeVoiceChunks,
+  splitScriptIntoChunks,
+} from './audio.tts.js';
+import {
+  mixWithBackground,
+  probeDuration,
+  concatMp3Files,
+  type BackgroundSound,
+} from './audio.mixer.js';
 import { uploadFile, buildSessionKey } from './audio.s3.js';
 import { logger } from '../../utils/logger.js';
 import { AppError } from '../../utils/errors.js';
+
+/**
+ * Callback invoked as the pipeline progresses. `step` matches the
+ * worker's SSE step names; `percent` is 0–100.
+ */
+export type AudioProgressCallback = (update: {
+  step: 'tts' | 'mix' | 'upload';
+  percent: number;
+  message: string;
+}) => void | Promise<void>;
 
 /** Input for {@link generateAudio}. */
 export interface GenerateAudioInput {
@@ -15,6 +36,12 @@ export interface GenerateAudioInput {
   voiceId: string;
   /** Background ambient loop name. `silence` skips the FFmpeg mix step. */
   background: BackgroundSound;
+  /**
+   * Optional callback invoked after each internal step (per TTS chunk,
+   * after mix, after upload). Used by the BullMQ worker to forward
+   * live progress to SSE subscribers.
+   */
+  onProgress?: AudioProgressCallback;
 }
 
 /** Result of a successful audio generation pipeline run. */
@@ -27,50 +54,134 @@ export interface GeneratedAudio {
   fileSizeBytes: number;
 }
 
+/** TTS percent range: chunk progress is distributed linearly in here. */
+const TTS_START = 20;
+const TTS_END = 50;
+/** Mix + upload use fixed percents so the UX shows forward motion. */
+const MIX_PERCENT = 70;
+const UPLOAD_PERCENT = 90;
+
 /**
  * Runs the full audio generation pipeline:
  *
- *   1. Synthesize voice via Edge TTS (`audio.tts`)
+ *   1. Synthesize voice via Edge TTS (`audio.tts`). Long scripts are
+ *      split on paragraph boundaries (`splitScriptIntoChunks`) and
+ *      synthesised chunk-by-chunk, then concatenated via FFmpeg, so
+ *      per-subprocess timeouts never become a hard ceiling on total
+ *      session length.
  *   2. Mix with background ambient loop via FFmpeg (`audio.mixer`),
- *      skipped when `background === 'silence'`
- *   3. Probe duration + file size of the final MP3
- *   4. Upload the final MP3 to S3 (`audio.s3`)
+ *      skipped when `background === 'silence'`.
+ *   3. Probe duration + file size of the final MP3.
+ *   4. Upload the final MP3 to S3 (`audio.s3`).
  *
- * All intermediate temp files are deleted in a `finally` block whether
- * the pipeline succeeds or fails. Errors are normalised to `AppError`
- * with code `GENERATION_FAILED`.
+ * Intermediate temp files (per-chunk MP3s + concatenated voice +
+ * mixed output) are deleted in a `finally` block whether the pipeline
+ * succeeds or fails. Errors are normalised to {@link AppError} with
+ * code `GENERATION_FAILED`.
  */
 export async function generateAudio(
   input: GenerateAudioInput,
 ): Promise<GeneratedAudio> {
-  let voicePath: string | null = null;
-  let mixedPath: string | null = null;
+  const tempFiles: string[] = [];
+  const emit = async (
+    step: 'tts' | 'mix' | 'upload',
+    percent: number,
+    message: string,
+  ): Promise<void> => {
+    if (!input.onProgress) return;
+    try {
+      await input.onProgress({ step, percent, message });
+    } catch (err) {
+      logger.warn({ err, step }, 'onProgress callback threw');
+    }
+  };
 
   try {
-    // Step 1: synthesize voice
-    voicePath = await synthesizeVoice({
-      voiceId: input.voiceId,
-      text: input.scriptText,
-    });
+    // ── Step 1: synthesize voice (chunked if long) ───────────────
+    const chunks = splitScriptIntoChunks(input.scriptText);
+    await emit('tts', TTS_START, `Synthesising voice (0/${chunks.length})...`);
+
+    let voicePath: string;
+    if (chunks.length === 0) {
+      throw new AppError(
+        'GENERATION_FAILED',
+        'The generated script is empty',
+        500,
+      );
+    } else if (chunks.length === 1) {
+      voicePath = await synthesizeVoice({
+        voiceId: input.voiceId,
+        text: chunks[0],
+      });
+      tempFiles.push(voicePath);
+      await emit('tts', TTS_END, 'Voice synthesised');
+    } else {
+      const chunkPaths = await synthesizeVoiceChunks(
+        chunks,
+        { voiceId: input.voiceId },
+        async (i, total) => {
+          const pct = TTS_START + Math.round(((i + 1) / total) * (TTS_END - TTS_START));
+          await emit(
+            'tts',
+            pct,
+            `Synthesising voice (${i + 1}/${total})...`,
+          );
+        },
+      );
+      // Track every chunk for cleanup.
+      tempFiles.push(...chunkPaths);
+      voicePath = await concatMp3Files(chunkPaths);
+      // Only track the concatenated file when it's a fresh output —
+      // `concatMp3Files` returns the sole input unchanged when given
+      // just one, in which case it's already in `tempFiles`.
+      if (!chunkPaths.includes(voicePath)) {
+        tempFiles.push(voicePath);
+      }
+    }
     logger.debug({ voicePath, sessionId: input.sessionId }, 'Voice synthesized');
 
-    // Step 2: mix with background (or skip if silence)
+    // ── Step 2: mix with background (or skip if silence) ─────────
+    let mixedPath: string;
     if (input.background === 'silence') {
       mixedPath = voicePath;
-      voicePath = null; // prevent double cleanup
     } else {
-      mixedPath = await mixWithBackground({
-        voicePath,
-        background: input.background,
-      });
-      logger.debug({ mixedPath, sessionId: input.sessionId }, 'Mixed with background');
+      // Graceful degradation: if the expected background asset is
+      // missing (e.g. a fresh deploy hasn't run the download script
+      // yet), log and fall through to voice-only rather than failing
+      // the whole generation job.
+      const bgFile = join(
+        process.cwd(),
+        'assets',
+        'backgrounds',
+        `${input.background}.mp3`,
+      );
+      const bgAvailable = await access(bgFile, fsConstants.R_OK).then(
+        () => true,
+        () => false,
+      );
+      if (!bgAvailable) {
+        logger.warn(
+          { bgFile, sessionId: input.sessionId, background: input.background },
+          'Background asset missing — producing voice-only mix',
+        );
+        mixedPath = voicePath;
+      } else {
+        await emit('mix', MIX_PERCENT, 'Mixing with background...');
+        mixedPath = await mixWithBackground({
+          voicePath,
+          background: input.background,
+        });
+        tempFiles.push(mixedPath);
+        logger.debug({ mixedPath, sessionId: input.sessionId }, 'Mixed with background');
+      }
     }
 
-    // Step 3: get duration + size
+    // ── Step 3: probe duration + size ────────────────────────────
     const durationSec = Math.round(await probeDuration(mixedPath));
     const fileStat = await stat(mixedPath);
 
-    // Step 4: upload to S3
+    // ── Step 4: upload to S3 ─────────────────────────────────────
+    await emit('upload', UPLOAD_PERCENT, 'Uploading your session...');
     const audioKey = buildSessionKey(input.userId, input.sessionId);
     await uploadFile(mixedPath, audioKey);
 
@@ -87,8 +198,10 @@ export async function generateAudio(
       500,
     );
   } finally {
-    // Cleanup
-    if (voicePath) await unlink(voicePath).catch(() => {});
-    if (mixedPath) await unlink(mixedPath).catch(() => {});
+    // Cleanup every intermediate file. Dedupe because concat may have
+    // returned the sole chunk path unchanged.
+    for (const p of new Set(tempFiles)) {
+      await unlink(p).catch(() => {});
+    }
   }
 }

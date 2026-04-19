@@ -13,7 +13,6 @@ export {
   VOICE_TONE_HINTS,
 } from './ai.prompts.js';
 export { quickSafetyCheck, deepSafetyCheck } from './ai.safety.js';
-export { synthesizeSpeech, mixAudioWithBackground } from './tts.service.js';
 export { generateSessionSchema, regenerateParagraphSchema } from './ai.schema.js';
 export type {
   GenerateSessionInput,
