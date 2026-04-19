@@ -1,12 +1,14 @@
 import type { Request, Response } from 'express';
-import { eq } from 'drizzle-orm';
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { and, eq, gt, isNull } from 'drizzle-orm';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { mysqlDb } from '../../db/mysql/client.js';
+import { getRedis } from '../../db/redis/client.js';
+import { oauthTransactions } from '../../db/mysql/schema/oauth-transactions.js';
 import { users, type User } from '../../db/mysql/schema/users.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
 import { issueJwt } from './auth.service.js';
-import type { OAuthState } from './auth.types.js';
+import type { OAuthProvider, OAuthState } from './auth.types.js';
 
 /**
  * Name of the HttpOnly cookie that pins the OAuth `state` nonce to the
@@ -17,6 +19,13 @@ const OAUTH_STATE_COOKIE = 'oauth_state';
 const OAUTH_STATE_COOKIE_PATH = '/api/auth';
 /** 10 minutes — plenty of time to round-trip through a provider. */
 const OAUTH_STATE_COOKIE_MAX_AGE_MS = 10 * 60 * 1000;
+const OAUTH_STATE_TTL_SECONDS = OAUTH_STATE_COOKIE_MAX_AGE_MS / 1000;
+const OAUTH_TX_REDIS_PREFIX = 'oauth:tx:';
+
+interface RedisOAuthTx {
+  nonce: string;
+  ref?: string;
+}
 
 /**
  * Begin an OAuth flow: generate a cryptographically random nonce, pin
@@ -29,10 +38,65 @@ const OAUTH_STATE_COOKIE_MAX_AGE_MS = 10 * 60 * 1000;
  * OAuth handshake in one browser and trick a victim into landing on
  * the callback URL in another (login CSRF / token injection).
  */
-export function beginOAuthState(res: Response, opts: { ref?: string }): string {
+function sha256Hex(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function truncateIp(ip: string): string {
+  if (ip.includes('.')) {
+    const parts = ip.split('.');
+    if (parts.length === 4) return `${parts[0]}.${parts[1]}.${parts[2]}.0`;
+  }
+  if (ip.includes(':')) {
+    const parts = ip.split(':').filter((p) => p.length > 0);
+    return `${parts.slice(0, 4).join(':')}::`;
+  }
+  return ip;
+}
+
+export async function beginOAuthState(
+  req: Request,
+  res: Response,
+  opts: { provider: OAuthProvider; ref?: string; pkceVerifier?: string },
+): Promise<string> {
   const nonce = randomBytes(32).toString('base64url');
-  const state: OAuthState = { nonce };
-  if (opts.ref) state.ref = opts.ref;
+  const txId = randomUUID();
+  const now = Date.now();
+  const expiresAt = new Date(now + OAUTH_STATE_COOKIE_MAX_AGE_MS);
+  const userAgent =
+    typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'].trim() : '';
+  const ip = truncateIp(req.ip || '');
+
+  await mysqlDb.insert(oauthTransactions).values({
+    id: txId,
+    provider: opts.provider,
+    stateNonce: nonce,
+    pkceVerifier: opts.pkceVerifier ?? null,
+    referralCode: opts.ref ?? null,
+    userAgentHash: userAgent ? sha256Hex(userAgent) : null,
+    ipHash: ip ? sha256Hex(ip) : null,
+    expiresAt,
+  });
+
+  if (env.REDIS_URL) {
+    const redis = getRedis();
+    if (redis) {
+      try {
+        const payload: RedisOAuthTx = {
+          nonce,
+          ...(opts.ref ? { ref: opts.ref } : {}),
+        };
+        await redis.set(
+          `${OAUTH_TX_REDIS_PREFIX}${txId}`,
+          JSON.stringify(payload),
+          'EX',
+          OAUTH_STATE_TTL_SECONDS,
+        );
+      } catch (err) {
+        logger.warn({ err, txId }, 'Failed to cache OAuth transaction in Redis; using DB fallback');
+      }
+    }
+  }
 
   res.cookie(OAUTH_STATE_COOKIE, nonce, {
     httpOnly: true,
@@ -42,7 +106,7 @@ export function beginOAuthState(res: Response, opts: { ref?: string }): string {
     maxAge: OAUTH_STATE_COOKIE_MAX_AGE_MS,
   });
 
-  return Buffer.from(JSON.stringify(state)).toString('base64url');
+  return Buffer.from(JSON.stringify({ tx: txId, nonce } satisfies OAuthState)).toString('base64url');
 }
 
 /** Best-effort decode of `state`. Malformed values are silently ignored. */
@@ -52,12 +116,10 @@ export function decodeOAuthState(raw: unknown): OAuthState | null {
     const parsed = JSON.parse(Buffer.from(raw, 'base64url').toString()) as unknown;
     if (!parsed || typeof parsed !== 'object') return null;
     const nonce = (parsed as { nonce?: unknown }).nonce;
+    const tx = (parsed as { tx?: unknown }).tx;
     if (typeof nonce !== 'string' || nonce.length === 0) return null;
-    const ref = (parsed as { ref?: unknown }).ref;
-    return {
-      nonce,
-      ...(typeof ref === 'string' && ref.length > 0 ? { ref } : {}),
-    };
+    if (typeof tx !== 'string' || tx.length === 0) return null;
+    return { nonce, tx };
   } catch {
     return null;
   }
@@ -98,15 +160,73 @@ function safeEqual(a: string, b: string): boolean {
  * still clears the cookie) on any mismatch so the caller can redirect
  * to the error page without issuing a JWT.
  */
-export function consumeOAuthState(req: Request, res: Response): OAuthState | null {
+function getAffectedRows(result: unknown): number {
+  if (typeof result !== 'object' || !result) return 0;
+  const affectedRows = (result as { affectedRows?: unknown }).affectedRows;
+  return typeof affectedRows === 'number' ? affectedRows : 0;
+}
+
+export async function consumeOAuthState(req: Request, res: Response): Promise<OAuthState | null> {
   const cookieNonce = readCookie(req, OAUTH_STATE_COOKIE);
   // Always clear the cookie — it's single-use regardless of outcome.
   res.clearCookie(OAUTH_STATE_COOKIE, { path: OAUTH_STATE_COOKIE_PATH });
 
   const state = decodeOAuthState(req.query.state);
-  if (!state || !cookieNonce) return null;
-  if (!safeEqual(cookieNonce, state.nonce)) return null;
-  return state;
+  if (!state) return null;
+  if (cookieNonce && !safeEqual(cookieNonce, state.nonce)) return null;
+
+  let redisPayload: RedisOAuthTx | null = null;
+  if (env.REDIS_URL) {
+    const redis = getRedis();
+    if (redis) {
+      try {
+        const raw = await redis.get(`${OAUTH_TX_REDIS_PREFIX}${state.tx}`);
+        if (raw) {
+          const parsed = JSON.parse(raw) as RedisOAuthTx;
+          if (!parsed?.nonce || !safeEqual(parsed.nonce, state.nonce)) return null;
+          redisPayload = parsed;
+        }
+      } catch (err) {
+        logger.warn({ err, txId: state.tx }, 'Redis read for OAuth transaction failed; using DB fallback');
+      }
+    }
+  }
+
+  const now = new Date();
+  const updateResult = await mysqlDb
+    .update(oauthTransactions)
+    .set({ consumedAt: now })
+    .where(
+      and(
+        eq(oauthTransactions.id, state.tx),
+        eq(oauthTransactions.stateNonce, state.nonce),
+        isNull(oauthTransactions.consumedAt),
+        gt(oauthTransactions.expiresAt, now),
+      ),
+    );
+
+  if (getAffectedRows(updateResult) !== 1) return null;
+
+  let ref = redisPayload?.ref;
+  if (!ref) {
+    const rows = await mysqlDb
+      .select({ referralCode: oauthTransactions.referralCode })
+      .from(oauthTransactions)
+      .where(eq(oauthTransactions.id, state.tx))
+      .limit(1);
+    ref = rows[0]?.referralCode ?? undefined;
+  }
+
+  if (env.REDIS_URL) {
+    const redis = getRedis();
+    if (redis) {
+      void redis.del(`${OAUTH_TX_REDIS_PREFIX}${state.tx}`).catch((err) => {
+        logger.warn({ err, txId: state.tx }, 'Failed to delete consumed OAuth transaction from Redis');
+      });
+    }
+  }
+
+  return { ...state, ...(ref ? { ref } : {}) };
 }
 
 /**
@@ -143,7 +263,7 @@ async function applyReferral(user: User, ref: string): Promise<void> {
  */
 export async function handleOAuthCallback(req: Request, res: Response): Promise<void> {
   try {
-    const state = consumeOAuthState(req, res);
+    const state = await consumeOAuthState(req, res);
     if (!state) {
       logger.warn('OAuth callback rejected: missing or invalid state nonce');
       res.redirect(`${env.FRONTEND_URL}/auth/error`);
