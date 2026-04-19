@@ -1,10 +1,11 @@
 import { execa } from 'execa';
-import { mkdir, unlink } from 'node:fs/promises';
+import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { AppError } from '../../utils/errors.js';
 import { logger } from '../../utils/logger.js';
+import type { BackgroundSound } from '../../config/constants.js';
 
 /**
  * Directory containing the bundled background ambient loops (`rain.mp3`,
@@ -13,14 +14,7 @@ import { logger } from '../../utils/logger.js';
  */
 const BG_DIR = join(process.cwd(), 'assets', 'backgrounds');
 
-/** Background ambient loop name (without `.mp3` extension). */
-export type BackgroundSound =
-  | 'rain'
-  | 'ocean'
-  | 'forest'
-  | 'wind'
-  | 'white_noise'
-  | 'silence';
+export type { BackgroundSound } from '../../config/constants.js';
 
 /** Options for {@link mixWithBackground}. */
 export interface MixOptions {
@@ -145,4 +139,72 @@ export async function mixWithBackground(opts: MixOptions): Promise<string> {
  */
 export async function probeDuration(path: string): Promise<number> {
   return probeDurationSec(path);
+}
+
+/**
+ * Concatenates a sequence of MP3 files into a single MP3 using FFmpeg's
+ * concat demuxer. Used to stitch together per-chunk Edge-TTS outputs
+ * when a script is long enough that we want to synthesise it in pieces
+ * (see {@link ./audio.tts.synthesizeVoiceChunks}).
+ *
+ * Re-encodes the output with `libmp3lame` at 128 kbps so callers get
+ * a stream with uniform frame timing even when the inputs have slight
+ * bitrate / timestamp drift.
+ *
+ * @returns Absolute path to the concatenated MP3. The caller owns the
+ *   file and must `unlink` it when finished.
+ * @throws {AppError} `GENERATION_FAILED` if FFmpeg fails.
+ */
+export async function concatMp3Files(inputPaths: string[]): Promise<string> {
+  if (inputPaths.length === 0) {
+    throw new AppError('GENERATION_FAILED', 'concatMp3Files called with no inputs', 500);
+  }
+  if (inputPaths.length === 1) {
+    // Nothing to concat — return the single input unchanged. The
+    // caller's cleanup path already owns it.
+    return inputPaths[0];
+  }
+
+  const tmpDir = join(tmpdir(), 'hypnosleep-concat');
+  await mkdir(tmpDir, { recursive: true });
+  const listPath = join(tmpDir, `${randomUUID()}.txt`);
+  const outPath = join(tmpDir, `${randomUUID()}.mp3`);
+
+  // Escape single quotes in paths per FFmpeg concat demuxer rules.
+  // See: https://ffmpeg.org/ffmpeg-formats.html#concat
+  const listBody = inputPaths
+    .map((p) => `file '${p.replace(/'/g, "'\\''")}'`)
+    .join('\n');
+  await writeFile(listPath, listBody, 'utf8');
+
+  try {
+    await execa(
+      'ffmpeg',
+      [
+        '-y',
+        '-f', 'concat',
+        '-safe', '0',
+        '-i', listPath,
+        '-c:a', 'libmp3lame',
+        '-b:a', '128k',
+        '-ar', '44100',
+        outPath,
+      ],
+      { timeout: 180_000 },
+    );
+    logger.debug(
+      { outPath, chunks: inputPaths.length },
+      'Concatenated TTS chunks',
+    );
+    return outPath;
+  } catch (err) {
+    await unlink(outPath).catch(() => {});
+    throw new AppError(
+      'GENERATION_FAILED',
+      `FFmpeg concat failed: ${(err as Error).message}`,
+      500,
+    );
+  } finally {
+    await unlink(listPath).catch(() => {});
+  }
 }

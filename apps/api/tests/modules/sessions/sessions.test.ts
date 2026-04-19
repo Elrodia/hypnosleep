@@ -300,6 +300,21 @@ vi.mock('@/queues/audio-generation.queue', () => ({
   },
 }));
 
+// AI service — generate a deterministic fake script so the service
+// under test can run end-to-end without calling Gemini. Tests that
+// need to exercise unsafe-script handling can override these via
+// `vi.mocked(...).mockResolvedValueOnce(...)` per test.
+vi.mock('@/modules/ai/ai.service', () => ({
+  generateScript: vi.fn(async (input: { prompt: string }) => ({
+    scriptText: `A calming script for: ${input.prompt}\n\nBreathe in. Breathe out.`,
+    title: 'Generated Session',
+    tokensInput: 42,
+    tokensOutput: 128,
+    generationMs: 10,
+  })),
+  checkScriptSafety: vi.fn(async () => ({ isSafe: true })),
+}));
+
 // S3 — record key deletions.
 vi.mock('@/modules/audio/audio.s3', () => ({
   getStreamUrl: (key: string) => Promise.resolve(`https://signed.example/${key}`),

@@ -1,114 +1,60 @@
+/**
+ * Back-compat shim for the legacy R2/S3 helper.
+ *
+ * The canonical S3-compatible storage helpers live in
+ * `modules/audio/audio.s3.ts`. This module used to contain a parallel
+ * implementation; it now re-exports the canonical helpers so older
+ * imports keep working without duplicating code.
+ *
+ * New code should import from `modules/audio/audio.s3.js` directly.
+ */
 import {
-  S3Client,
-  PutObjectCommand,
-  DeleteObjectCommand,
-  GetObjectCommand,
-} from '@aws-sdk/client-s3';
+  uploadFile,
+  deleteFile as deleteFileFromBucket,
+  getStreamUrl,
+  buildSessionKey,
+} from '../modules/audio/audio.s3.js';
+import { writeFile, unlink } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { logger } from '../utils/logger.js';
 
-let s3Client: S3Client | null = null;
+export { buildSessionKey, getStreamUrl };
 
 /**
- * Returns the S3-compatible storage client.
- */
-function getS3Client(): S3Client {
-  if (!s3Client) {
-    const accessKeyId = process.env.S3_ACCESS_KEY;
-    const secretAccessKey = process.env.S3_SECRET_KEY;
-    const endpoint = process.env.S3_ENDPOINT;
-    const region = process.env.S3_REGION;
-    const bucket = process.env.S3_BUCKET;
-    const forcePathStyle = process.env.S3_FORCE_PATH_STYLE === 'true';
-
-    if (!accessKeyId || !secretAccessKey || !endpoint || !region || !bucket) {
-      throw new Error('S3 credentials are not configured');
-    }
-
-    s3Client = new S3Client({
-      region,
-      endpoint,
-      forcePathStyle,
-      credentials: { accessKeyId, secretAccessKey },
-    });
-  }
-
-  return s3Client;
-}
-
-const getBucket = (): string => {
-  const bucket = process.env.S3_BUCKET;
-  if (!bucket) {
-    throw new Error('S3_BUCKET environment variable is not set');
-  }
-  return bucket;
-};
-
-/**
- * Uploads an audio file to S3-compatible storage.
- * @returns The public URL of the uploaded file.
+ * Legacy uploader that accepts an in-memory buffer.
+ *
+ * The canonical uploader streams a local file (so FFmpeg output doesn't
+ * have to be re-read into memory). We preserve the buffer signature here
+ * for any caller that still hands us a `Buffer`, writing to a temp file
+ * and delegating to the canonical uploader.
+ *
+ * @returns A URL-ish string of the form `${S3_ENDPOINT}/${bucket}/${key}`,
+ *   matching the previous behaviour. Note that the canonical code path
+ *   persists the S3 *key* (not a URL) and mints presigned URLs on
+ *   demand via {@link getStreamUrl}.
  */
 export async function uploadAudio(
   key: string,
   body: Buffer,
-  contentType = 'audio/mpeg',
+  _contentType = 'audio/mpeg',
 ): Promise<string> {
-  const client = getS3Client();
-
-  await client.send(
-    new PutObjectCommand({
-      Bucket: getBucket(),
-      Key: key,
-      Body: body,
-      ContentType: contentType,
-    }),
-  );
-
-  const endpoint = process.env.S3_ENDPOINT ?? '';
-  const bucket = getBucket();
-  const publicUrl = `${endpoint}/${bucket}/${key}`;
-  logger.info({ key, publicUrl }, 'Audio uploaded to S3');
-  return publicUrl;
-}
-
-/**
- * Deletes an audio file from S3-compatible storage.
- */
-export async function deleteAudio(key: string): Promise<void> {
-  const client = getS3Client();
-
-  await client.send(
-    new DeleteObjectCommand({
-      Bucket: getBucket(),
-      Key: key,
-    }),
-  );
-
-  logger.info({ key }, 'Audio deleted from S3');
-}
-
-/**
- * Gets an audio file stream from S3-compatible storage.
- */
-export async function getAudio(key: string): Promise<Buffer | null> {
-  const client = getS3Client();
-
+  const tmpPath = join(tmpdir(), `r2-upload-${randomUUID()}.mp3`);
   try {
-    const response = await client.send(
-      new GetObjectCommand({
-        Bucket: getBucket(),
-        Key: key,
-      }),
-    );
-
-    if (!response.Body) return null;
-
-    const chunks: Uint8Array[] = [];
-    for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
-      chunks.push(chunk);
-    }
-    return Buffer.concat(chunks);
-  } catch (err) {
-    logger.error({ err, key }, 'Failed to get audio from S3');
-    return null;
+    await writeFile(tmpPath, body);
+    await uploadFile(tmpPath, key);
+    const endpoint = process.env.S3_ENDPOINT ?? '';
+    const bucket = process.env.S3_BUCKET ?? '';
+    const publicUrl = `${endpoint}/${bucket}/${key}`;
+    logger.info({ key, publicUrl }, 'Audio uploaded via legacy r2.service');
+    return publicUrl;
+  } finally {
+    await unlink(tmpPath).catch(() => {});
   }
+}
+
+/** Deletes an audio object from the bucket. */
+export async function deleteAudio(key: string): Promise<void> {
+  return deleteFileFromBucket(key);
 }
