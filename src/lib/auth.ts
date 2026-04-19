@@ -60,6 +60,38 @@ export function clearAuthToken(): void {
  * Preserves any `?ref=<code>` referral parameter from the current URL
  * so the backend can attribute the referral after callback.
  */
+
+/**
+ * Preflight check before starting OAuth in browsers with strict privacy
+ * settings. Verifies localStorage access and a minimal cookie write/read/remove
+ * roundtrip required for backend oauth_state cookie handling.
+ */
+export function canUseOAuthBrowserState(): boolean {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return false
+  }
+
+  const storageKey = '__hs.oauth.preflight__'
+  try {
+    window.localStorage.setItem(storageKey, '1')
+    window.localStorage.removeItem(storageKey)
+  } catch {
+    return false
+  }
+
+  const cookieName = '__hs_oauth_preflight'
+  const cookieValue = '1'
+  const encoded = `${cookieName}=${cookieValue}`
+
+  try {
+    document.cookie = `${encoded}; path=/; SameSite=Lax`
+    const hasCookie = document.cookie.split('; ').some((cookie) => cookie === encoded)
+    document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
+    return hasCookie
+  } catch {
+    return false
+  }
+}
 export function startOAuth(provider: OAuthProvider): void {
   let url = `/api/auth/${provider}`
   try {
