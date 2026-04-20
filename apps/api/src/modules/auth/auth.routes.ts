@@ -9,6 +9,7 @@ import { microsoftStrategy } from './strategies/microsoft.strategy.js';
 import { requireAuth } from './auth.middleware.js';
 import {
   beginOAuthState,
+  consumeOAuthState,
   getOAuthRequestId,
   handleGetMe,
   handleLogout,
@@ -85,35 +86,44 @@ function callbackHandlers(provider: OAuthProvider) {
         provider,
         { session: false },
         (err: unknown, user: Express.User | false | null) => {
-          if (err || !user) {
-            const rid = getOAuthRequestId(req);
-            const reason =
-              typeof err === 'object' &&
-              err &&
-              'message' in err &&
-              typeof err.message === 'string' &&
-              err.message.includes('EMAIL_PROVIDER_MISMATCH')
-                ? 'email_provider_mismatch'
-                : 'provider_error';
-            logOAuthFailure(req, {
-              provider,
-              reason,
-              rid,
-              message: 'OAuth authentication failed',
-            });
-            if (err) {
-              const errName =
-                typeof err === 'object' && err && 'name' in err && typeof err.name === 'string'
-                  ? err.name
-                  : 'OAuthError';
-              logger.warn({ provider, rid, errName }, 'OAuth provider returned an error');
-            }
-            redirectOAuthError(res, { reason, rid });
-            return;
-          }
+          void (async () => {
+            if (err || !user) {
+              const rid = getOAuthRequestId(req);
+              const reason =
+                typeof err === 'object' &&
+                err &&
+                'message' in err &&
+                typeof err.message === 'string' &&
+                err.message.includes('EMAIL_PROVIDER_MISMATCH')
+                  ? 'email_provider_mismatch'
+                  : 'provider_error';
+              logOAuthFailure(req, {
+                provider,
+                reason,
+                rid,
+                message: 'OAuth authentication failed',
+              });
+              if (err) {
+                const errName =
+                  typeof err === 'object' && err && 'name' in err && typeof err.name === 'string'
+                    ? err.name
+                    : 'OAuthError';
+                logger.warn({ provider, rid, errName }, 'OAuth provider returned an error');
+              }
 
-          req.user = user;
-          next();
+              try {
+                await consumeOAuthState(req, res);
+              } catch {
+                // Cleanup is best-effort in provider failure path.
+              }
+
+              redirectOAuthError(res, { reason, rid });
+              return;
+            }
+
+            req.user = user;
+            next();
+          })();
         },
       )(req, res, next);
     },
