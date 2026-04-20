@@ -95,6 +95,56 @@ beforeEach(() => {
 });
 
 describe('auth.controller OAuth persistence fallback', () => {
+  it('rejects callback with state_missing when oauth_state cookie is missing', async () => {
+    const state = Buffer.from(JSON.stringify({ tx: 'tx-missing', nonce: 'nonce-missing' })).toString(
+      'base64url',
+    );
+    const req = makeReq();
+    req.query.state = state;
+
+    const res = makeRes();
+
+    const result = await consumeOAuthState(req as never, res as never);
+
+    expect(result).toEqual({ state: null, reason: 'state_missing' });
+    expect(mysqlUpdateWhere).not.toHaveBeenCalled();
+    expect(redisEval).not.toHaveBeenCalled();
+  });
+
+  it('rejects callback with state_mismatch when oauth_state cookie does not match nonce', async () => {
+    const state = Buffer.from(JSON.stringify({ tx: 'tx-mismatch', nonce: 'nonce-expected' })).toString(
+      'base64url',
+    );
+    const req = makeReq();
+    req.query.state = state;
+    req.headers.cookie = 'oauth_state=nonce-actual';
+
+    const res = makeRes();
+
+    const result = await consumeOAuthState(req as never, res as never);
+
+    expect(result).toEqual({ state: null, reason: 'state_mismatch' });
+    expect(mysqlUpdateWhere).not.toHaveBeenCalled();
+    expect(redisEval).not.toHaveBeenCalled();
+  });
+
+  it('continues callback processing when oauth_state cookie matches state nonce', async () => {
+    const state = Buffer.from(JSON.stringify({ tx: 'tx-match', nonce: 'nonce-match' })).toString(
+      'base64url',
+    );
+    const req = makeReq();
+    req.query.state = state;
+    req.headers.cookie = 'oauth_state=nonce-match';
+
+    const res = makeRes();
+
+    const result = await consumeOAuthState(req as never, res as never);
+
+    expect(result.reason).toBeNull();
+    expect(result.state).toEqual({ tx: 'tx-match', nonce: 'nonce-match', ref: 'REF123' });
+    expect(mysqlUpdateWhere).toHaveBeenCalledTimes(1);
+  });
+
   it('initiation succeeds when MySQL insert throws but Redis set succeeds', async () => {
     mysqlInsertValues.mockRejectedValueOnce(new Error('mysql down'));
 
