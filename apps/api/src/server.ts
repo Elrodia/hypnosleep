@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type Request as ExpressRequest } from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
 import helmet from 'helmet';
@@ -6,6 +6,7 @@ import compression from 'compression';
 import cors from 'cors';
 import pinoHttp from 'pino-http';
 import * as Sentry from '@sentry/node';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { env, validateAuthRuntimeConfig } from './config/env.js';
 import { logger } from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
@@ -15,6 +16,8 @@ import { createAudioGenerationWorker } from './queues/audio-generation.worker.js
 import { closeQueue } from './queues/audio-generation.queue.js';
 import { shutdownPostHog } from './services/posthog.service.js';
 import { startOAuthTransactionsCleanupJob } from './modules/auth/oauth-transactions.cleanup.js';
+import { startDebugEventsPruneJob } from './services/debug-log.service.js';
+import { requestId } from './middleware/request-id.js';
 
 // --- Sentry: initialize FIRST so early errors are captured ----------------
 if (env.SENTRY_DSN) {
@@ -153,14 +156,30 @@ app.use((req, res, next) => {
 });
 
 // --- HTTP request logging -------------------------------------------------
+// Install the request-id middleware FIRST so downstream middleware and
+// handlers can read `req.rid` / `req.log`. `pinoHttp` is then wired to
+// reuse the same id via `genReqId`, which keeps the per-request logger
+// and the `X-Request-Id` response header in lockstep.
+app.use(requestId());
 app.use(
   pinoHttp({
     logger,
-    redact: ['req.headers.authorization', 'req.headers.cookie'],
+    genReqId: (req: IncomingMessage) => (req as unknown as ExpressRequest).rid ?? '',
+    customLogLevel: (_req: IncomingMessage, res: ServerResponse, err?: Error) => {
+      if (err) return 'error';
+      if (res.statusCode >= 500) return 'error';
+      if (res.statusCode >= 400) return 'warn';
+      return 'info';
+    },
+    customProps: (req: IncomingMessage) => {
+      const r = req as unknown as ExpressRequest;
+      return { rid: r.rid, userId: r.userId };
+    },
+    redact: ['req.headers.authorization', 'req.headers.cookie', 'req.query.token'],
     autoLogging: {
-      ignore: (req) => {
+      ignore: (req: IncomingMessage) => {
         // Don't log health checks.
-        const url = (req as express.Request).url ?? '';
+        const url = (req as unknown as ExpressRequest).url ?? '';
         return url === '/api/health' || url === '/health';
       },
     },
@@ -260,6 +279,7 @@ app.use(errorHandler);
 // --- Start ---
 let worker: ReturnType<typeof createAudioGenerationWorker> | null = null;
 const oauthTransactionsCleanupTimer = startOAuthTransactionsCleanupJob();
+const debugEventsPruneTimer = startDebugEventsPruneJob();
 let shuttingDown = false;
 
 const server = app.listen(PORT, () => {
@@ -315,6 +335,7 @@ const shutdown = async (signal: string) => {
 
   try {
     clearInterval(oauthTransactionsCleanupTimer);
+    clearInterval(debugEventsPruneTimer);
     if (worker) {
       // Drain in-flight jobs before exiting so a Railway redeploy
       // doesn't abort an audio generation mid-pipeline.
