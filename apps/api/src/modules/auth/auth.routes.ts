@@ -90,10 +90,9 @@ function callbackHandlers(provider: OAuthProvider) {
             const rid = getOAuthRequestId(req);
             const reason =
               typeof err === 'object' &&
-              err &&
-              'message' in err &&
-              typeof err.message === 'string' &&
-              err.message.includes('EMAIL_PROVIDER_MISMATCH')
+              err !== null &&
+              'code' in err &&
+              (err as { code?: unknown }).code === 'EMAIL_PROVIDER_MISMATCH'
                 ? 'email_provider_mismatch'
                 : 'provider_error';
             logOAuthFailure(req, {
@@ -165,6 +164,14 @@ function callbackHandlers(provider: OAuthProvider) {
               );
             }
 
+            // Best-effort cleanup: invalidate the state cookie and
+            // DB/Redis transaction so the state cannot be replayed.
+            void consumeOAuthState(req, res).catch((cleanupErr) => {
+              logger.warn(
+                { cleanupErr, provider, rid },
+                'Failed to clean up OAuth state on provider error',
+              );
+            });
             redirectOAuthError(res, { reason, rid });
             return;
           }

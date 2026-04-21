@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AppError } from '@/utils/errors';
 
 const passportAuthenticate = vi.fn();
 const passportUse = vi.fn();
@@ -117,9 +118,16 @@ describe('auth.routes callback failure cleanup', () => {
     consumeOAuthState.mockRejectedValueOnce(new Error('cleanup unavailable'));
 
     passportAuthenticate.mockImplementation(
-      (_provider: string, _opts: { session: false }, cb: (err: Error, user: null) => void) =>
+      (_provider: string, _opts: { session: false }, cb: (err: AppError, user: null) => void) =>
         (_req: Request, _res: Response, _next: NextFunction) =>
-          cb(new Error('EMAIL_PROVIDER_MISMATCH: expected github'), null),
+          cb(
+            new AppError(
+              'EMAIL_PROVIDER_MISMATCH',
+              'This email is registered with github. Please log in with that provider.',
+              409,
+            ),
+            null,
+          ),
     );
 
     const middleware = getGoogleCallbackMiddleware();
