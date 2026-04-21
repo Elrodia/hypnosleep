@@ -165,9 +165,12 @@ function callbackHandlers(provider: OAuthProvider) {
               );
             }
 
-            req.user = user;
-            next();
-          })();
+            redirectOAuthError(res, { reason, rid });
+            return;
+          }
+
+          req.user = user;
+          next();
         },
       )(req, res, next);
     },
