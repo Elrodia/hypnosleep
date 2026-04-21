@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { and, eq, gt, isNull } from 'drizzle-orm';
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import { mysqlDb } from '../../db/mysql/client.js';
 import { getRedis } from '../../db/redis/client.js';
 import { oauthTransactions } from '../../db/mysql/schema/oauth-transactions.js';
@@ -440,7 +440,8 @@ const EMAIL_OTP_DIGITS = 6;
 /** Generate a zero-padded 6-digit OTP string (e.g. "042817"). */
 function generateOtp(): string {
   const max = Math.pow(10, EMAIL_OTP_DIGITS);
-  const code = randomBytes(4).readUInt32BE(0) % max;
+  // crypto.randomInt uses rejection sampling internally and is unbiased.
+  const code = randomInt(0, max);
   return String(code).padStart(EMAIL_OTP_DIGITS, '0');
 }
 
