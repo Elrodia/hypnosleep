@@ -9,6 +9,7 @@ import { microsoftStrategy } from './strategies/microsoft.strategy.js';
 import { requireAuth } from './auth.middleware.js';
 import {
   beginOAuthState,
+  consumeOAuthState,
   getOAuthRequestId,
   handleGetMe,
   handleLogout,
@@ -163,12 +164,10 @@ function callbackHandlers(provider: OAuthProvider) {
                 'OAuth provider returned an error',
               );
             }
-            redirectOAuthError(res, { reason, rid });
-            return;
-          }
 
-          req.user = user;
-          next();
+            req.user = user;
+            next();
+          })();
         },
       )(req, res, next);
     },

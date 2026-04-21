@@ -239,7 +239,8 @@ export async function consumeOAuthState(
 
   const state = decodeOAuthState(req.query.state);
   if (!state) return { state: null, reason: 'state_missing' };
-  if (cookieNonce && !safeEqual(cookieNonce, state.nonce)) {
+  if (!cookieNonce) return { state: null, reason: 'state_missing' };
+  if (!safeEqual(cookieNonce, state.nonce)) {
     return { state: null, reason: 'state_mismatch' };
   }
 
