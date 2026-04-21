@@ -1,15 +1,13 @@
 import type { Request, Response } from 'express';
 import { and, eq, gt, isNull } from 'drizzle-orm';
-import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { mysqlDb } from '../../db/mysql/client.js';
 import { getRedis } from '../../db/redis/client.js';
 import { oauthTransactions } from '../../db/mysql/schema/oauth-transactions.js';
-import { emailOtpTokens } from '../../db/mysql/schema/email-otp-tokens.js';
 import { users, type User } from '../../db/mysql/schema/users.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
-import { issueJwt, upsertUserFromOAuth } from './auth.service.js';
-import { sendEmail } from '../../services/email.service.js';
+import { issueJwt } from './auth.service.js';
 import type { OAuthProvider, OAuthState } from './auth.types.js';
 
 /**
@@ -429,159 +427,3 @@ export async function handleGetMe(req: Request, res: Response): Promise<void> {
 export function handleLogout(_req: Request, res: Response): void {
   res.json({ data: { ok: true } });
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Email OTP (passwordless) authentication
-// ─────────────────────────────────────────────────────────────────────────────
-
-const EMAIL_OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
-const EMAIL_OTP_DIGITS = 6;
-
-/** Generate a zero-padded 6-digit OTP string (e.g. "042817"). */
-function generateOtp(): string {
-  const max = Math.pow(10, EMAIL_OTP_DIGITS);
-  // crypto.randomInt uses rejection sampling internally and is unbiased.
-  const code = randomInt(0, max);
-  return String(code).padStart(EMAIL_OTP_DIGITS, '0');
-}
-
-function hashOtp(otp: string): string {
-  return createHash('sha256').update(otp).digest('hex');
-}
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
-/**
- * `POST /api/auth/email/send` — generate a one-time code and email it.
- *
- * Body: `{ email: string }`
- *
- * Rate-limited upstream. Responds with `{ data: { ok: true } }` whether
- * or not the address exists so we do not leak account existence.
- */
-export async function handleEmailOtpSend(req: Request, res: Response): Promise<void> {
-  const body = req.body as Record<string, unknown>;
-  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-
-  if (!email || !EMAIL_REGEX.test(email)) {
-    res
-      .status(400)
-      .json({ error: { code: 'INVALID_EMAIL', message: 'A valid email address is required.' } });
-    return;
-  }
-
-  const otp = generateOtp();
-  const tokenHash = hashOtp(otp);
-  const id = randomUUID();
-  const expiresAt = new Date(Date.now() + EMAIL_OTP_TTL_MS);
-
-  try {
-    await mysqlDb.insert(emailOtpTokens).values({ id, email, tokenHash, expiresAt });
-  } catch (err) {
-    logger.error({ err, email }, 'Failed to persist email OTP token');
-    res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Could not initiate sign-in. Please try again.' } });
-    return;
-  }
-
-  const html = `
-    <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-      <h2 style="margin-bottom:8px">Your HypnoSleep sign-in code</h2>
-      <p style="color:#555">Use the code below to complete your sign-in. It expires in 10 minutes and can only be used once.</p>
-      <div style="font-size:36px;font-weight:bold;letter-spacing:8px;margin:24px 0;color:#111">${otp}</div>
-      <p style="color:#888;font-size:12px">If you didn't request this, you can safely ignore this email.</p>
-    </div>
-  `;
-
-  try {
-    await sendEmail({
-      to: email,
-      subject: `${otp} is your HypnoSleep sign-in code`,
-      html,
-      text: `Your HypnoSleep sign-in code is: ${otp}\n\nIt expires in 10 minutes. If you didn't request this, ignore this email.`,
-    });
-  } catch (err) {
-    logger.error({ err, email }, 'Failed to send OTP email');
-    // Still return success to avoid leaking whether delivery failed for
-    // this address vs. a non-existent one.
-  }
-
-  res.json({ data: { ok: true } });
-}
-
-/**
- * `POST /api/auth/email/verify` — validate OTP, upsert user, issue JWT.
- *
- * Body: `{ email: string; otp: string }`
- *
- * On success returns `{ data: { token: string } }` — the same JWT shape
- * used by the OAuth callback so the frontend can store and use it
- * identically.
- */
-export async function handleEmailOtpVerify(req: Request, res: Response): Promise<void> {
-  const body = req.body as Record<string, unknown>;
-  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-  const otp = typeof body.otp === 'string' ? body.otp.trim() : '';
-
-  if (!email || !otp) {
-    res.status(400).json({ error: { code: 'INVALID_INPUT', message: 'Email and OTP are required.' } });
-    return;
-  }
-
-  const tokenHash = hashOtp(otp);
-  const now = new Date();
-
-  // Find a matching, unexpired, unused token.
-  const rows = await mysqlDb
-    .select()
-    .from(emailOtpTokens)
-    .where(
-      and(
-        eq(emailOtpTokens.tokenHash, tokenHash),
-        eq(emailOtpTokens.email, email),
-        isNull(emailOtpTokens.usedAt),
-        gt(emailOtpTokens.expiresAt, now),
-      ),
-    )
-    .limit(1);
-
-  if (!rows[0]) {
-    res
-      .status(401)
-      .json({ error: { code: 'INVALID_OTP', message: 'The code is incorrect, expired, or has already been used.' } });
-    return;
-  }
-
-  // Mark as used (single-use).
-  await mysqlDb
-    .update(emailOtpTokens)
-    .set({ usedAt: now })
-    .where(eq(emailOtpTokens.id, rows[0].id));
-
-  let user: User;
-  try {
-    // Use the email address as both the provider-scoped ID and display name
-    // on first sign-in. Name can be updated via the profile endpoint.
-    user = await upsertUserFromOAuth({
-      provider: 'email',
-      providerId: email,
-      email,
-      name: email.split('@')[0] || email,
-      avatarUrl: undefined,
-    });
-  } catch (err) {
-    const errObj = typeof err === 'object' && err !== null ? (err as Record<string, unknown>) : {};
-    if (typeof errObj.code === 'string' && errObj.code === 'EMAIL_PROVIDER_MISMATCH') {
-      res
-        .status(409)
-        .json({ error: { code: 'EMAIL_PROVIDER_MISMATCH', message: String(errObj.message ?? 'This email is already linked to a different sign-in provider.') } });
-      return;
-    }
-    logger.error({ err, email }, 'Failed to upsert email-auth user');
-    res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Sign-in failed. Please try again.' } });
-    return;
-  }
-
-  const token = issueJwt(user);
-  res.json({ data: { token } });
-}
-

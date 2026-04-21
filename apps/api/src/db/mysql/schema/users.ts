@@ -16,7 +16,7 @@ export const users = mysqlTable(
   'users',
   {
     id: varchar('id', { length: 36 }).primaryKey(), // UUID v4
-    oauthProvider: mysqlEnum('oauth_provider', ['google', 'github', 'microsoft', 'email']).notNull(),
+    oauthProvider: mysqlEnum('oauth_provider', ['google', 'github', 'microsoft']).notNull(),
     oauthId: varchar('oauth_id', { length: 255 }).notNull(),
     email: varchar('email', { length: 320 }).notNull().unique(),
     name: varchar('name', { length: 255 }).notNull(),

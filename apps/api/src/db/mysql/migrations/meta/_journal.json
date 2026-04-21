@@ -36,6 +36,13 @@
       "when": 1745267006119,
       "tag": "0004_email_otp",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1777142263000,
+      "tag": "0005_remove_email_otp",
+      "breakpoints": true
     }
   ]
 }

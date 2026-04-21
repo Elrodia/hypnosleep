@@ -4,16 +4,6 @@ export const RATE_LIMITS = {
   API_GLOBAL: { window: 60, max: 100 },
   /** Auth routes: requests per minute per IP */
   AUTH: { window: 60, max: 10 },
-  /**
-   * Email OTP send: stricter limit to prevent email-flood abuse.
-   * 5 requests per 15 minutes per IP.
-   */
-  EMAIL_OTP_SEND: { window: 15 * 60, max: 5 },
-  /**
-   * Email OTP verify: limit brute-force attempts on the 6-digit code.
-   * 10 requests per 15 minutes per IP.
-   */
-  EMAIL_OTP_VERIFY: { window: 15 * 60, max: 10 },
   /** AI generation: max per month for free users */
   AI_GENERATION_FREE: 3,
 } as const;
