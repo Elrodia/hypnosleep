@@ -14,6 +14,8 @@ import {
   handleGetMe,
   handleLogout,
   handleOAuthCallback,
+  handleEmailOtpSend,
+  handleEmailOtpVerify,
   logOAuthFailure,
   redirectOAuthError,
 } from './auth.controller.js';
@@ -202,3 +204,7 @@ authRouter.get('/microsoft/callback', authRateLimit, ...callbackHandlers('micros
 // --- Session helpers -----------------------------------------------------
 authRouter.get('/me', authRateLimit, requireAuth, handleGetMe);
 authRouter.post('/logout', authRateLimit, requireAuth, handleLogout);
+
+// --- Email OTP (passwordless) --------------------------------------------
+authRouter.post('/email/send', authRateLimit, handleEmailOtpSend);
+authRouter.post('/email/verify', authRateLimit, handleEmailOtpVerify);

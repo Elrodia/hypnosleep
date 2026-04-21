@@ -117,6 +117,18 @@ const envSchema = z.object({
   POSTHOG_API_KEY: optionalString(),
   /** Optional PostHog host override (defaults to the PostHog Cloud endpoint). */
   POSTHOG_HOST: optionalString(),
+
+  // --- Email (Resend) ------------------------------------------------------
+  /**
+   * Resend API key for transactional email delivery.
+   * When unset, emails are only logged (log transport — suitable for development).
+   */
+  RESEND_API_KEY: optionalString(),
+  /**
+   * "From" address used in all outbound emails.
+   * Defaults to `HypnoSleep <noreply@hypnosleep.app>` when unset.
+   */
+  EMAIL_FROM: optionalString(),
 });
 
 export type Env = z.infer<typeof envSchema>;

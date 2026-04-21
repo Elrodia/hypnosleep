@@ -5,3 +5,4 @@ export * from './favorites.js';
 export * from './referrals.js';
 export * from './usage-counters.js';
 export * from './oauth-transactions.js';
+export * from './email-otp-tokens.js';
