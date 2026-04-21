@@ -141,15 +141,12 @@ export async function upsertUserFromOAuth(profile: OAuthProfile): Promise<User> 
         ? errObj.errno
         : undefined;
     const sqlState = typeof errObj.sqlState === 'string' ? errObj.sqlState : undefined;
-    const sqlMessage = typeof errObj.sqlMessage === 'string' ? errObj.sqlMessage : undefined;
     logger.error(
       {
-        err,
         provider: profile.provider,
         driverCode,
         driverErrno,
         sqlState,
-        sqlMessage,
       },
       'Failed to insert new OAuth user into MySQL',
     );
