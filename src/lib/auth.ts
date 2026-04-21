@@ -10,7 +10,7 @@
 
 const TOKEN_STORAGE_KEY = 'hs.auth.token'
 
-export type OAuthProvider = 'google' | 'github' | 'microsoft'
+export type OAuthProvider = 'google' | 'github' | 'microsoft' | 'email'
 
 export interface AuthUser {
   id: string
@@ -200,3 +200,46 @@ export function consumeOAuthError(): boolean {
   }
   return true
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Email OTP (passwordless) helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Ask the backend to send a 6-digit OTP to `email`. Returns true on
+ * success. The backend always responds with `{ data: { ok: true } }` to
+ * avoid leaking whether the address is registered, so this only throws on
+ * network/server errors.
+ */
+export async function sendEmailOtp(email: string): Promise<void> {
+  const res = await fetch('/api/auth/email/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({})) as { error?: { message?: string } }
+    throw new Error(body?.error?.message ?? 'Failed to send sign-in code.')
+  }
+}
+
+/**
+ * Verify a 6-digit OTP. On success stores the issued JWT and returns true.
+ * Returns false (or throws) if the code was wrong / expired.
+ */
+export async function verifyEmailOtp(email: string, otp: string): Promise<boolean> {
+  const res = await fetch('/api/auth/email/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, otp }),
+  })
+  const body = await res.json().catch(() => ({})) as { data?: { token?: string }; error?: { message?: string } }
+  if (!res.ok) {
+    throw new Error(body?.error?.message ?? 'Invalid or expired code.')
+  }
+  const token = body?.data?.token
+  if (!token) return false
+  setAuthToken(token)
+  return true
+}
+

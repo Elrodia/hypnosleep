@@ -14,6 +14,8 @@ import {
   handleGetMe,
   handleLogout,
   handleOAuthCallback,
+  handleEmailOtpSend,
+  handleEmailOtpVerify,
   logOAuthFailure,
   redirectOAuthError,
 } from './auth.controller.js';
@@ -188,6 +190,8 @@ function callbackHandlers(provider: OAuthProvider) {
 export const authRouter = Router();
 
 const authRateLimit = rateLimit(RATE_LIMITS.AUTH.window, RATE_LIMITS.AUTH.max);
+const emailOtpSendRateLimit = rateLimit(RATE_LIMITS.EMAIL_OTP_SEND.window, RATE_LIMITS.EMAIL_OTP_SEND.max);
+const emailOtpVerifyRateLimit = rateLimit(RATE_LIMITS.EMAIL_OTP_VERIFY.window, RATE_LIMITS.EMAIL_OTP_VERIFY.max);
 
 // --- OAuth initiation ----------------------------------------------------
 authRouter.get('/google', authRateLimit, initOAuth('google'));
@@ -202,3 +206,7 @@ authRouter.get('/microsoft/callback', authRateLimit, ...callbackHandlers('micros
 // --- Session helpers -----------------------------------------------------
 authRouter.get('/me', authRateLimit, requireAuth, handleGetMe);
 authRouter.post('/logout', authRateLimit, requireAuth, handleLogout);
+
+// --- Email OTP (passwordless) --------------------------------------------
+authRouter.post('/email/send', emailOtpSendRateLimit, handleEmailOtpSend);
+authRouter.post('/email/verify', emailOtpVerifyRateLimit, handleEmailOtpVerify);

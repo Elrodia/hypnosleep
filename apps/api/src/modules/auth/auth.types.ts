@@ -1,7 +1,7 @@
 import type { Plan } from '../../config/constants.js';
 
-/** Supported OAuth providers. Passwordless — we support no other auth methods. */
-export type OAuthProvider = 'google' | 'github' | 'microsoft';
+/** Supported authentication providers. */
+export type OAuthProvider = 'google' | 'github' | 'microsoft' | 'email';
 
 /**
  * Normalized profile returned by each OAuth strategy after unwrapping the

@@ -1,17 +1,12 @@
 import { logger } from '../utils/logger.js';
+import { env } from '../config/env.js';
 
 /**
  * Minimal transactional email service.
  *
- * The production deployment uses a hosted provider (Resend/SES/Postmark)
- * but that integration is intentionally out-of-scope for this module — we
- * only need a stable, well-typed seam that callers (subscription webhook,
- * dunning, welcome mailers) can depend on without pulling in a new
- * dependency or leaking a vendor SDK into business logic.
- *
- * Default behaviour: log the outbound message at info level and resolve
- * successfully. Provider integration can be added later by swapping out
- * the body of `sendEmail` without touching any callers.
+ * When `RESEND_API_KEY` is configured the email is delivered via the
+ * Resend REST API (https://resend.com). Otherwise the message is logged
+ * at info level so local / CI environments work without credentials.
  */
 export interface EmailInput {
   to: string;
@@ -23,11 +18,50 @@ export interface EmailInput {
 export interface EmailResult {
   /** Provider-assigned message id when available; undefined for the log-only transport. */
   id?: string;
-  /** Which transport actually handled the send (`log` by default). */
-  transport: 'log';
+  /** Which transport actually handled the send. */
+  transport: 'resend' | 'log';
+}
+
+async function sendViaResend(input: EmailInput, apiKey: string, from: string): Promise<EmailResult> {
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to: [input.to],
+      subject: input.subject,
+      html: input.html,
+      ...(input.text ? { text: input.text } : {}),
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Resend API error ${res.status}: ${body}`);
+  }
+
+  const data = (await res.json()) as { id?: string };
+  return { id: data.id, transport: 'resend' };
 }
 
 export async function sendEmail(input: EmailInput): Promise<EmailResult> {
+  const apiKey = env.RESEND_API_KEY;
+  const from = env.EMAIL_FROM ?? 'HypnoSleep <noreply@hypnosleep.app>';
+
+  if (apiKey) {
+    try {
+      return await sendViaResend(input, apiKey, from);
+    } catch (err) {
+      logger.error(
+        { err, to: input.to, subject: input.subject },
+        'Resend delivery failed; falling back to log transport',
+      );
+    }
+  }
+
   logger.info(
     {
       to: input.to,
@@ -41,3 +75,4 @@ export async function sendEmail(input: EmailInput): Promise<EmailResult> {
   );
   return { transport: 'log' };
 }
+
