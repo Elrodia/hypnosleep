@@ -61,5 +61,9 @@ export function requestId() {
  */
 export function hashIp(ip: string | null | undefined, pepper: string): string | null {
   if (!ip) return null;
-  return createHash('sha256').update(`${ip}:${pepper}`).digest('hex');
+  // Length-prefixed concatenation so
+  // `hashIp('1.2.3',  '4:salt')` ≠ `hashIp('1.2.3:4', 'salt')`
+  // (and likewise for any other ambiguous pepper/IP split).
+  const prefix = `${ip.length}:${ip}:${pepper.length}:${pepper}`;
+  return createHash('sha256').update(prefix).digest('hex');
 }

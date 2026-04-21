@@ -79,11 +79,14 @@ export function registerRoutes(app: Express): void {
   // persistence regresses, without leaking any event details.
   app.get('/api/health/debug', (_req, res) => {
     const h = getDebugLogHealth();
+    // Only flip to `degraded` once we've observed at least one write
+    // AND the most recent one failed. A cold instance with zero
+    // writes yet is reported as `ok` (nothing broken, just no data).
     const writesObserved = h.totalWrites > 0;
     const lastWriteFailing = Boolean(h.lastWriteError);
     res.json({
       data: {
-        status: !writesObserved || !lastWriteFailing ? 'ok' : 'degraded',
+        status: writesObserved && lastWriteFailing ? 'degraded' : 'ok',
         lastWriteAt: h.lastWriteAt,
         lastWriteDurationMs: h.lastWriteDurationMs,
         totalWrites: h.totalWrites,

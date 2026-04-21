@@ -439,14 +439,19 @@ export async function pruneOldDebugEvents(retentionDays: number): Promise<number
 }
 
 const PRUNE_INTERVAL_MS = 60 * 60 * 1000; // hourly
+/**
+ * Delay on first boot before running the initial prune. Chosen to let
+ * the API finish its warm-up (DB pool, Redis handshake, queue worker
+ * startup) so the prune's DELETE doesn't contend with higher-priority
+ * init work on a cold boot.
+ */
+const PRUNE_STARTUP_DELAY_MS = 30_000;
 
 export function startDebugEventsPruneJob(): NodeJS.Timeout {
   const run = (): void => {
     void pruneOldDebugEvents(env.DEBUG_LOG_RETENTION_DAYS);
   };
-  // Small delay on first run so a boot storm doesn't serialize the prune
-  // behind other initialization work.
-  const startupTimer = setTimeout(run, 30_000);
+  const startupTimer = setTimeout(run, PRUNE_STARTUP_DELAY_MS);
   startupTimer.unref();
   const timer = setInterval(run, PRUNE_INTERVAL_MS);
   timer.unref();

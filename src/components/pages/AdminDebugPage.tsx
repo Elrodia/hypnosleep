@@ -286,7 +286,12 @@ export function AdminDebugPage() {
     void loadByRid(rid)
   }
 
-  const exportJsonlUrl = '/api/admin/debug/events.jsonl?limit=200'
+  // When the user has a rid pinned, scope the export to that rid so
+  // "Export JSONL" matches what they're looking at on-screen. When no
+  // rid is entered, fall back to the 200 most recent events.
+  const exportJsonlUrl = rid.trim() && UUID_V4.test(rid.trim())
+    ? `/api/admin/debug/events.jsonl?limit=200&rid=${encodeURIComponent(rid.trim())}`
+    : '/api/admin/debug/events.jsonl?limit=200'
 
   return (
     <div className="min-h-screen bg-background text-foreground px-4 py-8">

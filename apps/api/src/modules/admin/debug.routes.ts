@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireAuth } from '../auth/auth.middleware.js';
 import { requireAdmin } from '../../middleware/require-admin.js';
 import { isValidRequestId } from '../../middleware/request-id.js';
+import { ipRateLimit } from '../../middleware/rate-limit.js';
 import {
   getDebugEventsByRid,
   getDebugLogHealth,
@@ -18,9 +19,13 @@ export const adminDebugRouter = Router();
 /**
  * Admin debug endpoints are intentionally registered under
  * `/api/admin/*` (not nested inside any module router) so that the
- * admin gate (`requireAuth` → `requireAdmin`) is applied uniformly
- * and can't be accidentally skipped by a misplaced `.use()`.
+ * admin gate (`ipRateLimit` → `requireAuth` → `requireAdmin`) is
+ * applied uniformly and can't be accidentally skipped by a misplaced
+ * `.use()`. The IP rate-limit is the first gate so an unauthenticated
+ * scanner probing admin paths can't spin up unbounded DB queries via
+ * the list endpoints.
  */
+adminDebugRouter.use(ipRateLimit);
 adminDebugRouter.use(requireAuth);
 adminDebugRouter.use(requireAdmin);
 
@@ -42,6 +47,13 @@ const listQuerySchema = z.object({
       message: 'Unknown category',
     }),
   userId: z.string().trim().min(1).max(36).optional(),
+  rid: z
+    .string()
+    .trim()
+    .optional()
+    .refine((v) => v === undefined || isValidRequestId(v), {
+      message: 'rid must be a UUIDv4',
+    }),
   since: z
     .string()
     .datetime({ offset: true })
@@ -66,14 +78,16 @@ async function handleList(req: Request, res: Response, next: NextFunction): Prom
       next(validationFailed('Invalid query parameters', parsed.error.flatten().fieldErrors));
       return;
     }
-    const { category, userId, since, until, limit } = parsed.data;
-    const events = await listDebugEvents({
-      category: category as DebugEventCategory | undefined,
-      userId,
-      since: since ? new Date(since) : undefined,
-      until: until ? new Date(until) : undefined,
-      limit,
-    });
+    const { category, userId, rid, since, until, limit } = parsed.data;
+    const events = rid
+      ? await getDebugEventsByRid(rid)
+      : await listDebugEvents({
+          category: category as DebugEventCategory | undefined,
+          userId,
+          since: since ? new Date(since) : undefined,
+          until: until ? new Date(until) : undefined,
+          limit,
+        });
     res.json({ data: { events, count: events.length } });
   } catch (err) {
     next(err);
@@ -93,18 +107,24 @@ adminDebugRouter.get('/events.jsonl', async (req, res, next) => {
       next(validationFailed('Invalid query parameters', parsed.error.flatten().fieldErrors));
       return;
     }
-    const { category, userId, since, until, limit } = parsed.data;
-    const events = await listDebugEvents({
-      category: category as DebugEventCategory | undefined,
-      userId,
-      since: since ? new Date(since) : undefined,
-      until: until ? new Date(until) : undefined,
-      limit: limit ?? 200,
-    });
+    const { category, userId, rid, since, until, limit } = parsed.data;
+    const events = rid
+      ? await getDebugEventsByRid(rid)
+      : await listDebugEvents({
+          category: category as DebugEventCategory | undefined,
+          userId,
+          since: since ? new Date(since) : undefined,
+          until: until ? new Date(until) : undefined,
+          limit: limit ?? 200,
+        });
     res.setHeader('content-type', 'application/x-ndjson; charset=utf-8');
+    // Colons are illegal in Windows filenames, so normalize the
+    // timestamp to a cross-platform-safe form before handing it out
+    // as a `Content-Disposition` filename.
+    const safeStamp = new Date().toISOString().replace(/[:.]/g, '-');
     res.setHeader(
       'content-disposition',
-      `attachment; filename="debug-events-${new Date().toISOString()}.jsonl"`,
+      `attachment; filename="debug-events-${safeStamp}.jsonl"`,
     );
     for (const e of events) {
       res.write(`${JSON.stringify(e)}\n`);
