@@ -102,11 +102,66 @@ function callbackHandlers(provider: OAuthProvider) {
               message: 'OAuth authentication failed',
             });
             if (err) {
-              const errName =
-                typeof err === 'object' && err && 'name' in err && typeof err.name === 'string'
-                  ? err.name
-                  : 'OAuthError';
-              logger.warn({ provider, rid, errName }, 'OAuth provider returned an error');
+              // Surface enough detail about the underlying failure to make
+              // `provider_error` self-diagnosing on the next occurrence
+              // without ever writing access tokens, refresh tokens, or the
+              // authorization code into the logs. `passport-oauth2` attaches
+              // the upstream HTTP response via `err.oauthError`.
+              const errObj =
+                typeof err === 'object' && err !== null ? (err as Record<string, unknown>) : {};
+              const errName = typeof errObj.name === 'string' ? errObj.name : 'OAuthError';
+              const errMessage = typeof errObj.message === 'string' ? errObj.message : undefined;
+              const errStack = typeof errObj.stack === 'string' ? errObj.stack : undefined;
+              const errCode =
+                typeof errObj.code === 'string' || typeof errObj.code === 'number'
+                  ? errObj.code
+                  : undefined;
+              const oauthError =
+                typeof errObj.oauthError === 'object' && errObj.oauthError !== null
+                  ? (errObj.oauthError as Record<string, unknown>)
+                  : undefined;
+              const oauthStatusCode =
+                oauthError && typeof oauthError.statusCode === 'number'
+                  ? oauthError.statusCode
+                  : undefined;
+              // The provider's error body may be a JSON OAuth2 error object
+              // (`{"error":"invalid_grant", "error_description":"..."}`) or
+              // an HTML error page. We extract only the well-known non-
+              // sensitive OAuth2 error fields — never the raw body, which
+              // could theoretically echo back parts of the authorization
+              // request we sent.
+              let oauthErrorField: string | undefined;
+              let oauthErrorDescription: string | undefined;
+              if (oauthError && typeof oauthError.data === 'string') {
+                try {
+                  const parsed = JSON.parse(oauthError.data) as unknown;
+                  if (parsed && typeof parsed === 'object') {
+                    const p = parsed as Record<string, unknown>;
+                    if (typeof p.error === 'string') {
+                      oauthErrorField = p.error.slice(0, 128);
+                    }
+                    if (typeof p.error_description === 'string') {
+                      oauthErrorDescription = p.error_description.slice(0, 256);
+                    }
+                  }
+                } catch {
+                  // Non-JSON body (e.g. HTML error page): don't log it.
+                }
+              }
+              logger.warn(
+                {
+                  provider,
+                  rid,
+                  errName,
+                  errMessage,
+                  errCode,
+                  oauthStatusCode,
+                  oauthErrorField,
+                  oauthErrorDescription,
+                  stack: errStack,
+                },
+                'OAuth provider returned an error',
+              );
             }
             redirectOAuthError(res, { reason, rid });
             return;

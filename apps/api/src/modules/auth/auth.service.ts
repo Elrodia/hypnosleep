@@ -29,18 +29,30 @@ function generateReferralCode(): string {
 /**
  * Track a `signup` event in the analytics store. Intentionally
  * fire-and-forget: a failing event write must never block a login flow.
+ *
+ * Deferred to the next tick via `setImmediate` so that a Drizzle builder
+ * throwing *synchronously* (e.g. a Postgres pool that has been exhausted
+ * or closed) cannot escape the OAuth strategy's `verify` callback and be
+ * surfaced as a generic `provider_error` to the user. Any failure here
+ * is swallowed and logged — analytics must never gate authentication.
  */
 function trackSignupEvent(userId: string, provider: OAuthProfile['provider']): void {
-  void pgDb
-    .insert(events)
-    .values({
-      userId,
-      eventType: 'signup',
-      metadata: { provider },
-    })
-    .catch((err: unknown) => {
-      logger.error({ err, userId }, 'Failed to track signup event');
-    });
+  setImmediate(() => {
+    try {
+      void pgDb
+        .insert(events)
+        .values({
+          userId,
+          eventType: 'signup',
+          metadata: { provider },
+        })
+        .catch((err: unknown) => {
+          logger.error({ err, userId }, 'Failed to track signup event');
+        });
+    } catch (err) {
+      logger.error({ err, userId }, 'Failed to enqueue signup event');
+    }
+  });
 }
 
 /**
@@ -112,7 +124,47 @@ export async function upsertUserFromOAuth(profile: OAuthProfile): Promise<User> 
     referredBy: null,
   };
 
-  await mysqlDb.insert(users).values(newUser);
+  try {
+    await mysqlDb.insert(users).values(newUser);
+  } catch (err) {
+    // Attribute the driver error so logs point at the real column /
+    // constraint that failed (e.g. `ER_DUP_ENTRY` on a racing email,
+    // `ER_DATA_TOO_LONG` on a name or avatar URL that exceeded the
+    // schema, `ER_NO_REFERENCED_ROW_2` on a dangling FK). Without this
+    // attribution these surface as a generic `provider_error` on the
+    // frontend with no actionable detail on the server side.
+    const errObj =
+      typeof err === 'object' && err !== null ? (err as Record<string, unknown>) : {};
+    const driverCode = typeof errObj.code === 'string' ? errObj.code : undefined;
+    const driverErrno =
+      typeof errObj.errno === 'number' || typeof errObj.errno === 'string'
+        ? errObj.errno
+        : undefined;
+    const sqlState = typeof errObj.sqlState === 'string' ? errObj.sqlState : undefined;
+    const sqlMessage = typeof errObj.sqlMessage === 'string' ? errObj.sqlMessage : undefined;
+    logger.error(
+      {
+        err,
+        provider: profile.provider,
+        driverCode,
+        driverErrno,
+        sqlState,
+        sqlMessage,
+      },
+      'Failed to insert new OAuth user into MySQL',
+    );
+    throw new AppError(
+      'OAUTH_USER_CREATE_FAILED',
+      'Failed to create user from OAuth profile',
+      500,
+      {
+        provider: profile.provider,
+        ...(driverCode ? { driverCode } : {}),
+        ...(driverErrno !== undefined ? { driverErrno } : {}),
+        ...(sqlState ? { sqlState } : {}),
+      },
+    );
+  }
 
   trackSignupEvent(newUser.id, profile.provider);
 
