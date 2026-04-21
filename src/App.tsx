@@ -10,6 +10,7 @@ import { ProfilePage } from './components/pages/ProfilePage'
 import { LoginPage } from './components/pages/LoginPage'
 import { AuthCallbackPage } from './components/pages/AuthCallbackPage'
 import { AuthErrorPage } from './components/pages/AuthErrorPage'
+import { AdminDebugPage } from './components/pages/AdminDebugPage'
 
 // Lazy-load the marketing landing page so its JS and CSS are not shipped
 // with the authenticated app bundle. See lazyWithRetry comment below.
@@ -73,7 +74,7 @@ import { updateProfile, type UserPreferences } from '@/lib/api-endpoints'
  * primary navigation is tab-based and the only URLs we need to
  * recognise are the OAuth and payment callbacks.
  */
-type AppRoute = 'app' | 'auth-callback' | 'auth-error' | 'payment-success'
+type AppRoute = 'app' | 'auth-callback' | 'auth-error' | 'payment-success' | 'admin-debug'
 
 interface AuthErrorParams {
   error: string | null
@@ -88,6 +89,7 @@ function resolveRoute(): AppRoute {
   if (p === '/auth/callback') return 'auth-callback'
   if (p === '/auth/error') return 'auth-error'
   if (p === '/upgrade/success' || p === '/payment/success') return 'payment-success'
+  if (p === '/admin/debug') return 'admin-debug'
   return 'app'
 }
 
@@ -287,6 +289,22 @@ function AppContent() {
     // screen. Once `status` flips off 'loading', the effect swaps
     // `route` to 'app' and we fall through to the normal render tree.
     return <AuthCallbackPage />
+  }
+
+  if (route === 'admin-debug') {
+    // Authenticated admins only; the API itself gates access (403 for
+    // non-admins), so we just require a signed-in session here.
+    if (status === 'loading') {
+      return (
+        <AnimatePresence>
+          <SplashScreen />
+        </AnimatePresence>
+      )
+    }
+    if (!isLoggedIn) {
+      return <LoginPage />
+    }
+    return <AdminDebugPage />
   }
 
   if (route === 'auth-error') {

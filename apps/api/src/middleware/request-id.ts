@@ -1,6 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { Request, Response, NextFunction } from 'express';
-import { logger } from '../utils/logger.js';
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -11,10 +10,12 @@ declare module 'express-serve-static-core' {
      * `X-Request-Id` response header and used as the primary key
      * stitching OAuth state, access logs, debug events, and the
      * "Support reference" shown on the auth error page together.
+     *
+     * The per-request child Pino logger is set by `pino-http`
+     * downstream and lives on `req.log` (typed by `pino-http`), which
+     * is why we don't redeclare it here.
      */
     rid?: string;
-    /** Child logger bound to `{ rid }` for the request lifetime. */
-    log?: typeof logger;
   }
 }
 
@@ -48,7 +49,6 @@ export function requestId() {
   return (req: Request, res: Response, next: NextFunction): void => {
     const rid = pickInboundRid(req) ?? randomUUID();
     req.rid = rid;
-    req.log = logger.child({ rid });
     res.setHeader('X-Request-Id', rid);
     next();
   };
