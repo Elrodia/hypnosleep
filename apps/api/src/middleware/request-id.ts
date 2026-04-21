@@ -61,9 +61,13 @@ export function requestId() {
  */
 export function hashIp(ip: string | null | undefined, pepper: string): string | null {
   if (!ip) return null;
-  // Length-prefixed concatenation so
-  // `hashIp('1.2.3',  '4:salt')` ≠ `hashIp('1.2.3:4', 'salt')`
-  // (and likewise for any other ambiguous pepper/IP split).
+  // Length-prefixed concatenation so an ambiguous split between
+  // ip/pepper cannot produce the same pre-image for distinct inputs.
+  // For example, without the length prefixes, these two would hash
+  // to the same value:
+  //   hashIp('1.2.3',   '4:salt')  → sha256('1.2.3:4:salt')
+  //   hashIp('1.2.3:4', 'salt')    → sha256('1.2.3:4:salt')
+  // With length prefixes they diverge at the very first token.
   const prefix = `${ip.length}:${ip}:${pepper.length}:${pepper}`;
   return createHash('sha256').update(prefix).digest('hex');
 }

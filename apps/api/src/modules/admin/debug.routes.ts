@@ -24,10 +24,13 @@ export const adminDebugRouter = Router();
  * `.use()`. The IP rate-limit is the first gate so an unauthenticated
  * scanner probing admin paths can't spin up unbounded DB queries via
  * the list endpoints.
+ *
+ * The gate is chained into every handler explicitly (rather than
+ * registered once via `.use(...)` at the top of the router) so static
+ * analyzers like CodeQL's `js/missing-rate-limiting` query can see
+ * the rate-limiting middleware attached directly to each handler.
  */
-adminDebugRouter.use(ipRateLimit);
-adminDebugRouter.use(requireAuth);
-adminDebugRouter.use(requireAdmin);
+const ADMIN_GATE = [ipRateLimit, requireAuth, requireAdmin];
 
 const CATEGORIES: readonly DebugEventCategory[] = [
   'oauth',
@@ -94,13 +97,13 @@ async function handleList(req: Request, res: Response, next: NextFunction): Prom
   }
 }
 
-adminDebugRouter.get('/events', handleList);
+adminDebugRouter.get('/events', ...ADMIN_GATE, handleList);
 
 /**
  * JSONL export — one event per line. Used by on-call engineers who
  * want to pipe a filtered slice into `jq` or a downstream tool.
  */
-adminDebugRouter.get('/events.jsonl', async (req, res, next) => {
+adminDebugRouter.get('/events.jsonl', ...ADMIN_GATE, async (req, res, next) => {
   try {
     const parsed = listQuerySchema.safeParse(req.query);
     if (!parsed.success) {
@@ -118,9 +121,10 @@ adminDebugRouter.get('/events.jsonl', async (req, res, next) => {
           limit: limit ?? 200,
         });
     res.setHeader('content-type', 'application/x-ndjson; charset=utf-8');
-    // Colons are illegal in Windows filenames, so normalize the
-    // timestamp to a cross-platform-safe form before handing it out
-    // as a `Content-Disposition` filename.
+    // Colons and periods are illegal or problematic in Windows
+    // filenames (colons are reserved; trailing periods get stripped),
+    // so normalize the timestamp to a cross-platform-safe form before
+    // handing it out as a `Content-Disposition` filename.
     const safeStamp = new Date().toISOString().replace(/[:.]/g, '-');
     res.setHeader(
       'content-disposition',
@@ -135,7 +139,7 @@ adminDebugRouter.get('/events.jsonl', async (req, res, next) => {
   }
 });
 
-adminDebugRouter.get('/events/:rid', async (req, res, next) => {
+adminDebugRouter.get('/events/:rid', ...ADMIN_GATE, async (req, res, next) => {
   try {
     const rid = req.params.rid;
     if (!isValidRequestId(rid)) {
@@ -157,7 +161,7 @@ adminDebugRouter.get('/events/:rid', async (req, res, next) => {
  * Operator trigger: force an immediate prune outside of the hourly
  * schedule. Useful for running retention after a policy change.
  */
-adminDebugRouter.post('/prune', async (_req, res, next) => {
+adminDebugRouter.post('/prune', ...ADMIN_GATE, async (_req, res, next) => {
   try {
     const deleted = await pruneOldDebugEvents(env.DEBUG_LOG_RETENTION_DAYS);
     res.json({ data: { deleted, retentionDays: env.DEBUG_LOG_RETENTION_DAYS } });
@@ -166,7 +170,7 @@ adminDebugRouter.post('/prune', async (_req, res, next) => {
   }
 });
 
-adminDebugRouter.get('/health', (_req, res) => {
+adminDebugRouter.get('/health', ...ADMIN_GATE, (_req, res) => {
   res.json({
     data: {
       ...getDebugLogHealth(),
