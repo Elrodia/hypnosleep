@@ -1,7 +1,7 @@
 import type { Plan } from '../../config/constants.js';
 
 /** Supported authentication providers. */
-export type OAuthProvider = 'google' | 'github' | 'microsoft' | 'email';
+export type OAuthProvider = 'google' | 'github' | 'microsoft';
 
 /**
  * Normalized profile returned by each OAuth strategy after unwrapping the
