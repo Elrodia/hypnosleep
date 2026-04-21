@@ -183,6 +183,10 @@ describe('auth.service — upsertUserFromOAuth', () => {
     expect(user.referralCode).toMatch(/^[A-Z0-9]{10}$/);
     expect(user.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(insertedUsers).toHaveLength(1);
+    // `trackSignupEvent` is deferred via `setImmediate` so that a
+    // synchronously-throwing analytics DB can't escape the OAuth verify
+    // callback. Flush the event loop once before asserting.
+    await new Promise((resolve) => setImmediate(resolve));
     expect(insertedEvents).toEqual([
       { userId: user.id, eventType: 'signup', metadata: { provider: 'google' } },
     ]);
