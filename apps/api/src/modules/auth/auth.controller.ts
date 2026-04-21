@@ -7,6 +7,7 @@ import { oauthTransactions } from '../../db/mysql/schema/oauth-transactions.js';
 import { users, type User } from '../../db/mysql/schema/users.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
+import { recordDebugEvent } from '../../services/debug-log.service.js';
 import { issueJwt } from './auth.service.js';
 import type { OAuthProvider, OAuthState } from './auth.types.js';
 
@@ -37,7 +38,7 @@ export type OAuthFailureReason =
   | 'callback_failed';
 
 export function getOAuthRequestId(req: Request): string {
-  const candidate = (req as Request & { id?: unknown }).id;
+  const candidate = req.rid ?? (req as Request & { id?: unknown }).id;
   return typeof candidate === 'string' && candidate.length > 0 ? candidate : randomUUID();
 }
 
@@ -72,6 +73,25 @@ export function logOAuthFailure(
     },
     opts.message,
   );
+  // Best-effort persistence for support lookups. Never awaited — the
+  // OAuth flow proceeds regardless of whether the debug row lands.
+  void recordDebugEvent({
+    rid: opts.rid,
+    level: 'warn',
+    category: 'oauth',
+    reason: opts.reason,
+    message: opts.message,
+    userId: req.userId ?? null,
+    context: {
+      provider: opts.provider,
+      origin: meta.origin,
+    },
+    httpStatus: null,
+    method: req.method,
+    path: req.path || req.originalUrl || '',
+    userAgent: meta.userAgent,
+    ip: req.ip ?? null,
+  });
 }
 
 /**

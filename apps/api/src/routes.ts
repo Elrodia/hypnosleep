@@ -7,8 +7,10 @@ import { subscriptionRouter } from './modules/subscription/subscription.routes.j
 import { progressRouter } from './modules/progress/progress.routes.js';
 import { profileRouter } from './modules/profile/profile.routes.js';
 import { kvRouter } from './modules/kv/kv.routes.js';
+import { adminDebugRouter } from './modules/admin/debug.routes.js';
 import { authenticate } from './middleware/authenticate.js';
 import { env, validateAuthRuntimeConfig } from './config/env.js';
+import { getDebugLogHealth } from './services/debug-log.service.js';
 
 // Compute auth runtime diagnostics once at module load. `env` is static
 // for the process lifetime, so re-parsing `API_URL` / Railway domains on
@@ -56,6 +58,11 @@ export function registerRoutes(app: Express): void {
   // by Redis; keys are namespaced per authenticated user.
   app.use('/api/kv', kvRouter);
 
+  // Admin-only diagnostic endpoints: debug event lookup by rid,
+  // filtered listing, JSONL export, health. Gated at the router level
+  // by `requireAuth` → `requireAdmin`.
+  app.use('/api/admin/debug', adminDebugRouter);
+
   // Health check
   app.get('/api/health', (_req, res) => {
     res.json({
@@ -63,6 +70,30 @@ export function registerRoutes(app: Express): void {
         status: 'ok',
         timestamp: new Date().toISOString(),
         version: process.env.npm_package_version ?? '1.0.0',
+      },
+    });
+  });
+
+  // Unauthenticated liveness endpoint for the debug-log subsystem.
+  // Returns a coarse status so an uptime monitor can alert when
+  // persistence regresses, without leaking any event details.
+  app.get('/api/health/debug', (_req, res) => {
+    const h = getDebugLogHealth();
+    // Only flip to `degraded` once we've observed at least one write
+    // AND the most recent one failed. A cold instance with zero
+    // writes yet is reported as `ok` (nothing broken, just no data).
+    const writesObserved = h.totalWrites > 0;
+    const lastWriteFailing = Boolean(h.lastWriteError);
+    res.json({
+      data: {
+        status: writesObserved && lastWriteFailing ? 'degraded' : 'ok',
+        lastWriteAt: h.lastWriteAt,
+        lastWriteDurationMs: h.lastWriteDurationMs,
+        totalWrites: h.totalWrites,
+        totalFailures: h.totalFailures,
+        lastPruneAt: h.lastPruneAt,
+        lastPruneDeleted: h.lastPruneDeleted,
+        retentionDays: env.DEBUG_LOG_RETENTION_DAYS,
       },
     });
   });

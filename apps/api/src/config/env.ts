@@ -118,6 +118,49 @@ const envSchema = z.object({
   /** Optional PostHog host override (defaults to the PostHog Cloud endpoint). */
   POSTHOG_HOST: optionalString(),
 
+  // --- Debug log system ---------------------------------------------------
+  /**
+   * Comma-separated list of user IDs (UUIDv4) that are allowed to read
+   * from the debug-event store. When unset, the admin endpoints return
+   * 403 for every caller — so debug logs stay captured but are only
+   * accessible via direct DB access.
+   */
+  ADMIN_USER_IDS: optionalString(),
+  /** How many days to retain debug events. */
+  DEBUG_LOG_RETENTION_DAYS: z
+    .preprocess(
+      (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+      z.coerce.number().int().positive().max(3650).default(30),
+    ),
+  /**
+   * Sampling rate (0..1) for recording 4xx responses into `debug_events`.
+   * 5xx responses are always recorded. Defaults to 0 (no 4xx capture)
+   * so the store stays focused on real failures.
+   */
+  DEBUG_LOG_SAMPLE_4XX_RATE: z
+    .preprocess(
+      (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+      z.coerce.number().min(0).max(1).default(0),
+    ),
+  /**
+   * Optional HTTP endpoint receiving each recorded debug event as a
+   * JSON `POST` (e.g. Loki, Axiom, Datadog, a custom OTel collector).
+   * When unset, events are only persisted in `debug_events`.
+   */
+  DEBUG_LOG_SINK_URL: optionalString(),
+  /**
+   * Optional bearer token sent in the `Authorization` header when
+   * forwarding to `DEBUG_LOG_SINK_URL`. Never logged.
+   */
+  DEBUG_LOG_SINK_TOKEN: optionalString(),
+  /**
+   * Peppered into the sha256 used for `ip_hash` in debug events so the
+   * stored fingerprint is not a bare sha256(raw-IP) lookup table. Falls
+   * back to `JWT_SECRET` when unset — which is already a per-environment
+   * secret, so either choice gives the same privacy guarantee.
+   */
+  DEBUG_LOG_IP_HASH_PEPPER: optionalString(),
+
   // --- Email (Resend) ------------------------------------------------------
   /**
    * Resend API key for transactional email delivery.

@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { WarningCircle } from '@phosphor-icons/react'
+import { WarningCircle, Copy, Check } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 
 interface AuthErrorPageProps {
@@ -78,6 +79,18 @@ export function AuthErrorPage({
   requestId,
 }: AuthErrorPageProps) {
   const resolvedMessage = resolveAuthErrorMessage({ error, reason, message })
+  const [copied, setCopied] = useState(false)
+
+  const handleCopyRequestId = async () => {
+    if (!requestId) return
+    try {
+      await navigator.clipboard?.writeText(requestId)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      /* clipboard unavailable (older browsers, blocked perms) — silent */
+    }
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background text-foreground px-6">
@@ -94,9 +107,29 @@ export function AuthErrorPage({
           <h1 className="text-2xl font-serif font-semibold">Sign-in failed</h1>
           <p className="text-sm text-muted-foreground">{resolvedMessage}</p>
           {requestId && (
-            <p className="text-xs text-muted-foreground/70 pt-1">
-              Support reference: {requestId}
-            </p>
+            <div className="pt-1 flex flex-col items-center gap-1.5">
+              <p className="text-xs text-muted-foreground/70">
+                Support reference: <span className="font-mono">{requestId}</span>
+              </p>
+              <button
+                type="button"
+                onClick={handleCopyRequestId}
+                aria-label="Copy support reference"
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded px-2 py-1 hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {copied ? (
+                  <>
+                    <Check size={12} weight="bold" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy size={12} weight="regular" />
+                    Copy reference
+                  </>
+                )}
+              </button>
+            </div>
           )}
         </div>
         <Button onClick={onRetry} size="lg" className="w-full">
