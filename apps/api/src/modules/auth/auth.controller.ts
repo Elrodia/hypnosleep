@@ -565,7 +565,7 @@ export async function handleEmailOtpVerify(req: Request, res: Response): Promise
       provider: 'email',
       providerId: email,
       email,
-      name: email.split('@')[0] ?? email,
+      name: email.split('@')[0] || email,
       avatarUrl: undefined,
     });
   } catch (err) {
