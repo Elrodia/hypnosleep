@@ -60,7 +60,26 @@ export function redirectOAuthError(
 
 export function logOAuthFailure(
   req: Request,
-  opts: { provider: OAuthProvider; reason: OAuthFailureReason; rid: string; message: string },
+  opts: {
+    provider: OAuthProvider;
+    reason: OAuthFailureReason;
+    rid: string;
+    message: string;
+    /**
+     * Extra non-sensitive diagnostic fields to persist alongside the
+     * event (e.g. the upstream OAuth2 `error` code and
+     * `error_description`, the token-exchange HTTP status, the
+     * strategy-level error name/message). Merged into
+     * `debug_events.context` after the provider/origin fields so the
+     * admin debug endpoint surfaces them when looking up by `rid`.
+     *
+     * Callers MUST NOT pass secrets, tokens, authorization codes or
+     * raw response bodies here — {@link recordDebugEvent} applies
+     * defensive redaction, but the contract of this field is
+     * "self-diagnosing OAuth2 metadata only".
+     */
+    extraContext?: Record<string, unknown>;
+  },
 ): void {
   const meta = getOAuthRequestMeta(req);
   logger.warn(
@@ -70,6 +89,7 @@ export function logOAuthFailure(
       rid: opts.rid,
       origin: meta.origin,
       'user-agent': meta.userAgent,
+      ...opts.extraContext,
     },
     opts.message,
   );
@@ -85,6 +105,9 @@ export function logOAuthFailure(
     context: {
       provider: opts.provider,
       origin: meta.origin,
+      // Extra context goes last so the caller can NEVER override the
+      // canonical `provider`/`origin` fields above, only augment them.
+      ...(opts.extraContext ?? {}),
     },
     httpStatus: null,
     method: req.method,

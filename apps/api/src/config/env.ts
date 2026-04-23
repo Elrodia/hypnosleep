@@ -231,6 +231,120 @@ export interface AuthRuntimeDiagnostics {
 }
 
 /**
+ * A single issue flagged by {@link detectOAuthCredentialIssues}.
+ *
+ * Emitted as a startup WARN log so a misconfigured deployment surfaces
+ * the problem in the first line of `railway logs` rather than only
+ * manifesting as a generic `provider_error` at the callback step.
+ *
+ * `provider`/`field` identify which env var is suspect; `issue` is a
+ * short human-readable explanation ("looks like a placeholder",
+ * "doesn't match the expected Google client_id format", etc.).
+ */
+export interface OAuthCredentialIssue {
+  provider: OAuthProviderName;
+  field: string;
+  issue: string;
+}
+
+/** Common placeholder values and value fragments used in `.env.example` files. */
+const PLACEHOLDER_FRAGMENTS: readonly RegExp[] = [
+  /^changeme/i,
+  /^your[-_]/i,
+  /^replace[-_]?me/i,
+  /^todo$/i,
+  /^example$/i,
+  /^xxx+$/i,
+  /^placeholder/i,
+  /^\s*$/,
+  /^<.*>$/, // angle-bracket templates like <your-secret>
+];
+
+function looksLikePlaceholder(value: string): boolean {
+  return PLACEHOLDER_FRAGMENTS.some((re) => re.test(value.trim()));
+}
+
+/**
+ * Scan the OAuth client credentials for obvious misconfiguration
+ * WITHOUT ever logging the secret values themselves.
+ *
+ * Catches the single most frequent production failure mode we've
+ * observed: someone copies `.env.example` into Railway, clicks "Save",
+ * then the whole OAuth flow fails at the token-exchange step (which
+ * shows up to the user as the generic `provider_error` "The sign-in
+ * provider returned an error before authentication completed.") with
+ * no obvious cause.
+ *
+ * The checks are deliberately conservative — they only flag values
+ * that are almost certainly wrong (empty, obvious placeholders, or
+ * Google client IDs that don't end in `.apps.googleusercontent.com`).
+ * Real secrets are opaque random strings so a "too short" heuristic
+ * would either false-positive on valid short secrets or silently pass
+ * obvious garbage.
+ */
+export function detectOAuthCredentialIssues(currentEnv: Env): OAuthCredentialIssue[] {
+  const issues: OAuthCredentialIssue[] = [];
+
+  const googleIdLooksValid = /^[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com$/i.test(
+    currentEnv.GOOGLE_CLIENT_ID,
+  );
+  if (looksLikePlaceholder(currentEnv.GOOGLE_CLIENT_ID)) {
+    issues.push({
+      provider: 'google',
+      field: 'GOOGLE_CLIENT_ID',
+      issue: 'looks like a placeholder value',
+    });
+  } else if (!googleIdLooksValid) {
+    // Google client IDs are always `<digits>-<hash>.apps.googleusercontent.com`
+    // — anything else is either a typo, a swapped value, or a truncation.
+    issues.push({
+      provider: 'google',
+      field: 'GOOGLE_CLIENT_ID',
+      issue: 'does not match the expected `<N>-<id>.apps.googleusercontent.com` format',
+    });
+  }
+  if (looksLikePlaceholder(currentEnv.GOOGLE_CLIENT_SECRET)) {
+    issues.push({
+      provider: 'google',
+      field: 'GOOGLE_CLIENT_SECRET',
+      issue: 'looks like a placeholder value',
+    });
+  }
+
+  if (looksLikePlaceholder(currentEnv.GITHUB_CLIENT_ID)) {
+    issues.push({
+      provider: 'github',
+      field: 'GITHUB_CLIENT_ID',
+      issue: 'looks like a placeholder value',
+    });
+  }
+  if (looksLikePlaceholder(currentEnv.GITHUB_CLIENT_SECRET)) {
+    issues.push({
+      provider: 'github',
+      field: 'GITHUB_CLIENT_SECRET',
+      issue: 'looks like a placeholder value',
+    });
+  }
+
+  if (looksLikePlaceholder(currentEnv.MICROSOFT_CLIENT_ID)) {
+    issues.push({
+      provider: 'microsoft',
+      field: 'MICROSOFT_CLIENT_ID',
+      issue: 'looks like a placeholder value',
+    });
+  }
+  if (looksLikePlaceholder(currentEnv.MICROSOFT_CLIENT_SECRET)) {
+    issues.push({
+      provider: 'microsoft',
+      field: 'MICROSOFT_CLIENT_SECRET',
+      issue: 'looks like a placeholder value',
+    });
+  }
+
+  return issues;
+}
+
+/**
  * Validates public auth-facing URLs and computes non-secret diagnostics.
  */
 export function validateAuthRuntimeConfig(currentEnv: Env): AuthRuntimeDiagnostics {

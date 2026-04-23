@@ -7,7 +7,7 @@ import cors from 'cors';
 import pinoHttp from 'pino-http';
 import * as Sentry from '@sentry/node';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { env, validateAuthRuntimeConfig } from './config/env.js';
+import { detectOAuthCredentialIssues, env, validateAuthRuntimeConfig } from './config/env.js';
 import { logger } from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { ipRateLimit } from './middleware/rate-limit.js';
@@ -60,6 +60,21 @@ logger.info(
   },
   'OAuth runtime configuration',
 );
+
+// Startup credential sanity check. Non-fatal — we still let the API
+// boot so non-auth routes (health, debug) stay reachable — but
+// misconfigured providers log loudly so the first line of
+// `railway logs` after a deploy flags the problem instead of burying
+// it behind a generic `provider_error` redirect at token-exchange
+// time. The field values themselves are NEVER logged; only the env
+// var name and a short explanation.
+const oauthCredentialIssues = detectOAuthCredentialIssues(env);
+if (oauthCredentialIssues.length > 0) {
+  logger.warn(
+    { issues: oauthCredentialIssues },
+    'OAuth credential sanity check flagged one or more provider env vars. Sign-in will likely fail at the provider token-exchange step with reason=provider_error until these are fixed. Verify the values in Railway → Project → Service → Variables match what the provider console shows.',
+  );
+}
 
 const SAME_ORIGIN = (() => {
   try {
