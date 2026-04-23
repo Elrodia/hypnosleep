@@ -142,6 +142,47 @@ code into the OAuth `state` parameter and applies it on the callback
 (setting `users.referred_by`). Referral *rewards* are handled by the
 subscription module, not here.
 
+### Debugging "Sign-in failed — provider_error"
+
+When the error page shows `reason=provider_error`, the token-exchange
+step failed **after** the user returned from the provider. In order
+of likelihood:
+
+1. **Wrong client secret** in the deployment env vars. The provider
+   rejects the token-exchange POST with
+   `{"error":"invalid_client"}` → this is the single most common
+   cause after a console rotation.
+2. **Wrong client ID** — if the ID doesn't belong to the same OAuth
+   app as the registered redirect URI, the provider returns
+   `invalid_client` as well.
+3. **Redirect URI drift** between what we use at authorize time vs.
+   token time — very rare, but worth a glance if `API_URL` was
+   changed after the provider console entries.
+4. **User cancelled** on the consent screen → provider returns
+   `access_denied`.
+
+#### Fast path — check the suspected cause in <2 minutes
+
+- `GET /api/health/oauth-callbacks` — unauthenticated. Returns the
+  exact callback URLs this deployment builds from `API_URL`. Compare
+  them character-for-character against what's registered in:
+  - Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client
+    → **Authorized redirect URIs**
+  - GitHub → Developer settings → OAuth Apps → your app →
+    **Authorization callback URL**
+  - Microsoft Entra → App registrations → your app → Authentication →
+    **Redirect URIs** (Web)
+- `railway logs` — the startup banner flags obvious placeholder
+  values in `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, etc. with the
+  message "OAuth credential sanity check flagged one or more
+  provider env vars". The values themselves are never logged.
+- The user on the error page copies the **support reference** (a
+  UUID). Admin users can look it up via
+  `GET /api/admin/debug/rid/:rid` — the response's `context` field
+  now carries `oauthErrorField` (e.g. `invalid_client`) and
+  `oauthErrorDescription` directly from the provider, which narrows
+  the cause to exactly one of the four above.
+
 ## Scripts
 
 ```bash

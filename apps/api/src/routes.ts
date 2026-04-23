@@ -108,4 +108,28 @@ export function registerRoutes(app: Express): void {
       },
     });
   });
+
+  // Unauthenticated sibling of `/api/health/auth-config` that exposes
+  // ONLY the derived OAuth callback URLs and public origins. No
+  // secrets, no tokens, no user data. This is intentionally unguarded
+  // because OAuth sign-in is the very mechanism the operator would
+  // need to authenticate with — and when sign-in is broken (the exact
+  // failure mode this endpoint exists to diagnose), requiring auth to
+  // read the callback URLs defeats the purpose. The values returned
+  // here are already public-by-design: the provider consoles record
+  // them, and the browser's OAuth redirect URLs carry them on every
+  // sign-in attempt.
+  //
+  // Use this endpoint to verify the URLs registered in Google Cloud
+  // Console, GitHub Developers, and Microsoft Entra exactly match the
+  // `callbackUrls` this deployment builds from `API_URL`.
+  app.get('/api/health/oauth-callbacks', (_req, res) => {
+    res.json({
+      data: {
+        apiOrigin: authRuntimeDiagnostics.apiOrigin,
+        frontendOrigin: authRuntimeDiagnostics.frontendOrigin,
+        callbackUrls: authRuntimeDiagnostics.callbackUrls,
+      },
+    });
+  });
 }

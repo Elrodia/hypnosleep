@@ -109,7 +109,10 @@ export function AuthErrorPage({
           {requestId && (
             <div className="pt-1 flex flex-col items-center gap-1.5">
               <p className="text-xs text-muted-foreground/70">
-                Support reference: <span className="font-mono">{requestId}</span>
+                If this keeps happening, share this reference with support:
+              </p>
+              <p className="text-xs text-muted-foreground/70">
+                <span className="font-mono">{requestId}</span>
               </p>
               <button
                 type="button"

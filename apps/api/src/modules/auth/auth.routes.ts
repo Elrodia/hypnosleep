@@ -95,18 +95,22 @@ function callbackHandlers(provider: OAuthProvider) {
               (err as { code?: unknown }).code === 'EMAIL_PROVIDER_MISMATCH'
                 ? 'email_provider_mismatch'
                 : 'provider_error';
-            logOAuthFailure(req, {
-              provider,
-              reason,
-              rid,
-              message: 'OAuth authentication failed',
-            });
+
+            // Surface enough detail about the underlying failure to make
+            // `provider_error` self-diagnosing on the next occurrence
+            // without ever writing access tokens, refresh tokens, or the
+            // authorization code into the logs. `passport-oauth2` attaches
+            // the upstream HTTP response via `err.oauthError`.
+            //
+            // These fields are extracted up-front (before logging) so we
+            // can persist them into `debug_events.context` via
+            // `logOAuthFailure` — otherwise an admin looking up the rid
+            // later would see only the generic reason and have no way to
+            // tell apart "invalid_client" (bad secret in Railway) from
+            // "redirect_uri_mismatch" (bad provider console config) from
+            // "access_denied" (user cancelled).
+            const extractedContext: Record<string, unknown> = {};
             if (err) {
-              // Surface enough detail about the underlying failure to make
-              // `provider_error` self-diagnosing on the next occurrence
-              // without ever writing access tokens, refresh tokens, or the
-              // authorization code into the logs. `passport-oauth2` attaches
-              // the upstream HTTP response via `err.oauthError`.
               const errObj =
                 typeof err === 'object' && err !== null ? (err as Record<string, unknown>) : {};
               const errName = typeof errObj.name === 'string' ? errObj.name : 'OAuthError';
@@ -148,21 +152,43 @@ function callbackHandlers(provider: OAuthProvider) {
                   // Non-JSON body (e.g. HTML error page): don't log it.
                 }
               }
+
+              // Populate the context we hand off to `logOAuthFailure`.
+              // Only include defined fields so the persisted JSON stays
+              // compact and grep-friendly.
+              if (errName) extractedContext.errName = errName;
+              if (errMessage) extractedContext.errMessage = errMessage.slice(0, 256);
+              if (errCode !== undefined) extractedContext.errCode = errCode;
+              if (oauthStatusCode !== undefined) extractedContext.oauthStatusCode = oauthStatusCode;
+              if (oauthErrorField) extractedContext.oauthErrorField = oauthErrorField;
+              if (oauthErrorDescription) {
+                extractedContext.oauthErrorDescription = oauthErrorDescription;
+              }
+
+              // The stack frame is still useful for engineers reading
+              // Railway logs live, but we deliberately do NOT persist it
+              // to debug_events — stacks can contain URL fragments with
+              // sensitive params from nested callers. Pino already
+              // redacts `Authorization` / `Cookie` headers at the HTTP
+              // layer (see `server.ts` pinoHttp config).
               logger.warn(
                 {
                   provider,
                   rid,
-                  errName,
-                  errMessage,
-                  errCode,
-                  oauthStatusCode,
-                  oauthErrorField,
-                  oauthErrorDescription,
+                  ...extractedContext,
                   stack: errStack,
                 },
                 'OAuth provider returned an error',
               );
             }
+
+            logOAuthFailure(req, {
+              provider,
+              reason,
+              rid,
+              message: 'OAuth authentication failed',
+              extraContext: Object.keys(extractedContext).length > 0 ? extractedContext : undefined,
+            });
 
             // Best-effort cleanup: invalidate the state cookie and
             // DB/Redis transaction so the state cannot be replayed.
