@@ -144,25 +144,37 @@ subscription module, not here.
 
 ### Debugging "Sign-in failed — provider_error"
 
-When the error page shows `reason=provider_error`, the token-exchange
-step failed **after** the user returned from the provider. In order
-of likelihood:
+When the error page shows `reason=provider_error`, the OAuth callback
+failed **after** the user returned from the provider. In order of
+likelihood:
 
-1. **Wrong client secret** in the deployment env vars. The provider
+1. **`oauth_transactions` table missing** in MySQL — i.e. the Railway
+   release-time `npm run db:mysql:migrate` didn't run on this
+   deployment. mysql2 throws `ER_NO_SUCH_TABLE` inside the callback's
+   state-consumption path, which surfaces as `provider_error` to the
+   user. **This has been the most common cause in practice** — verify
+   it first (see fast path below).
+2. **Wrong client secret** in the deployment env vars. The provider
    rejects the token-exchange POST with
-   `{"error":"invalid_client"}` → this is the single most common
-   cause after a console rotation.
-2. **Wrong client ID** — if the ID doesn't belong to the same OAuth
+   `{"error":"invalid_client"}`.
+3. **Wrong client ID** — if the ID doesn't belong to the same OAuth
    app as the registered redirect URI, the provider returns
    `invalid_client` as well.
-3. **Redirect URI drift** between what we use at authorize time vs.
+4. **Redirect URI drift** between what we use at authorize time vs.
    token time — very rare, but worth a glance if `API_URL` was
    changed after the provider console entries.
-4. **User cancelled** on the consent screen → provider returns
+5. **User cancelled** on the consent screen → provider returns
    `access_denied`.
 
 #### Fast path — check the suspected cause in <2 minutes
 
+- `GET /api/health/database` — unauthenticated. Returns
+  `{"status":"ok",...}` when every required core table is present, or
+  `{"status":"missing_tables","missingTables":["oauth_transactions",
+  ...]}` when migrations haven't run. If this is non-empty, **stop
+  here** — the fix is `railway run -s <api-service> npm --prefix
+  apps/api run db:mysql:migrate`, then redeploy. Everything else below
+  is moot until this is green.
 - `GET /api/health/oauth-callbacks` — unauthenticated. Returns the
   exact callback URLs this deployment builds from `API_URL`. Compare
   them character-for-character against what's registered in:
@@ -172,16 +184,20 @@ of likelihood:
     **Authorization callback URL**
   - Microsoft Entra → App registrations → your app → Authentication →
     **Redirect URIs** (Web)
-- `railway logs` — the startup banner flags obvious placeholder
-  values in `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, etc. with the
-  message "OAuth credential sanity check flagged one or more
-  provider env vars". The values themselves are never logged.
+- `railway logs` — the startup banner flags two independent issues:
+  - "MySQL schema sanity check found missing tables" with the table
+    list and the exact repair command — this is the failure mode for
+    cause #1 above.
+  - "OAuth credential sanity check flagged one or more provider env
+    vars" — causes #2/#3 above. The values themselves are never logged.
 - The user on the error page copies the **support reference** (a
   UUID). Admin users can look it up via
   `GET /api/admin/debug/rid/:rid` — the response's `context` field
-  now carries `oauthErrorField` (e.g. `invalid_client`) and
-  `oauthErrorDescription` directly from the provider, which narrows
-  the cause to exactly one of the four above.
+  now carries one of:
+  - `dbErrCode: "ER_NO_SUCH_TABLE"` + `dbMissingTable: "oauth_transactions"`
+    (or similar) → cause #1 above.
+  - `oauthErrorField` (e.g. `invalid_client`) and
+    `oauthErrorDescription` directly from the provider → causes #2–#5.
 
 ## Scripts
 
