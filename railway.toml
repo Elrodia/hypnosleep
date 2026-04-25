@@ -11,13 +11,27 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# `releaseCommand` runs once before the new container is promoted to
+# `preDeployCommand` runs once before the new container is promoted to
 # serving traffic. We apply database migrations (MySQL + Postgres)
 # and then seed any pending/failed template rows so a fresh deploy
 # ships with a populated library. The seed step is best-effort: if
 # it fails (e.g. Gemini rate limit) we still start the API — a
 # subsequent deploy will retry the templates that stayed `failed`.
-releaseCommand = "npm run db:migrate && (npx tsx scripts/seed-templates.ts || echo 'Template seeding failed — continuing deploy')"
+#
+# IMPORTANT: this MUST be `preDeployCommand`, NOT `releaseCommand`.
+# `releaseCommand` is Heroku terminology — Railway silently ignores
+# unknown keys, so the previous (incorrect) name caused migrations
+# to never run on deploy, which presented as `provider_error` at
+# OAuth callback time once any migration that wasn't in the bootstrap
+# image landed in the repo (specifically `0003_oauth_transactions`).
+# See `apps/api/README.md` "Debugging provider_error" → cause #1.
+#
+# `cd` is explicit because Railway's pre-deploy step is documented as
+# running in the build's working directory, and we don't want to
+# depend on the Dockerfile's trailing `WORKDIR /app/apps/api` — if a
+# future Dockerfile reorder breaks that invariant, migrations would
+# silently start failing again from a non-API directory.
+preDeployCommand = "cd /app/apps/api && npm run db:migrate && (npx tsx scripts/seed-templates.ts || echo 'Template seeding failed — continuing deploy')"
 startCommand = "node dist/server.js"
 # `/health` is registered before the rate limiter and before the Sentry
 # error handler, so Railway's probes never get 429'd or accidentally
