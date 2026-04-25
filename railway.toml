@@ -31,7 +31,7 @@ dockerfilePath = "Dockerfile"
 # depend on the Dockerfile's trailing `WORKDIR /app/apps/api` — if a
 # future Dockerfile reorder breaks that invariant, migrations would
 # silently start failing again from a non-API directory.
-preDeployCommand = "cd /app/apps/api && npx tsx scripts/bootstrap-migrations.ts && npm run db:migrate && (npx tsx scripts/seed-templates.ts || echo 'Template seeding failed — continuing deploy')"
+preDeployCommand = "set -ex && cd /app/apps/api && ./node_modules/.bin/tsx scripts/bootstrap-migrations.ts && npm run db:migrate && (./node_modules/.bin/tsx scripts/seed-templates.ts || echo 'Template seeding failed — continuing deploy')"
 startCommand = "node dist/server.js"
 # `/health` is registered before the rate limiter and before the Sentry
 # error handler, so Railway's probes never get 429'd or accidentally
