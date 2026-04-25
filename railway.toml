@@ -14,8 +14,8 @@ dockerfilePath = "Dockerfile"
 # Migrations and template seeding are run as part of `startCommand`,
 # NOT in a `preDeployCommand`. This was a hard-won lesson:
 #
-#   1. `releaseCommand` (PR <#74) was a no-op because that's Heroku
-#      terminology — Railway silently ignores unknown keys, so
+#   1. `releaseCommand` (PR #74 and earlier) was a no-op because that's
+#      Heroku terminology — Railway silently ignores unknown keys, so
 #      migrations never ran. This presented as `provider_error` at
 #      OAuth callback time once `0003_oauth_transactions` landed,
 #      because `beginOAuthState` writes to a table that didn't exist.
