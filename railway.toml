@@ -11,28 +11,37 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# `preDeployCommand` runs once before the new container is promoted to
-# serving traffic. We apply database migrations (MySQL + Postgres)
-# and then seed any pending/failed template rows so a fresh deploy
-# ships with a populated library. The seed step is best-effort: if
-# it fails (e.g. Gemini rate limit) we still start the API — a
-# subsequent deploy will retry the templates that stayed `failed`.
+# Migrations and template seeding are run as part of `startCommand`,
+# NOT in a `preDeployCommand`. This was a hard-won lesson:
 #
-# IMPORTANT: this MUST be `preDeployCommand`, NOT `releaseCommand`.
-# `releaseCommand` is Heroku terminology — Railway silently ignores
-# unknown keys, so the previous (incorrect) name caused migrations
-# to never run on deploy, which presented as `provider_error` at
-# OAuth callback time once any migration that wasn't in the bootstrap
-# image landed in the repo (specifically `0003_oauth_transactions`).
-# See `apps/api/README.md` "Debugging provider_error" → cause #1.
+#   1. `releaseCommand` (PR <#74) was a no-op because that's Heroku
+#      terminology — Railway silently ignores unknown keys, so
+#      migrations never ran. This presented as `provider_error` at
+#      OAuth callback time once `0003_oauth_transactions` landed,
+#      because `beginOAuthState` writes to a table that didn't exist.
+#   2. Switching to `preDeployCommand` (PRs 73–79) hit a Railway
+#      platform behaviour where the pre-deploy hook produced ZERO
+#      log output regardless of how the command was structured —
+#      `set -e`, `2>&1`, `printf` markers, dropping `npx`, creating
+#      a HOME for the app user, etc. all came back blank. That made
+#      every failure undebuggable, and PR #80 ended up replacing the
+#      command with a pure diagnostic, regressing #1 above.
 #
-# `cd` is explicit because Railway's pre-deploy step is documented as
-# running in the build's working directory, and we don't want to
-# depend on the Dockerfile's trailing `WORKDIR /app/apps/api` — if a
-# future Dockerfile reorder breaks that invariant, migrations would
-# silently start failing again from a non-API directory.
-preDeployCommand = "echo 'PRE-DEPLOY: test start' && whoami && pwd && ls -la && echo 'PRE-DEPLOY: test complete'"
-startCommand = "node dist/server.js"
+# Running migrations in `startCommand` sidesteps the silent
+# pre-deploy hook entirely: stdout/stderr from the running container
+# is captured by Railway's normal runtime log pipeline, so any
+# migration failure is immediately visible. If migrations fail the
+# process exits non-zero before binding the port, `/health` never
+# answers, the deploy fails the healthcheck, and Railway surfaces
+# the full migration output in the deploy logs.
+#
+# `bootstrap-migrations.ts` is idempotent — it backfills the
+# `__drizzle_migrations` tracking table for migrations applied
+# during the original out-of-band bootstrap so drizzle-kit doesn't
+# re-run them. `db:migrate` then applies any new migrations.
+# Template seeding stays best-effort: a Gemini rate-limit must not
+# block sign-in.
+startCommand = "node --import tsx scripts/bootstrap-migrations.ts && npm run db:migrate && (node --import tsx scripts/seed-templates.ts || echo 'startup: seed failed, continuing') && exec node dist/server.js"
 # `/health` is registered before the rate limiter and before the Sentry
 # error handler, so Railway's probes never get 429'd or accidentally
 # captured as synthetic errors. The richer `/api/health` endpoint is
