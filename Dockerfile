@@ -107,7 +107,7 @@ ENV NODE_ENV=production \
 
 # Run as a non-root user to limit blast radius of any runtime
 # compromise. Chown after all COPYs so the app user owns the full tree.
-RUN groupadd -r app && useradd -r -g app app && chown -R app:app /app
+RUN groupadd -r app && useradd -r -g app -m -d /home/app app && chown -R app:app /app
 USER app
 
 EXPOSE 3000
