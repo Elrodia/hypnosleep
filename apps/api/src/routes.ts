@@ -11,6 +11,12 @@ import { adminDebugRouter } from './modules/admin/debug.routes.js';
 import { authenticate } from './middleware/authenticate.js';
 import { env, validateAuthRuntimeConfig } from './config/env.js';
 import { getDebugLogHealth } from './services/debug-log.service.js';
+import {
+  detectMissingCoreTables,
+  REQUIRED_MYSQL_TABLES,
+} from './db/mysql/schema-check.js';
+import { mysqlSchemaProbe } from './db/mysql/schema-probe.js';
+import { logger } from './utils/logger.js';
 
 // Compute auth runtime diagnostics once at module load. `env` is static
 // for the process lifetime, so re-parsing `API_URL` / Railway domains on
@@ -131,5 +137,39 @@ export function registerRoutes(app: Express): void {
         callbackUrls: authRuntimeDiagnostics.callbackUrls,
       },
     });
+  });
+
+  // Unauthenticated schema probe. Reports whether the required core
+  // MySQL tables exist on THIS deployment. Intentionally public for the
+  // same reason `/api/health/oauth-callbacks` is: when the release-time
+  // migration step silently skips and `oauth_transactions` is missing,
+  // sign-in is broken end-to-end — so requiring authentication to find
+  // out "what's broken" would defeat the point.
+  //
+  // Returns NO connection string, NO credentials, NO row counts, NO
+  // server version — only table names (which are already encoded in
+  // the SQL migration files committed to the repo, so they are not
+  // sensitive). `status` is `ok` iff every required table is present.
+  app.get('/api/health/database', async (_req, res) => {
+    try {
+      const missing = await detectMissingCoreTables(mysqlSchemaProbe);
+      res.json({
+        data: {
+          status: missing.length === 0 ? 'ok' : 'missing_tables',
+          requiredTables: REQUIRED_MYSQL_TABLES,
+          missingTables: missing.map((m) => m.table),
+        },
+      });
+    } catch (err) {
+      // A failing probe is a connectivity problem, not a schema problem.
+      // Report it separately so the two modes don't get confused.
+      logger.warn({ err }, 'GET /api/health/database: schema probe failed');
+      res.status(503).json({
+        data: {
+          status: 'probe_failed',
+          requiredTables: REQUIRED_MYSQL_TABLES,
+        },
+      });
+    }
   });
 }

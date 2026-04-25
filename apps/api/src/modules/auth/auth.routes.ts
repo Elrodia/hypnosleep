@@ -165,6 +165,28 @@ function callbackHandlers(provider: OAuthProvider) {
                 extractedContext.oauthErrorDescription = oauthErrorDescription;
               }
 
+              // Surface the specific "MySQL table is missing" failure so
+              // `provider_error` doesn't mask it. mysql2 sets both
+              // `.code` ('ER_NO_SUCH_TABLE') and `.errno` (1146); drizzle
+              // rethrows the underlying error verbatim. If either matches
+              // we also try to pick the table name out of the message
+              // ("Table 'db.oauth_transactions' doesn't exist") so the
+              // persisted debug_events row tells an admin WHICH table is
+              // missing without needing log access. Never logs the DB
+              // name itself — that could leak infra naming — only the
+              // table portion.
+              const errno =
+                typeof errObj.errno === 'number' ? errObj.errno : undefined;
+              if (errCode === 'ER_NO_SUCH_TABLE' || errno === 1146) {
+                extractedContext.dbErrCode = 'ER_NO_SUCH_TABLE';
+                if (errMessage) {
+                  const match = /Table '[^']*\.([^']+)' doesn't exist/i.exec(errMessage);
+                  if (match?.[1]) {
+                    extractedContext.dbMissingTable = match[1];
+                  }
+                }
+              }
+
               // The stack frame is still useful for engineers reading
               // Railway logs live, but we deliberately do NOT persist it
               // to debug_events — stacks can contain URL fragments with

@@ -18,6 +18,8 @@ import { shutdownPostHog } from './services/posthog.service.js';
 import { startOAuthTransactionsCleanupJob } from './modules/auth/oauth-transactions.cleanup.js';
 import { startDebugEventsPruneJob } from './services/debug-log.service.js';
 import { requestId } from './middleware/request-id.js';
+import { detectMissingCoreTables } from './db/mysql/schema-check.js';
+import { mysqlSchemaProbe } from './db/mysql/schema-probe.js';
 
 // --- Sentry: initialize FIRST so early errors are captured ----------------
 if (env.SENTRY_DSN) {
@@ -75,6 +77,42 @@ if (oauthCredentialIssues.length > 0) {
     'OAuth credential sanity check flagged one or more provider env vars. Sign-in will likely fail at the provider token-exchange step with reason=provider_error until these are fixed. Verify the values in Railway → Project → Service → Variables match what the provider console shows.',
   );
 }
+
+// Startup schema sanity check. Complements the credential check above:
+// credentials can be correct AND sign-in still fail at the callback step
+// if the underlying MySQL tables the OAuth flow reads/writes (namely
+// `oauth_transactions`) don't exist. That's the failure mode we hit when
+// the Railway release command silently skipped `npm run db:migrate`.
+//
+// Non-fatal by design — we still want `/health`, `/api/health/database`
+// and the debug endpoints to stay reachable so an operator can inspect
+// the state. The WARN line tells them exactly which table is missing
+// and the exact command that repairs it, so it's the first thing they
+// see in `railway logs` after a deploy.
+void (async () => {
+  try {
+    const missing = await detectMissingCoreTables(mysqlSchemaProbe);
+    if (missing.length > 0) {
+      logger.warn(
+        {
+          missingTables: missing.map((m) => m.table),
+          issues: missing,
+        },
+        'MySQL schema sanity check found missing tables. Sign-in will fail at the callback step with reason=provider_error (the oauth_transactions writes throw ER_NO_SUCH_TABLE) until migrations run. Fix: `railway run -s <api-service> npm --prefix apps/api run db:mysql:migrate` — or confirm the release command executed on the last deploy (Railway → service → Deployments → latest → Release logs).',
+      );
+    } else {
+      logger.info('MySQL schema sanity check: all required tables present');
+    }
+  } catch (err) {
+    // A failing schema probe is a DB-connectivity issue, not a missing
+    // table — log it as a separate warning so the two failure modes
+    // can't be confused.
+    logger.warn(
+      { err },
+      'MySQL schema sanity check could not run (probe threw). This is likely a DB connectivity problem, not a missing-table problem.',
+    );
+  }
+})();
 
 const SAME_ORIGIN = (() => {
   try {

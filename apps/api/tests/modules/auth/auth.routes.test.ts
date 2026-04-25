@@ -165,6 +165,50 @@ describe('auth.routes callback failure cleanup', () => {
     expect(call.extraContext).not.toHaveProperty('refreshToken');
   });
 
+  it('flags ER_NO_SUCH_TABLE with the missing table name in extraContext', async () => {
+    consumeOAuthState.mockResolvedValueOnce({ state: null, reason: 'state_missing' });
+
+    // This is what mysql2 throws when the state-consumption UPDATE hits
+    // a DB whose migrations never ran — the exact shape we observed in
+    // production before the schema sanity check existed. Error shape
+    // comes straight from mysql2: both `.code` and `.errno` are set.
+    const dbErr = Object.assign(
+      new Error("Table 'railway.oauth_transactions' doesn't exist"),
+      {
+        name: 'Error',
+        code: 'ER_NO_SUCH_TABLE',
+        errno: 1146,
+        sqlState: '42S02',
+      },
+    );
+
+    passportAuthenticate.mockImplementation(
+      (_provider: string, _opts: { session: false }, cb: (err: unknown, user: null) => void) =>
+        (_req: Request, _res: Response, _next: NextFunction) => cb(dbErr, null),
+    );
+
+    const middleware = getGoogleCallbackMiddleware();
+    const req = { query: { state: 'encoded' } } as unknown as Request;
+    const res = { clearCookie: vi.fn(), redirect: vi.fn() } as unknown as Response;
+
+    middleware(req, res, vi.fn());
+    await Promise.resolve();
+
+    const call = logOAuthFailure.mock.calls[0]?.[1] as {
+      extraContext?: Record<string, unknown>;
+    };
+    expect(call.extraContext).toEqual(
+      expect.objectContaining({
+        errCode: 'ER_NO_SUCH_TABLE',
+        dbErrCode: 'ER_NO_SUCH_TABLE',
+        dbMissingTable: 'oauth_transactions',
+      }),
+    );
+    // The dedicated `dbMissingTable` field is the grep-friendly one —
+    // must be just the table name, not a `db.table` string.
+    expect(call.extraContext?.dbMissingTable).toBe('oauth_transactions');
+  });
+
   it('omits extraContext when the passport callback reports no error (user=false)', async () => {
     consumeOAuthState.mockResolvedValueOnce({ state: null, reason: 'state_missing' });
 
