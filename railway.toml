@@ -11,37 +11,45 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Migrations and template seeding are run as part of `startCommand`,
-# NOT in a `preDeployCommand`. This was a hard-won lesson:
+# Database migrations run in `preDeployCommand`, which Railway executes
+# exactly once per deploy (regardless of replica count) before any
+# replica is started. Template seeding and the server itself run from
+# `startCommand` on every replica.
 #
+# History:
 #   1. `releaseCommand` (PR #74 and earlier) was a no-op because that's
 #      Heroku terminology — Railway silently ignores unknown keys, so
 #      migrations never ran. This presented as `provider_error` at
 #      OAuth callback time once `0003_oauth_transactions` landed,
 #      because `beginOAuthState` writes to a table that didn't exist.
-#   2. Switching to `preDeployCommand` (PRs 73–79) hit a Railway
-#      platform behaviour where the pre-deploy hook produced ZERO
-#      log output regardless of how the command was structured —
-#      `set -e`, `2>&1`, `printf` markers, dropping `npx`, creating
-#      a HOME for the app user, etc. all came back blank. That made
-#      every failure undebuggable, and PR #80 ended up replacing the
-#      command with a pure diagnostic, regressing #1 above.
-#
-# Running migrations in `startCommand` sidesteps the silent
-# pre-deploy hook entirely: stdout/stderr from the running container
-# is captured by Railway's normal runtime log pipeline, so any
-# migration failure is immediately visible. If migrations fail the
-# process exits non-zero before binding the port, `/health` never
-# answers, the deploy fails the healthcheck, and Railway surfaces
-# the full migration output in the deploy logs.
+#   2. Earlier `preDeployCommand` attempts (PRs 73–79) appeared to
+#      produce no log output, but the underlying cause was actually
+#      `drizzle-kit migrate` hanging on interactive confirmation
+#      because the drizzle configs had `strict: true`. The pre-deploy
+#      container has no TTY, so the prompt was waiting on a stdin that
+#      would never deliver a newline, and the hook eventually timed
+#      out with no useful output. Both drizzle configs now set
+#      `strict: false` so migrations run non-interactively.
+#   3. PR #81 moved migrations into `startCommand` to work around (2),
+#      but that ran `npm run db:migrate` on all 6 replicas in parallel.
+#      The first replica to acquire the migration lock would proceed
+#      while the others blocked; combined with the still-present
+#      `strict: true` prompt, every replica hung before binding its
+#      port, `/health` never answered, and Railway killed the deploy
+#      after the 30-second healthcheck timeout.
 #
 # `bootstrap-migrations.ts` is idempotent — it backfills the
-# `__drizzle_migrations` tracking table for migrations applied
-# during the original out-of-band bootstrap so drizzle-kit doesn't
-# re-run them. `db:migrate` then applies any new migrations.
-# Template seeding stays best-effort: a Gemini rate-limit must not
-# block sign-in.
-startCommand = "node --import tsx scripts/bootstrap-migrations.ts && npm run db:migrate && (node --import tsx scripts/seed-templates.ts || echo 'startup: seed failed, continuing') && exec node dist/server.js"
+# `__drizzle_migrations` tracking table for migrations applied during
+# the original out-of-band bootstrap so drizzle-kit doesn't re-run
+# them. `db:migrate` then applies any new migrations. If either step
+# fails the deploy aborts before any replica is booted, and Railway
+# surfaces the full output in the pre-deploy logs.
+#
+# Template seeding stays in `startCommand` and remains best-effort: a
+# Gemini rate-limit must not block sign-in. It is safe to run on every
+# replica because the seeder is idempotent.
+preDeployCommand = "node --import tsx scripts/bootstrap-migrations.ts && npm run db:migrate"
+startCommand = "(node --import tsx scripts/seed-templates.ts || echo 'startup: seed failed, continuing') && exec node dist/server.js"
 # `/health` is registered before the rate limiter and before the Sentry
 # error handler, so Railway's probes never get 429'd or accidentally
 # captured as synthetic errors. The richer `/api/health` endpoint is
