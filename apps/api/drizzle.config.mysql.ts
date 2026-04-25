@@ -16,5 +16,10 @@ export default {
     url: process.env.MYSQL_URL ?? '',
   },
   verbose: true,
-  strict: true,
+  // `strict: false` so that `drizzle-kit migrate` does not prompt for
+  // interactive confirmation. In a non-interactive deploy container
+  // (Railway's pre-deploy hook) `strict: true` causes the process to
+  // hang forever waiting on stdin, which previously caused the
+  // `/health` healthcheck to time out before the server ever started.
+  strict: false,
 } satisfies Config;
