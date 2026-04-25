@@ -48,8 +48,19 @@ dockerfilePath = "Dockerfile"
 # Template seeding stays in `startCommand` and remains best-effort: a
 # Gemini rate-limit must not block sign-in. It is safe to run on every
 # replica because the seeder is idempotent.
+#
+# NOTE on `startCommand` shape: Railway tokenizes the start command
+# string before handing it to a shell, and a leading `(` (shell
+# grouping) is not a valid token — the deploy fails immediately with
+# "Failed to parse start command". The command therefore must begin
+# with a regular argv token (here, `node`). The shell semantics we
+# want — "run the server whether or not seeding succeeded" — are
+# preserved without the parentheses because `&&`/`||` are
+# left-associative with equal precedence in POSIX shells:
+#   `A || B && C` parses as `(A || B) && C`
+# and since `echo` always exits 0, `C` (the server) always runs.
 preDeployCommand = "node --import tsx scripts/bootstrap-migrations.ts && npm run db:migrate"
-startCommand = "(node --import tsx scripts/seed-templates.ts || echo 'startup: seed failed, continuing') && exec node dist/server.js"
+startCommand = "node --import tsx scripts/seed-templates.ts || echo 'startup: seed failed, continuing' && exec node dist/server.js"
 # `/health` is registered before the rate limiter and before the Sentry
 # error handler, so Railway's probes never get 429'd or accidentally
 # captured as synthetic errors. The richer `/api/health` endpoint is
