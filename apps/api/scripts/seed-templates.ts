@@ -182,7 +182,7 @@ async function main(): Promise<void> {
       // producing pages of identical 429 retry chatter.
       if (err instanceof AppError && err.code === 'QUOTA_EXHAUSTED') {
         logger.error(
-          { err, remaining: pending.length - pending.indexOf(row) },
+          { err, remaining: pending.length - pending.indexOf(row) - 1 },
           'Gemini daily quota exhausted — stopping seed run. Re-run after the quota window resets or enable billing on the Gemini API project.',
         );
         await mysqlDb
