@@ -123,9 +123,15 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
       recordedSessionIdRef.current = null
 
+      // For template/preview callers (no sessionId) we have no real
+      // audio to load, so start in the playing state so the fallback
+      // simulated-progress ticker (gated on `isPlaying`) actually runs
+      // and the UI reflects playback. Real-session playback starts
+      // paused until the presigned URL resolves and the `<audio>`
+      // element successfully begins playing.
       setPlayer({
         isActive: true,
-        isPlaying: false,
+        isPlaying: !opts.sessionId,
         sessionTitle: opts.title,
         category: opts.category ?? 'Session',
         progress: 0,
@@ -136,8 +142,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       })
 
       // Template/preview callers don't have a sessionId — there's
-      // nothing to fetch, so we stay in the "active but not playing"
-      // state and let the UI show the fallback timer.
+      // nothing to fetch, so we let the fallback ticker drive the UI.
       if (!opts.sessionId || !audio) return
 
       void (async () => {
