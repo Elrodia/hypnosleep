@@ -5,6 +5,7 @@ import { useKV } from '@/hooks/use-kv'
 import { useAuth } from '@/lib/auth-context'
 import { Play, Leaf, Star, Cloud, Eye, Heart, CaretRight, TrendUp, Headphones } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
+import { toast } from 'sonner'
 import { StreakWidget } from '@/components/StreakWidget'
 import { DailyAffirmation } from '@/components/DailyAffirmation'
 import { ContinueListening } from '@/components/ContinueListening'
@@ -146,8 +147,20 @@ export function HomePage() {
     return () => clearInterval(interval)
   }, [])
 
+  const featuredSession = trending?.find((session) => session.status === 'ready') ?? null
+
   const handlePlaySession = () => {
-    play('Deep Sleep Journey - Full Relaxation', 'Sleep', 600)
+    if (!featuredSession) {
+      toast.info('Your featured session is still being prepared. Try a Quick Session below.')
+      return
+    }
+
+    play({
+      sessionId: featuredSession.id,
+      title: featuredSession.title,
+      category: formatCategory(featuredSession.category),
+      duration: featuredSession.durationSec,
+    })
   }
 
   const handleQuickSession = (session: QuickSession) => {
@@ -219,11 +232,13 @@ export function HomePage() {
             </h2>
             
             <p className="text-white/90 text-lg mb-2">
-              Deep Sleep Journey
+              {featuredSession?.title ?? 'Deep Sleep Journey'}
             </p>
             
             <p className="text-white/70 text-sm">
-              20 minutes
+              {featuredSession
+                ? `${Math.max(1, Math.round(featuredSession.durationSec / 60))} minutes`
+                : '20 minutes'}
             </p>
           </div>
 
