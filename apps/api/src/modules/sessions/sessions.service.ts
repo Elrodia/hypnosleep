@@ -556,25 +556,20 @@ export async function getAudioUrl(
   const plan: 'free' | 'pro' = user?.plan === 'pro' ? 'pro' : 'free';
   const ttlSec = plan === 'pro' ? PRO_URL_TTL_SEC : FREE_URL_TTL_SEC;
 
-  // Read-through cache. A cached URL was minted within the last
-  // STREAM_URL_TTL window, which is < the URL's actual expiry, so any
-  // hit is still valid for at least a few minutes.
+  // Read-through cache. The cached entry carries the URL's real
+  // signing expiry, so we never overstate the remaining validity on
+  // a cache hit.
   const cached = await getCachedStreamUrl(sessionId, plan);
   if (cached) {
-    return {
-      url: cached,
-      expiresAt: new Date(Date.now() + ttlSec * 1000).toISOString(),
-    };
+    return { url: cached.url, expiresAt: cached.expiresAt };
   }
 
   const key = buildSessionKey(row.userId, row.id);
   const url = await getStreamUrl(key, ttlSec);
-  await setCachedStreamUrl(sessionId, plan, url);
+  const expiresAt = new Date(Date.now() + ttlSec * 1000).toISOString();
+  await setCachedStreamUrl(sessionId, plan, url, expiresAt);
 
-  return {
-    url,
-    expiresAt: new Date(Date.now() + ttlSec * 1000).toISOString(),
-  };
+  return { url, expiresAt };
 }
 
 /**
