@@ -59,8 +59,27 @@ dockerfilePath = "Dockerfile"
 # Template seeding stays in `startCommand` and remains best-effort: a
 # Gemini rate-limit must not block sign-in. It is safe to run on every
 # replica because the seeder is idempotent.
+#
+# The seeder runs in the BACKGROUND (`&`, not `&&`) so the Express
+# server can bind its port and answer `/health` immediately. An
+# earlier revision chained the two with `&&`, which meant the server
+# only launched after the seeder finished — and when Gemini was slow
+# or rate-limited the seeder routinely exceeded the 30s healthcheck
+# timeout below, so `/health` never answered and Railway killed the
+# deploy at the HEALTHCHECK stage. Backgrounding is safe because the
+# seeder is idempotent, only writes to the `templates` table, and is
+# not required for any startup-critical endpoint:
+#   * `/health` is a static liveness probe (see comment below).
+#   * `/api/health/database` queries MySQL's `information_schema` for
+#     the presence of core tables — those are created by the
+#     `preDeployCommand` migrations above, not by the seeder, so the
+#     endpoint reports `ok` regardless of whether seeding has finished.
+# `exec` replaces the shell with the node process so the server is
+# PID 1 (or as close as Railway's runtime allows) and receives signals
+# directly; the backgrounded seeder is reparented and exits on its
+# own once it has finished or hit a rate-limit.
 preDeployCommand = "/bin/sh -c \"node --import tsx scripts/bootstrap-migrations.ts && npm run db:migrate\""
-startCommand = "/bin/sh -c \"(node --import tsx scripts/seed-templates.ts || echo 'startup: seed failed, continuing') && exec node dist/server.js\""
+startCommand = "/bin/sh -c \"(node --import tsx scripts/seed-templates.ts || echo 'startup: seed failed, continuing') & exec node dist/server.js\""
 # `/health` is registered before the rate limiter and before the Sentry
 # error handler, so Railway's probes never get 429'd or accidentally
 # captured as synthetic errors. The richer `/api/health` endpoint is
