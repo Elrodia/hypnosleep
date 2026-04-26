@@ -45,10 +45,21 @@ dockerfilePath = "Dockerfile"
 # fails the deploy aborts before any replica is booted, and Railway
 # surfaces the full output in the pre-deploy logs.
 #
+# `preDeployCommand` MUST be wrapped in `/bin/sh -c "..."` for the same
+# reason `startCommand` is (see PR #83): Railway runs the value in exec
+# form, so a bare `cmd1 && cmd2` would pass `&&` and `cmd2` as
+# positional arguments to `cmd1` instead of chaining them through a
+# shell. That trap is why PR #84 alone wasn't enough to fix the
+# "missing tables" deploy: the bootstrap step exited 0 (correctly
+# no-oping on a fresh DB), Railway treated the pre-deploy as a
+# success, and `npm run db:migrate` was silently dropped on the floor —
+# leaving the schema empty and `/api/health/database` reporting every
+# core table missing.
+#
 # Template seeding stays in `startCommand` and remains best-effort: a
 # Gemini rate-limit must not block sign-in. It is safe to run on every
 # replica because the seeder is idempotent.
-preDeployCommand = "node --import tsx scripts/bootstrap-migrations.ts && npm run db:migrate"
+preDeployCommand = "/bin/sh -c \"node --import tsx scripts/bootstrap-migrations.ts && npm run db:migrate\""
 startCommand = "/bin/sh -c \"(node --import tsx scripts/seed-templates.ts || echo 'startup: seed failed, continuing') && exec node dist/server.js\""
 # `/health` is registered before the rate limiter and before the Sentry
 # error handler, so Railway's probes never get 429'd or accidentally
