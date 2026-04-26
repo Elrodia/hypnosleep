@@ -35,7 +35,9 @@ Other required env vars:
 - `JWT_SECRET`, `JWT_EXPIRES_IN`
 - `FRONTEND_URL=https://app.hypnosleep.app`
 - `API_URL=https://app.hypnosleep.app` (same origin as the SPA)
-- `GEMINI_API_KEY`, `GEMINI_MODEL`
+- `GEMINI_API_KEY`, `GEMINI_MODEL` (e.g. `gemini-2.5-flash-lite`)
+- `GEMINI_RATE_LIMIT_PER_MINUTE` (optional, default `15` — matches Flash-Lite quota)
+- `GEMINI_RATE_LIMIT_PER_DAY` (optional, default `1000` — matches Flash-Lite quota)
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
 - `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`
