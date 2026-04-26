@@ -27,11 +27,13 @@
  * manager or `--env-file .env` (Node ≥ 20) before running.
  */
 import { eq, and, inArray } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 import { mysqlDb } from '../src/db/mysql/client.js';
 import { sessions } from '../src/db/mysql/schema/sessions.js';
 import { generateScript } from '../src/modules/ai/ai.service.js';
 import { generateAudio } from '../src/modules/audio/audio.service.js';
 import { logger } from '../src/utils/logger.js';
+import { getRedis } from '../src/db/redis/client.js';
 import { AppError } from '../src/utils/errors.js';
 import type {
   SessionCategory,
@@ -143,6 +145,112 @@ async function seedOne(row: {
 }
 
 async function main(): Promise<void> {
+  // Multi-replica guard: Railway runs this script from `startCommand`,
+  // which is executed on **every** replica boot. Without coordination,
+  // 4–6 replicas would race the same 12 templates through Gemini at
+  // the same instant — combined with `generateScript`'s 3-attempt
+  // retry loop, that produces a ~140-call burst per deploy and trips
+  // the Tier-1 RPM/TPM caps, which is exactly the 429 storm we saw on
+  // the Gemini usage dashboard.
+  //
+  // We take a short-lived Redis lock (`SET NX EX`) so only the first
+  // replica per deploy actually seeds. Other replicas log and exit
+  // cleanly. When Redis is not configured (local dev/tests), we fall
+  // through to the unguarded path so existing behavior is preserved.
+  const lock = await acquireSeedLock();
+  if (lock.kind === 'busy') {
+    logger.info(
+      { holder: lock.holder },
+      'Another replica is already seeding templates — skipping on this replica.',
+    );
+    return;
+  }
+
+  try {
+    await runSeedLoop();
+  } finally {
+    if (lock.kind === 'acquired') {
+      await releaseSeedLock(lock.token);
+    }
+  }
+}
+
+/**
+ * Distributed lock key. A fixed name (rather than per-deploy) is
+ * deliberate: Railway can re-run `startCommand` on the *same* deploy
+ * (replica restart, autoscale event), and we want those reboots to
+ * stay coordinated too. The 15-minute TTL is a safety net so a
+ * crashed seeder cannot wedge subsequent deploys forever.
+ */
+const SEED_LOCK_KEY = 'seed-templates:lock';
+const SEED_LOCK_TTL_SEC = 15 * 60;
+
+type LockState =
+  | { kind: 'acquired'; token: string }
+  | { kind: 'busy'; holder: string | null }
+  | { kind: 'unavailable' };
+
+/**
+ * Attempts to acquire the seed lock via `SET NX EX`. Returns:
+ *  - `acquired` when this process owns the lock (caller must release),
+ *  - `busy` when another replica holds it (caller should exit early),
+ *  - `unavailable` when Redis is not configured or the SET call
+ *    fails — in that case we fall through to the unguarded seed run
+ *    so single-instance / local-dev environments still work.
+ */
+export async function acquireSeedLock(): Promise<LockState> {
+  const redis = getRedis();
+  if (!redis) {
+    logger.warn(
+      'REDIS_URL not set — running seed without distributed lock (fine for single-replica deployments).',
+    );
+    return { kind: 'unavailable' };
+  }
+
+  const token = randomUUID();
+  try {
+    const result = await redis.set(
+      SEED_LOCK_KEY,
+      token,
+      'EX',
+      SEED_LOCK_TTL_SEC,
+      'NX',
+    );
+    if (result === 'OK') {
+      logger.info({ ttlSec: SEED_LOCK_TTL_SEC }, 'Seed lock acquired');
+      return { kind: 'acquired', token };
+    }
+    const holder = await redis.get(SEED_LOCK_KEY).catch(() => null);
+    return { kind: 'busy', holder };
+  } catch (err) {
+    logger.warn(
+      { err },
+      'Failed to acquire seed lock via Redis — proceeding without lock',
+    );
+    return { kind: 'unavailable' };
+  }
+}
+
+/**
+ * Releases the seed lock if (and only if) we still own it. Uses a
+ * standard compare-and-delete Lua script to avoid releasing a lock
+ * that has already expired and been re-acquired by another replica.
+ */
+export async function releaseSeedLock(token: string): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+  const script =
+    'if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end';
+  try {
+    await redis.eval(script, 1, SEED_LOCK_KEY, token);
+  } catch (err) {
+    // Best-effort: a missed release just means the next deploy waits
+    // for the TTL. Not worth failing the seed run over.
+    logger.warn({ err }, 'Failed to release seed lock');
+  }
+}
+
+async function runSeedLoop(): Promise<void> {
   const pending = await mysqlDb
     .select({
       id: sessions.id,
@@ -208,10 +316,19 @@ async function main(): Promise<void> {
   logger.info('Template seeding run complete.');
 }
 
-main().then(
-  () => process.exit(0),
-  (err) => {
-    logger.error({ err }, 'Template seeding run aborted');
-    process.exit(1);
-  },
-);
+// Only run when invoked directly (e.g. `tsx scripts/seed-templates.ts`)
+// — not when this file is imported from a test for `acquireSeedLock`
+// / `releaseSeedLock`.
+const invokedDirectly =
+  process.argv[1] !== undefined &&
+  import.meta.url === new URL(process.argv[1], 'file://').href;
+
+if (invokedDirectly) {
+  main().then(
+    () => process.exit(0),
+    (err) => {
+      logger.error({ err }, 'Template seeding run aborted');
+      process.exit(1);
+    },
+  );
+}
