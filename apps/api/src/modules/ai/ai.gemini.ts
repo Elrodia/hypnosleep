@@ -4,6 +4,7 @@ import {
   type GenerationConfig,
 } from '@google/generative-ai';
 import { externalApiError } from '../../utils/errors.js';
+import { checkGeminiQuota } from './ai.gemini.guard.js';
 
 /**
  * Raw response returned by {@link callGemini}, exposing the generated text
@@ -74,6 +75,11 @@ export async function callGemini(
   prompt: string,
   options: CallGeminiOptions = {},
 ): Promise<GeminiResponse> {
+  // Guard: enforce per-minute and per-day Gemini provider quotas before
+  // making the external request. Throws a typed 429 AppError when either
+  // limit is exceeded so the cost of the quota slot is never wasted.
+  await checkGeminiQuota();
+
   const genModel = getModel();
   const request = options.generationConfig
     ? {
