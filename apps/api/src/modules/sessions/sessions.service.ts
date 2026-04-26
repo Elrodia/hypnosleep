@@ -18,6 +18,11 @@ import {
   buildSessionKey,
 } from '../audio/audio.s3.js';
 import {
+  getCachedStreamUrl,
+  setCachedStreamUrl,
+  invalidateAudioCache,
+} from '../audio/audio.cache.js';
+import {
   AppError,
   notFound,
   forbidden,
@@ -500,16 +505,36 @@ async function readProgressSnapshot(
 }
 
 /**
- * Returns a presigned S3 URL for the session's final mixed audio.
+ * Result of {@link getAudioUrl}: a presigned stream URL plus the ISO
+ * timestamp at which it expires. Returned to clients as
+ * `{ data: { url, expiresAt } }` so a player can pre-emptively refresh.
+ */
+export interface AudioUrlResult {
+  url: string;
+  expiresAt: string;
+}
+
+/** Presigned URL TTLs by plan, in seconds. */
+const FREE_URL_TTL_SEC = 3600; // 1 hour
+const PRO_URL_TTL_SEC = 86400; // 24 hours — supports offline downloads
+
+/**
+ * Returns a presigned S3 URL for the session's final mixed audio,
+ * plus the ISO timestamp at which the URL expires.
  *
  * Refuses with 409 when the session has not finished generating yet,
  * because there is no object to sign. Access control mirrors
  * {@link getSessionById}: owner OR template.
+ *
+ * TTL is plan-dependent: Pro users get 24h URLs (so playback survives
+ * offline use and long sessions), Free users get 1h URLs. Results are
+ * memoized in Redis (`audio:url:<plan>:<sessionId>`) for ~55 minutes
+ * to avoid re-signing for hot templates on the read path.
  */
 export async function getAudioUrl(
   userId: string,
   sessionId: string,
-): Promise<string> {
+): Promise<AudioUrlResult> {
   const [row] = await mysqlDb
     .select()
     .from(sessions)
@@ -523,8 +548,28 @@ export async function getAudioUrl(
     throw new AppError('NOT_READY', 'Audio not ready yet', 409);
   }
 
+  const [user] = await mysqlDb
+    .select({ plan: users.plan })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const plan: 'free' | 'pro' = user?.plan === 'pro' ? 'pro' : 'free';
+  const ttlSec = plan === 'pro' ? PRO_URL_TTL_SEC : FREE_URL_TTL_SEC;
+
+  // Read-through cache. The cached entry carries the URL's real
+  // signing expiry, so we never overstate the remaining validity on
+  // a cache hit.
+  const cached = await getCachedStreamUrl(sessionId, plan);
+  if (cached) {
+    return { url: cached.url, expiresAt: cached.expiresAt };
+  }
+
   const key = buildSessionKey(row.userId, row.id);
-  return getStreamUrl(key, 3600);
+  const url = await getStreamUrl(key, ttlSec);
+  const expiresAt = new Date(Date.now() + ttlSec * 1000).toISOString();
+  await setCachedStreamUrl(sessionId, plan, url, expiresAt);
+
+  return { url, expiresAt };
 }
 
 /**
@@ -554,6 +599,8 @@ export async function deleteSession(
   await deleteFile(buildSessionKey(userId, sessionId)).catch((err: unknown) => {
     logger.warn({ err, sessionId }, 'Failed to delete S3 audio file');
   });
+
+  await invalidateAudioCache(sessionId);
 
   await mysqlDb.delete(sessions).where(eq(sessions.id, sessionId));
   return { ok: true };
@@ -725,6 +772,10 @@ export async function regenerateAudio(
     durationMinutes: Math.max(1, Math.round(row.durationSec / 60)),
     isPro,
   });
+
+  // Existing presigned URLs point at the previous mix; drop them so
+  // the next `getAudioUrl` re-signs against the regenerated object.
+  await invalidateAudioCache(sessionId);
 
   logEvent(userId, sessionId, 'session_regenerate', { voiceId, background });
 

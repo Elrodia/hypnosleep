@@ -284,12 +284,28 @@ vi.mock('@/db/postgres/schema/events', () => ({
 vi.mock('@/db/redis/client', () => ({
   getRedis: () => ({
     del: (k: string) => { state.redisDeleted.push(k); return Promise.resolve(1); },
+    get: () => Promise.resolve(null),
+    set: () => Promise.resolve('OK'),
   }),
 }));
 // Helpers: cached() just calls through to the loader — we don't test
 // the cache itself here.
 vi.mock('@/db/redis/helpers', () => ({
   cached: <T,>(_k: string, _ttl: number, loader: () => Promise<T>) => loader(),
+}));
+
+// Audio URL cache — exercise the read-through path with a deterministic
+// "always miss" fake so getAudioUrl always re-signs in unit tests, and
+// record invalidations to assert deleteSession/regenerateAudio drop the
+// per-session presigned URL cache.
+vi.mock('@/modules/audio/audio.cache', () => ({
+  getCachedStreamUrl: () => Promise.resolve(null),
+  setCachedStreamUrl: () => Promise.resolve(),
+  invalidateAudioCache: (sessionId: string) => {
+    state.redisDeleted.push(`audio:url:free:${sessionId}`);
+    state.redisDeleted.push(`audio:url:pro:${sessionId}`);
+    return Promise.resolve();
+  },
 }));
 
 // BullMQ queue — record enqueued payloads.
@@ -530,8 +546,10 @@ describe('sessions.service', () => {
         audioUrl: null, playCount: 0, isTemplate: false, status: 'ready',
         createdAt: new Date(),
       });
-      const url = await getAudioUrl(USER_FREE, 's');
-      expect(url).toBe(`https://signed.example/audio/${USER_FREE}/s.mp3`);
+      const result = await getAudioUrl(USER_FREE, 's');
+      expect(result.url).toBe(`https://signed.example/audio/${USER_FREE}/s.mp3`);
+      expect(typeof result.expiresAt).toBe('string');
+      expect(Number.isNaN(Date.parse(result.expiresAt))).toBe(false);
     });
 
     it('refuses with 409 when the session is not ready', async () => {
