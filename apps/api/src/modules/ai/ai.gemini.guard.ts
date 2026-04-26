@@ -6,7 +6,7 @@ import { rateLimitExceeded } from '../../utils/errors.js';
  *
  * Enforces per-minute and per-day call limits immediately before each
  * external Gemini request so the application stays within the upstream
- * provider quotas (Gemini 2.5 Flash-Lite defaults: 15 req/min, 1 000
+ * provider quotas (Gemini 2.5 Flash-Lite defaults: 15 req/min, 1,000
  * req/day).
  *
  * Limit values are configurable via environment variables:
@@ -31,7 +31,7 @@ import { rateLimitExceeded } from '../../utils/errors.js';
  */
 
 const MINUTE_WINDOW_SEC = 60;
-const DAY_WINDOW_SEC = 86_400;
+const DAY_WINDOW_SEC = 86400;
 
 /**
  * Reads the per-minute Gemini quota limit from `GEMINI_RATE_LIMIT_PER_MINUTE`.
