@@ -56,6 +56,26 @@ export function rateLimitExceeded(message: string, details?: Record<string, unkn
   return new AppError('RATE_LIMIT_EXCEEDED', message, 429, details);
 }
 
+/**
+ * 429 — Upstream provider quota exhausted (e.g. Gemini free-tier
+ * daily request cap). Distinct from {@link rateLimitExceeded} (which
+ * covers our own per-user limiter): a `QUOTA_EXHAUSTED` error means
+ * retrying within the same window is futile and callers should bail
+ * out rather than burn backoff on doomed attempts.
+ */
+export function quotaExhausted(
+  service: string,
+  message?: string,
+  details?: Record<string, unknown>,
+) {
+  return new AppError(
+    'QUOTA_EXHAUSTED',
+    message ?? `Quota exhausted for "${service}"`,
+    429,
+    { service, ...(details ?? {}) },
+  );
+}
+
 /** 402 — Feature requires Pro subscription */
 export function proRequired(message = 'This feature requires a Pro subscription') {
   return new AppError('PRO_REQUIRED', message, 402);

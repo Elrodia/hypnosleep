@@ -10,6 +10,7 @@ import { logger } from '../../utils/logger.js';
 import {
   externalApiError,
   generationFailed,
+  quotaExhausted,
   AppError,
 } from '../../utils/errors.js';
 import type {
@@ -19,6 +20,61 @@ import type {
 } from './ai.types.js';
 
 const MAX_RETRIES = 2;
+
+/**
+ * Detects a Gemini 429 that represents an *exhausted* quota (i.e. one
+ * with a per-day or free-tier window) where retrying within the same
+ * window cannot succeed. Returns parsed quota metadata when matched,
+ * or `null` for transient/per-minute 429s which should still be
+ * retried by the surrounding loop.
+ *
+ * Shape of the upstream error is documented at
+ * https://ai.google.dev/gemini-api/docs/rate-limits and includes a
+ * `QuotaFailure` detail with `quotaId` (e.g.
+ * `GenerateRequestsPerDayPerProjectPerModel-FreeTier`) and a
+ * `RetryInfo` detail with a `retryDelay` like `"24s"`.
+ */
+function parseExhaustedQuota(err: unknown): {
+  quotaId?: string;
+  quotaMetric?: string;
+  retryDelayMs?: number;
+} | null {
+  if (!err || typeof err !== 'object') return null;
+  const e = err as {
+    status?: number;
+    errorDetails?: Array<{
+      '@type'?: string;
+      violations?: Array<{ quotaId?: string; quotaMetric?: string }>;
+      retryDelay?: string;
+    }>;
+  };
+  if (e.status !== 429 || !Array.isArray(e.errorDetails)) return null;
+
+  let quotaId: string | undefined;
+  let quotaMetric: string | undefined;
+  let retryDelayMs: number | undefined;
+
+  for (const detail of e.errorDetails) {
+    if (detail['@type']?.endsWith('QuotaFailure')) {
+      const violation = detail.violations?.[0];
+      quotaId = violation?.quotaId;
+      quotaMetric = violation?.quotaMetric;
+    } else if (detail['@type']?.endsWith('RetryInfo') && detail.retryDelay) {
+      // Format is `<seconds>s` or `<seconds>.<frac>s`.
+      const match = /^([0-9]+(?:\.[0-9]+)?)s$/.exec(detail.retryDelay);
+      if (match) retryDelayMs = Math.round(Number(match[1]) * 1000);
+    }
+  }
+
+  // Treat per-day or free-tier-request quotas as exhausted. Other 429s
+  // (per-minute throttles) remain transient and should keep retrying.
+  const exhausted =
+    (quotaId && /PerDay/i.test(quotaId)) ||
+    (quotaMetric && /free_tier_requests/i.test(quotaMetric));
+  if (!exhausted) return null;
+
+  return { quotaId, quotaMetric, retryDelayMs };
+}
 
 /**
  * Sensitive categories that warrant a second, LLM-based safety pass
@@ -172,13 +228,24 @@ export async function generateScript(
 
       return { scriptText, title, tokensInput, tokensOutput, generationMs };
     } catch (err) {
-      lastError = err;
+      // Daily / free-tier quota exhaustion: retrying within the same
+      // window cannot succeed, so convert to a typed AppError and let
+      // the AppError branch below short-circuit the retry loop.
+      const exhausted = parseExhaustedQuota(err);
+      const normalizedErr: unknown = exhausted
+        ? quotaExhausted(
+            'gemini',
+            'Gemini quota exhausted; retry after the quota window resets or enable billing',
+            exhausted,
+          )
+        : err;
+      lastError = normalizedErr;
 
       // Do not retry permanent failures — just surface them. Some paths
       // (e.g. safety failures) have already written an audit row; avoid
       // writing a duplicate.
-      if (err instanceof AppError) {
-        logger.error({ err }, 'Script generation failed (permanent)');
+      if (normalizedErr instanceof AppError) {
+        logger.error({ err: normalizedErr }, 'Script generation failed (permanent)');
         if (!didLogAudit) {
           void logGeneration({
             userId: input.userId,
@@ -187,11 +254,11 @@ export async function generateScript(
             voice: input.voiceId,
             generationMs: Date.now() - startTime,
             status: 'failed',
-            errorMessage: err.message,
+            errorMessage: normalizedErr.message,
           });
           didLogAudit = true;
         }
-        throw err;
+        throw normalizedErr;
       }
 
       // Known permanent configuration errors arrive as AppErrors (see
@@ -202,7 +269,7 @@ export async function generateScript(
       if (attempt < MAX_RETRIES) {
         const delayMs = 1000 * (attempt + 1);
         logger.warn(
-          { attempt: attempt + 1, delayMs, err },
+          { attempt: attempt + 1, delayMs, err: normalizedErr },
           'Gemini call failed, retrying',
         );
         await new Promise((resolve) => setTimeout(resolve, delayMs));
