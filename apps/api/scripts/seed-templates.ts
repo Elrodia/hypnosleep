@@ -32,6 +32,7 @@ import { sessions } from '../src/db/mysql/schema/sessions.js';
 import { generateScript } from '../src/modules/ai/ai.service.js';
 import { generateAudio } from '../src/modules/audio/audio.service.js';
 import { logger } from '../src/utils/logger.js';
+import { AppError } from '../src/utils/errors.js';
 import type {
   SessionCategory,
   VoiceId,
@@ -175,6 +176,23 @@ async function main(): Promise<void> {
     try {
       await seedOne(row);
     } catch (err) {
+      // If we've blown through the daily Gemini quota, every remaining
+      // template is guaranteed to fail too — bail out early with a
+      // clear message instead of pounding through the loop and
+      // producing pages of identical 429 retry chatter.
+      if (err instanceof AppError && err.code === 'QUOTA_EXHAUSTED') {
+        logger.error(
+          { err, remaining: pending.length - pending.indexOf(row) },
+          'Gemini daily quota exhausted — stopping seed run. Re-run after the quota window resets or enable billing on the Gemini API project.',
+        );
+        await mysqlDb
+          .update(sessions)
+          .set({ status: 'failed' })
+          .where(eq(sessions.id, row.id))
+          .catch(() => {});
+        break;
+      }
+
       // Mark the individual row failed so subsequent deploys don't
       // keep retrying a template with a broken prompt, but keep going
       // through the rest.

@@ -91,6 +91,44 @@ As you drift deeper, positive suggestions take root in your mind.`;
     const result = await generateScript(sampleInput);
     expect(result.title).toBe('My Session Title');
   });
+
+  it('should bail out without retrying when Gemini reports a daily/free-tier quota exhaustion', async () => {
+    // Mirrors the shape of `GoogleGenerativeAIFetchError` for a 429 with
+    // a `QuotaFailure` whose `quotaId` matches `*PerDay*`. Retrying
+    // within the same window cannot succeed, so the service must
+    // short-circuit instead of burning the full retry budget.
+    const quotaErr = Object.assign(new Error('429 quota exceeded'), {
+      status: 429,
+      errorDetails: [
+        {
+          '@type': 'type.googleapis.com/google.rpc.QuotaFailure',
+          violations: [
+            {
+              quotaId:
+                'GenerateRequestsPerDayPerProjectPerModel-FreeTier',
+              quotaMetric:
+                'generativelanguage.googleapis.com/generate_content_free_tier_requests',
+            },
+          ],
+        },
+        {
+          '@type': 'type.googleapis.com/google.rpc.RetryInfo',
+          retryDelay: '24s',
+        },
+      ],
+    });
+
+    const generateContent = vi.fn().mockRejectedValue(quotaErr);
+    _setModel({ generateContent } as unknown as Parameters<typeof _setModel>[0]);
+
+    await expect(generateScript(sampleInput)).rejects.toMatchObject({
+      code: 'QUOTA_EXHAUSTED',
+      statusCode: 429,
+    });
+
+    // Critically: only one call — no retries on a per-day quota.
+    expect(generateContent).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('AI Service — regenerateParagraph', () => {
