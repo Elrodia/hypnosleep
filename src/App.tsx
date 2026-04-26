@@ -257,10 +257,21 @@ function AppContent() {
     setShowQuiz(false)
     setShowResults(true)
     setLocalQuiz(true)
+    // The QuizPage uses kebab-case ids (`before-sleep`) but the backend
+    // `preferredTime` enum is snake_case (`before_sleep`). Without this
+    // mapping the PATCH fails zod validation with a 400, which also
+    // drops the `hasCompletedQuiz` flag — causing the quiz to reappear
+    // on every reload.
+    const preferredTimeMap: Record<string, UserPreferences['preferredTime']> = {
+      'before-sleep': 'before_sleep',
+      morning: 'morning',
+      breaks: 'breaks',
+      anytime: 'anytime',
+    }
     void persistPreferences({
       hasCompletedQuiz: true,
       goals: data.selectedGoals,
-      preferredTime: data.preferredTime as UserPreferences['preferredTime'],
+      preferredTime: preferredTimeMap[data.preferredTime] ?? 'before_sleep',
       defaultDuration: data.sessionDuration,
     })
   }

@@ -49,8 +49,12 @@ export async function synthesizeVoice(opts: TtsOptions): Promise<string> {
         TTS_SCRIPT,
         '--voice', opts.voiceId,
         '--output', outPath,
-        '--rate', opts.rate ?? '-15%',
-        '--pitch', opts.pitch ?? '-2Hz',
+        // Use `--name=value` form (single argv token) for rate/pitch.
+        // Their values commonly start with `-` (e.g. `-15%`, `-2Hz`),
+        // and Python's argparse rejects them when passed as two tokens
+        // because it interprets a leading `-` as another option.
+        `--rate=${opts.rate ?? '-15%'}`,
+        `--pitch=${opts.pitch ?? '-2Hz'}`,
       ],
       {
         input: opts.text,

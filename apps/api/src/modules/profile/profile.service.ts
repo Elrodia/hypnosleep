@@ -31,6 +31,8 @@ type UserPreferences = {
   defaultBackground?: string;
   theme?: 'dark' | 'light';
   dailyReminderTime?: string;
+  hasCompletedOnboarding?: boolean;
+  hasCompletedQuiz?: boolean;
 };
 
 /**
