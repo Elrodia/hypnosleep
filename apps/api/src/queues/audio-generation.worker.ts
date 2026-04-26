@@ -1,9 +1,15 @@
 import { Worker, type Job } from 'bullmq';
 import { eq } from 'drizzle-orm';
+import * as Sentry from '@sentry/node';
 import { QUEUE_NAMES } from '../config/constants.js';
+import { env } from '../config/env.js';
 import { generateAudio } from '../modules/audio/audio.service.js';
 import { mysqlDb } from '../db/mysql/client.js';
 import { sessions } from '../db/mysql/schema/sessions.js';
+import { users } from '../db/mysql/schema/users.js';
+import { refundGeneration } from '../modules/sessions/sessions.service.js';
+import { sendEmail } from '../services/email.service.js';
+import { AppError } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import {
   generationBus,
@@ -13,6 +19,22 @@ import {
 } from './events.bus.js';
 import { getRedis } from '../db/redis/client.js';
 import type { AudioGenerationJobData } from '../modules/ai/ai.types.js';
+
+/**
+ * AppError codes that represent permanent, user-facing problems with
+ * the request itself (not transient infrastructure issues). Jobs that
+ * throw one of these abort immediately via `job.discard()` rather than
+ * burning the queue's `attempts` budget on a re-run that's guaranteed
+ * to fail the same way.
+ */
+const NON_RETRYABLE_ERROR_CODES = new Set([
+  'SAFETY_FAILED',
+  'VALIDATION_FAILED',
+  'PRO_REQUIRED',
+  'QUOTA_EXHAUSTED',
+  'FORBIDDEN',
+  'UNAUTHENTICATED',
+]);
 
 /**
  * TTL for the "last progress event" mirror kept in Redis per session.
@@ -192,6 +214,21 @@ export function createAudioGenerationWorker(): Worker<AudioGenerationJobData> {
 
         emit('error', 0, 'Generation failed', { error: message });
 
+        // For permanent, user-attributable failures (safety, validation,
+        // quota), short-circuit the BullMQ retry policy: re-running the
+        // same payload will produce the same error, so spending two
+        // more attempts (and ~15s of backoff) is pure waste.
+        if (err instanceof AppError && NON_RETRYABLE_ERROR_CODES.has(err.code)) {
+          try {
+            job.discard();
+          } catch (discardErr) {
+            logger.warn(
+              { err: discardErr, sessionId },
+              'Failed to mark job as non-retryable',
+            );
+          }
+        }
+
         // Re-throw so BullMQ marks the job as failed and applies the
         // queue's retry/backoff policy (see audio-generation.queue.ts).
         throw err;
@@ -226,6 +263,26 @@ export function createAudioGenerationWorker(): Worker<AudioGenerationJobData> {
       { jobId: job?.id, sessionId: job?.data.sessionId, err },
       'Audio generation job failed',
     );
+
+    // Only run the expensive cleanup (refund, email, Sentry) once the
+    // job is truly finished — i.e. all retry attempts are exhausted or
+    // the error is one we already marked as non-retryable. Intermediate
+    // attempts also fire `failed`; bailing out here keeps the user
+    // from getting a "your session failed" email after attempt #1 when
+    // attempts #2 and #3 might still succeed.
+    if (!job) return;
+    const maxAttempts = job.opts?.attempts ?? 1;
+    const isNonRetryable =
+      err instanceof AppError && NON_RETRYABLE_ERROR_CODES.has(err.code);
+    const isFinalAttempt = job.attemptsMade >= maxAttempts || isNonRetryable;
+    if (!isFinalAttempt) return;
+
+    void handleFinalFailure(job, err).catch((cleanupErr) => {
+      logger.error(
+        { err: cleanupErr, jobId: job.id, sessionId: job.data.sessionId },
+        'Final-failure cleanup raised',
+      );
+    });
   });
 
   worker.on('error', (err) => {
@@ -233,4 +290,158 @@ export function createAudioGenerationWorker(): Worker<AudioGenerationJobData> {
   });
 
   return worker;
+}
+
+/**
+ * Cleanup that runs once a job has truly failed (no more retries).
+ *
+ * Steps performed in order, each guarded so a downstream failure
+ * doesn't prevent the others from running:
+ *
+ *   1. Persist `sessions.status = 'failed'` (defence-in-depth — the
+ *      per-attempt catch in the worker also sets this, but a crash
+ *      between attempts could leave the row stuck on `generating`).
+ *   2. Re-emit a final SSE `error` progress event. Late SSE
+ *      subscribers that connected after the in-flight attempt's
+ *      event was emitted still get a clean failure signal.
+ *   3. Refund the free-tier monthly generation quota — the user
+ *      paid (in quota) for an artifact they never received.
+ *   4. Send a transactional error email via Resend with a
+ *      "Try Again" CTA pointing back to the create page.
+ *   5. Capture the failure in Sentry with the full job-data
+ *      context for debugging.
+ */
+async function handleFinalFailure(
+  job: Job<AudioGenerationJobData>,
+  err: Error,
+): Promise<void> {
+  const { sessionId, userId, isPro, title } = job.data;
+  const message = err.message ?? 'Unknown error';
+
+  // 1. Persist failure state.
+  try {
+    await mysqlDb
+      .update(sessions)
+      .set({ status: 'failed' })
+      .where(eq(sessions.id, sessionId));
+  } catch (dbErr) {
+    logger.error(
+      { err: dbErr, sessionId },
+      'Final-failure: failed to mark session as failed',
+    );
+  }
+
+  // 2. Re-emit a final error event so any still-connected SSE
+  //    subscribers see the terminal state and close cleanly.
+  try {
+    generationBus.emitProgress(sessionId, {
+      step: 'error',
+      progress: 0,
+      message: 'Generation failed',
+      error: message,
+    });
+  } catch (emitErr) {
+    logger.warn(
+      { err: emitErr, sessionId },
+      'Final-failure: failed to emit terminal SSE event',
+    );
+  }
+
+  // 3. Refund the free-tier quota slot. Pro users are unmetered, so
+  //    skip the refund for them.
+  if (isPro !== true) {
+    try {
+      await refundGeneration(userId);
+    } catch (refundErr) {
+      logger.error(
+        { err: refundErr, sessionId, userId },
+        'Final-failure: failed to refund free-tier generation quota',
+      );
+    }
+  }
+
+  // 4. Look up the user's email and send a Try-Again notice.
+  try {
+    const [user] = await mysqlDb
+      .select({ email: users.email, name: users.name })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (user?.email) {
+      const retryUrl = `${env.FRONTEND_URL.replace(/\/$/, '')}/create?retry=${encodeURIComponent(sessionId)}`;
+      const retryUrlHtml = escapeHtml(retryUrl);
+      const safeTitle = title ?? 'your session';
+      const greetingText = user.name ? `Hi ${user.name},` : 'Hi,';
+      const greetingHtml = user.name ? `Hi ${escapeHtml(user.name)},` : 'Hi,';
+      await sendEmail({
+        to: user.email,
+        subject: 'We couldn\u2019t finish your HypnoSleep session',
+        text:
+          `${greetingText}\n\n` +
+          `We hit a snag generating ${safeTitle}. Your free generation has been refunded — ` +
+          `you can try again at:\n${retryUrl}\n\n` +
+          `If this keeps happening, reply to this email and we\u2019ll take a look.\n\n` +
+          `— The HypnoSleep team`,
+        html:
+          `<p>${greetingHtml}</p>` +
+          `<p>We hit a snag generating <strong>${escapeHtml(safeTitle)}</strong>. ` +
+          `Your free generation has been refunded — you can try again with one click:</p>` +
+          `<p><a href="${retryUrlHtml}" style="display:inline-block;padding:10px 16px;` +
+          `background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;">Try Again</a></p>` +
+          `<p style="color:#666;font-size:13px;">If the button doesn\u2019t work, paste this link into your browser:<br/>` +
+          `<span style="word-break:break-all;">${retryUrlHtml}</span></p>` +
+          `<p style="color:#666;font-size:13px;">If this keeps happening, just reply to this email — we\u2019ll take a look.</p>` +
+          `<p style="color:#666;font-size:13px;">— The HypnoSleep team</p>`,
+      });
+    } else {
+      logger.warn(
+        { sessionId, userId },
+        'Final-failure: user has no email on record; skipping retry email',
+      );
+    }
+  } catch (emailErr) {
+    logger.error(
+      { err: emailErr, sessionId, userId },
+      'Final-failure: failed to send retry email',
+    );
+  }
+
+  // 5. Sentry capture with full job context. Guarded behind a DSN
+  //    check so dev/test runs don't trigger the SDK\u2019s init warning.
+  if (env.SENTRY_DSN) {
+    try {
+      Sentry.withScope((scope) => {
+        scope.setTag('queue', 'audio-generation');
+        scope.setUser({ id: userId });
+        scope.setContext('job', {
+          id: job.id,
+          name: job.name,
+          attemptsMade: job.attemptsMade,
+          maxAttempts: job.opts?.attempts ?? 1,
+          sessionId,
+          isPro: isPro === true,
+          // Avoid logging full script text \u2014 it can contain user prompts.
+          title,
+        });
+        Sentry.captureException(err);
+      });
+    } catch (sentryErr) {
+      logger.warn({ err: sentryErr }, 'Final-failure: Sentry capture raised');
+    }
+  }
+}
+
+/**
+ * Minimal HTML escape for values interpolated into the failure
+ * email body. Sufficient for plain-text user content (titles); not
+ * a substitute for a full sanitiser on rich input.
+ */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
