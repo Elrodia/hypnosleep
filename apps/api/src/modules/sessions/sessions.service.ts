@@ -242,6 +242,18 @@ export async function createGenerationSession(
 }
 
 /**
+ * Refunds a single generation slot for the *current* UTC month for
+ * `userId`. Wrapper around {@link rollbackUsage} that resolves the
+ * period internally — used by the audio generation worker's
+ * `on('failed')` handler when all retry attempts are exhausted, to
+ * give a free-tier user back the quota slot they spent on a job that
+ * never produced audio.
+ */
+export async function refundGeneration(userId: string): Promise<void> {
+  await rollbackUsage(userId, currentPeriod());
+}
+
+/**
  * Decrements the `generationsCount` for a user/period, clamped at 0.
  * Best-effort — a failure here is logged but doesn't propagate because
  * the caller is already handling a primary error.
