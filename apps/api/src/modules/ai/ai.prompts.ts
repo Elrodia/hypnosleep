@@ -96,7 +96,7 @@ Produce the script in this exact order, hitting the target word percentages of t
 ## Forbidden Content (reject internally and rewrite if needed)
 - Medical claims, diagnoses, drug names, prescription advice.
 - Sexual or romantic content.
-- Any content suitable only for minors / for minors.
+- Any content directed at minors.
 - Instructions that could cause physical harm.
 - Self-harm, suicide, or harm-to-others content.
 - Discriminatory or slur language.

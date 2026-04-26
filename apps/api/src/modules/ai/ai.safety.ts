@@ -90,7 +90,11 @@ const SELF_HARM_KEYWORDS: readonly string[] = [
   'hurt yourself',
 ];
 
-/** Sexual / romantic content terms. */
+/**
+ * Sexual / romantic content terms. Some entries are intentional word
+ * stems (e.g. `masturbat`) so that substring matching catches all
+ * inflected forms (`masturbate`, `masturbating`, `masturbation`).
+ */
 const SEXUAL_KEYWORDS: readonly string[] = [
   'sexual',
   'sex with',
