@@ -9,6 +9,7 @@ export {
   mixWithBackground,
   probeDuration,
   concatMp3Files,
+  crossfadeBackgrounds,
   type MixOptions,
   type BackgroundSound,
 } from './audio.mixer.js';

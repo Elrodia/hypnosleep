@@ -40,8 +40,20 @@ All loops should be:
 ## Sourcing
 
 Use only royalty-free assets (e.g. Pixabay, Freesound CC0). Do **not**
-commit copyrighted material. Each file's source/licence should be noted
-in commit messages when it is added.
+commit copyrighted material. The source URL and licence for every
+shipped file MUST be recorded in
+[`LICENSES.md`](./LICENSES.md) — that file is the authoritative legal
+record and is required for compliance.
+
+The two synthetic loops (`white_noise.mp3`, `silence.mp3`) can be
+generated deterministically from FFmpeg's `lavfi` synthetic sources:
+
+```bash
+apps/api/scripts/generate-backgrounds.sh
+```
+
+The remaining four (`rain`, `ocean`, `forest`, `wind`) must be sourced
+manually from a CC0 / royalty-free library and added to `LICENSES.md`.
 
 To populate this directory at deploy time without committing the MP3s
 to git, host them on a CDN/bucket you control and run:

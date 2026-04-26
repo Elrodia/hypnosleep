@@ -20,8 +20,12 @@ export type { BackgroundSound } from '../../config/constants.js';
 export interface MixOptions {
   /** Absolute path to the voice MP3 produced by Edge TTS. */
   voicePath: string;
-  /** Background loop to mix in; excludes the `'silence'` skip sentinel. */
-  background: Exclude<BackgroundSound, 'silence'>;
+  /**
+   * Background loop to mix in. When `'silence'`, the function is a no-op
+   * and returns `voicePath` unchanged (no FFmpeg invocation, no temp
+   * file allocated).
+   */
+  background: BackgroundSound;
   /** Voice gain in dB; default `0`. */
   voiceVolumeDb?: number;
   /** Background gain in dB; default `-12`. */
@@ -66,10 +70,18 @@ async function probeDurationSec(path: string): Promise<number> {
 /**
  * Mixes a voice MP3 with a looped background ambient track using FFmpeg.
  *
- * - The background is looped infinitely and trimmed to the voice length.
- * - Voice and background are gain-staged independently (defaults: 0 dB
- *   voice, -12 dB background).
- * - Symmetric fade-in / fade-out are applied to the final mix.
+ * - When `background === 'silence'` the function returns `voicePath`
+ *   unchanged (no FFmpeg invocation, no temp file allocated). The
+ *   caller still owns the original voice file.
+ * - Otherwise the background is looped infinitely and trimmed to the
+ *   voice length, gain-staged independently (defaults: 0 dB voice,
+ *   −12 dB background) and **sidechain-compressed against the voice**
+ *   so the bed dips during speech for a polished, podcast-style mix
+ *   instead of a flat overlay (see {@link buildDuckingFilter}).
+ * - Symmetric fade-in / fade-out (default 3 s) are applied to the
+ *   final mix.
+ * - Output: 128 kbps libmp3lame MP3, 44.1 kHz stereo, written to
+ *   `${tmpdir}/hypnosleep-mix/${randomUUID()}.mp3`.
  *
  * @returns Absolute path to the mixed MP3. The caller owns the file and
  *   must `unlink` it when finished.
@@ -77,6 +89,14 @@ async function probeDurationSec(path: string): Promise<number> {
  *   output file is cleaned up.
  */
 export async function mixWithBackground(opts: MixOptions): Promise<string> {
+  // Silence is a sentinel that skips the entire mix step. Returning
+  // `voicePath` unchanged keeps the contract simple for the orchestrator
+  // while letting callers pass the full `BackgroundSound` union without
+  // a separate type guard.
+  if (opts.background === 'silence') {
+    return opts.voicePath;
+  }
+
   const tmpDir = join(tmpdir(), 'hypnosleep-mix');
   await mkdir(tmpDir, { recursive: true });
   const outPath = join(tmpDir, `${randomUUID()}.mp3`);
@@ -93,16 +113,14 @@ export async function mixWithBackground(opts: MixOptions): Promise<string> {
   // requested fade-out window.
   const fadeOutStart = Math.max(0, voiceDuration - fadeOut);
 
-  // FFmpeg filter graph:
-  //   [0:a] = voice, [1:a] = background
-  //   apply per-source volume, mix, fade in/out, output
-  const filter = `
-    [0:a]volume=${voiceVol}dB,aresample=44100[voice];
-    [1:a]aloop=loop=-1:size=2e9,atrim=0:${voiceDuration.toFixed(2)},volume=${bgVol}dB,aresample=44100[bg];
-    [voice][bg]amix=inputs=2:duration=first:dropout_transition=0,
-    afade=t=in:st=0:d=${fadeIn},
-    afade=t=out:st=${fadeOutStart.toFixed(2)}:d=${fadeOut}[out]
-  `.replace(/\s+/g, '');
+  const filter = buildDuckingFilter({
+    voiceVolDb: voiceVol,
+    bgVolDb: bgVol,
+    voiceDurationSec: voiceDuration,
+    fadeInSec: fadeIn,
+    fadeOutSec: fadeOut,
+    fadeOutStartSec: fadeOutStart,
+  });
 
   try {
     await execa('ffmpeg', [
@@ -114,6 +132,7 @@ export async function mixWithBackground(opts: MixOptions): Promise<string> {
       '-c:a', 'libmp3lame',
       '-b:a', '128k',
       '-ar', '44100',
+      '-ac', '2',
       outPath,
     ], { timeout: 180_000 });
 
@@ -130,6 +149,73 @@ export async function mixWithBackground(opts: MixOptions): Promise<string> {
       500,
     );
   }
+}
+
+/**
+ * Builds the FFmpeg `-filter_complex` graph that ducks the background
+ * loop against the voice using `sidechaincompress`.
+ *
+ * Pipeline:
+ *
+ *   [0:a] voice  ── volume ──┬─► [voice]   (carries forward to amix)
+ *                            └─► [voicekey] (sidechain key signal)
+ *
+ *   [1:a] bg     ── volume ── aloop ── atrim ──► [bg]
+ *
+ *   [bg][voicekey] ── sidechaincompress ──► [ducked]
+ *
+ *   [voice][ducked] ── amix ──► afade(in) ── afade(out) ──► [out]
+ *
+ * The compressor parameters (`threshold=0.05`, `ratio=8`, `attack=20`,
+ * `release=300`) give a gentle, slow-release duck that drops the bed
+ * roughly 6–10 dB under normal-volume narration and recovers between
+ * sentences — close to a typical podcast voice-over chain.
+ */
+function buildDuckingFilter(args: {
+  voiceVolDb: number;
+  bgVolDb: number;
+  voiceDurationSec: number;
+  fadeInSec: number;
+  fadeOutSec: number;
+  fadeOutStartSec: number;
+}): string {
+  const {
+    voiceVolDb,
+    bgVolDb,
+    voiceDurationSec,
+    fadeInSec,
+    fadeOutSec,
+    fadeOutStartSec,
+  } = args;
+  const voiceDur = voiceDurationSec.toFixed(2);
+  const fadeStart = fadeOutStartSec.toFixed(2);
+  return [
+    `[0:a]volume=${voiceVolDb}dB,aresample=44100,asplit=2[voice][voicekey]`,
+    `[1:a]volume=${bgVolDb}dB,aloop=loop=-1:size=2e9,atrim=0:${voiceDur},aresample=44100[bg]`,
+    `[bg][voicekey]sidechaincompress=threshold=0.05:ratio=8:attack=20:release=300[ducked]`,
+    `[voice][ducked]amix=inputs=2:duration=first:dropout_transition=0[mixed]`,
+    `[mixed]afade=t=in:st=0:d=${fadeInSec},afade=t=out:st=${fadeStart}:d=${fadeOutSec}[out]`,
+  ].join(';');
+}
+
+/**
+ * Crossfade between two background loops. Reserved for the multi-track
+ * background feature (v2) where the bed transitions partway through a
+ * session. Not exposed via the orchestrator yet.
+ *
+ * @internal
+ */
+// TODO: enable for v2
+export async function crossfadeBackgrounds(
+  _a: string,
+  _b: string,
+  _durationSec: number,
+): Promise<string> {
+  throw new AppError(
+    'GENERATION_FAILED',
+    'crossfadeBackgrounds is reserved for v2 multi-track sessions',
+    501,
+  );
 }
 
 /**
