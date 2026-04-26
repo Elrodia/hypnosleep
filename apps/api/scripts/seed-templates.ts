@@ -28,6 +28,7 @@
  */
 import { eq, and, inArray } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 import { mysqlDb } from '../src/db/mysql/client.js';
 import { sessions } from '../src/db/mysql/schema/sessions.js';
 import { generateScript } from '../src/modules/ai/ai.service.js';
@@ -318,10 +319,12 @@ async function runSeedLoop(): Promise<void> {
 
 // Only run when invoked directly (e.g. `tsx scripts/seed-templates.ts`)
 // — not when this file is imported from a test for `acquireSeedLock`
-// / `releaseSeedLock`.
+// / `releaseSeedLock`. `pathToFileURL` normalises Windows backslashes
+// in `argv[1]` to a `file://` URL so the comparison matches
+// `import.meta.url`'s forward-slash form on every OS.
 const invokedDirectly =
   process.argv[1] !== undefined &&
-  import.meta.url === new URL(process.argv[1], 'file://').href;
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (invokedDirectly) {
   main().then(
