@@ -17,7 +17,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execa } from 'execa';
-import { mkdtemp, rm, writeFile, unlink } from 'node:fs/promises';
+import { mkdtemp, rm, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -153,7 +153,4 @@ describeIntegration('mixWithBackground fade in/out', () => {
     });
     expect(out).toBe(voicePath);
   });
-
-  // Touch unused fixture writer so TS doesn't strip the import.
-  void writeFile;
 });
