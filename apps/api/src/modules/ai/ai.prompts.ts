@@ -7,99 +7,140 @@ import type { GenerateSessionInput } from './ai.types.js';
  * `VoiceId`s defined in `config/constants.ts`; typing as a
  * `Partial<Record<VoiceId, string>>` ensures typos and removed voices are
  * caught at compile time while still allowing partial coverage.
+ *
+ * The labels below match the spec from the master prompt template:
+ *   Ana=soft maternal, Guy=grounded masculine, Sonia=refined British,
+ *   Natasha=warm Australian, Aria=bright friendly, Ryan=low focused.
+ * Note: the Edge TTS voice id we currently use for "Ryan" is
+ * `en-US-DavisNeural` (see `config/constants.ts`).
  */
 export const VOICE_TONE_HINTS: Partial<Record<VoiceId, string>> = {
-  'en-US-AnaNeural':     'soft, maternal, slow-paced, lots of pauses',
-  'en-US-GuyNeural':     'steady, grounded, deliberate, masculine reassurance',
-  'en-GB-SoniaNeural':   'refined, articulate, elegant rhythm',
-  'en-AU-NatashaNeural': 'warm, gentle, melodic',
-  'en-US-AriaNeural':    'bright, clear, friendly',
-  'en-US-DavisNeural':   'low, focused, professional',
+  'en-US-AnaNeural':     'soft, maternal, slow-paced, with frequent pauses',
+  'en-US-GuyNeural':     'grounded, masculine, deliberate reassurance',
+  'en-GB-SoniaNeural':   'refined British, articulate, elegant rhythm',
+  'en-AU-NatashaNeural': 'warm Australian, gentle, melodic',
+  'en-US-AriaNeural':    'bright, friendly, clear and inviting',
+  'en-US-DavisNeural':   'low, focused, professional (Ryan)',
 };
 
 const INDUCTION_DESCRIPTIONS: Record<InductionStyle, string> = {
   progressive:
-    'Start with progressive muscle relaxation, guiding the listener to tense and release each muscle group from toes to head.',
+    'Use progressive muscle relaxation. Welcome the listener, draw attention to the breath and body, then guide them to release tension from feet to head.',
   countdown:
-    'Use a countdown induction from 10 to 1, with each number taking the listener deeper into relaxation.',
+    'Use a countdown induction. Welcome the listener, settle the breath, then count down (e.g. 10 → 1) so each number deepens relaxation.',
   'body-scan':
-    'Guide the listener through a body scan, bringing awareness and relaxation to each part of the body sequentially.',
+    'Use a body-scan induction. Welcome the listener, anchor in the breath, then sweep awareness slowly through each part of the body.',
 };
 
 const DEPTH_DESCRIPTIONS: Record<DepthLevel, string> = {
-  light: 'Keep suggestions gentle and surface-level. Suitable for beginners or short sessions.',
+  light:
+    'Light depth: gentle deepening with surface imagery (a soft descending staircase of 5 steps, drifting downward through a warm cloud).',
   medium:
-    'Use moderate deepening techniques. Balance between relaxation and focused suggestion work.',
-  deep: 'Employ deep trance induction with layered deepening. Use vivid imagery and powerful embedded suggestions.',
+    'Medium depth: layered descending counting and imagery, doubling relaxation with each step.',
+  deep:
+    'Deep depth: vivid, multi-sensory descending imagery (long staircases, deepening lifts, cascading numbers) with embedded confusion and fractionation.',
 };
 
 /**
- * Builds the master prompt for generating a hypnosis script. The prompt is
- * heavily parameterized on induction style, depth, voice tone, duration,
- * and whether the session should wake the listener up at the end.
+ * Builds the master prompt for generating a hypnosis script. The prompt
+ * is heavily parameterized on induction style, depth, voice tone,
+ * duration, and whether the session should wake the listener up at the
+ * end. The output is a strict JSON envelope:
  *
- * The returned prompt instructs Gemini to emit plain text whose first line
- * is the session title and whose remainder is the script body.
+ *   { "title": string ≤ 50 chars, "scriptText": string, "estimatedSeconds": number }
+ *
+ * No markdown, no preamble — `responseMimeType: 'application/json'` is
+ * also set on the Gemini call to enforce this server-side.
  */
 export function buildScriptPrompt(input: GenerateSessionInput): string {
   const voiceTone = VOICE_TONE_HINTS[input.voiceId] ?? 'calm, soothing';
+  const wordTarget = input.durationMinutes * 150;
+  const estimatedSeconds = input.durationMinutes * 60;
 
-  return `You are an expert clinical hypnotherapist and scriptwriter. Generate a professional hypnosis script for an audio session.
+  const closing = input.wakeUpEnding
+    ? 'Closing (5%): a gentle count-up from 1 to 5 with rising energy, ending fully alert, refreshed, and present.'
+    : 'Closing (5%): a slow fade-out into restful sleep — soft, descending phrases that allow the listener to drift off naturally.';
+
+  return `You are an expert clinical hypnotherapist and scriptwriter. Generate a professional, therapeutic hypnosis script for an audio session.
 
 ## Session Parameters
-- **User Goal:** ${input.prompt}
-- **Category:** ${input.category}
-- **Target Duration:** ${input.durationMinutes} minutes (aim for approximately ${input.durationMinutes * 130} words)
-- **Induction Style:** ${INDUCTION_DESCRIPTIONS[input.inductionStyle]}
-- **Depth Level:** ${DEPTH_DESCRIPTIONS[input.depthLevel]}
-- **Voice Tone:** ${voiceTone}
-- **Wake-up Ending:** ${input.wakeUpEnding ? 'Include a gentle count-up awakening sequence at the end' : 'End with suggestions for natural, restful sleep'}
+- User goal (address verbatim): ${input.prompt}
+- Category: ${input.category}
+- Target duration: ${input.durationMinutes} minutes (~${wordTarget} words; estimatedSeconds ≈ ${estimatedSeconds})
+- Induction style: ${INDUCTION_DESCRIPTIONS[input.inductionStyle]}
+- Depth level: ${DEPTH_DESCRIPTIONS[input.depthLevel]}
+- Voice tone hint (${input.voiceId}): ${voiceTone}
+- Wake-up ending: ${input.wakeUpEnding ? 'YES — count up 1 → 5 with rising energy at the end.' : 'NO — fade gently into sleep at the end.'}
 
-## Script Requirements
-1. Write in second person ("you"), speaking directly to the listener
-2. Use present tense and positive language only (no negations like "don't worry")
-3. Include natural pauses indicated by "..." for the TTS voice
-4. Structure the script with clear paragraphs separated by blank lines
-5. Include at least 3 embedded suggestions related to the user's goal
-6. Use sensory-rich language (visual, auditory, kinesthetic)
-7. Avoid any medical claims, diagnoses, or promises of curing conditions
-8. Do NOT include any stage directions, speaker labels, or formatting — output ONLY the spoken script text
-9. Do NOT mention hypnosis, hypnotherapy, or trance explicitly in the script
+## Required Five-Section Structure
+Produce the script in this exact order, hitting the target word percentages of total length:
+1. Induction (≈20%) — welcome, breath and body awareness, then the chosen induction style.
+2. Deepening (≈15%) — descending counting and/or imagery; intensity matches the depth level.
+3. Suggestion (≈50%) — the therapeutic core. Address the user goal verbatim. Deliver every key idea in three modes:
+     (a) direct affirmation ("you are…"),
+     (b) vivid metaphor (sensory imagery),
+     (c) future pacing ("imagine yourself next week…").
+   Repeat the key suggestion phrases 3–5 times with variation.
+4. Integration (≈10%) — anchor the new state to a physical trigger the listener can use later (e.g. a slow deep breath, touching thumb to finger).
+5. ${closing}
 
-## Output Format
-Return the script as plain text with paragraphs separated by blank lines.
-The FIRST line must be a short, compelling title for the session (max 60 chars), followed by a blank line, then the script body.
+## Voice & Style Rules
+- Always speak in second person ("you").
+- Always present tense.
+- Use permissive language ("you may notice…", "perhaps you find…", "you might begin to…").
+- Use sensory-rich language (visual, auditory, kinesthetic).
+- Insert SSML breaks: <break time="2s"/> after key sentences, <break time="3s"/> between sections.
+- Do NOT mention the words "hypnosis", "hypnotic", "trance" inside the script body.
+- Do NOT include speaker labels, stage directions, or markdown.
 
-## Safety
-- Never suggest the listener can cure diseases
-- Never suggest the listener should stop prescribed medication
-- Never include content that could cause distress or panic
-- Always maintain a calming, supportive, and empowering tone`;
+## Forbidden Content (reject internally and rewrite if needed)
+- Medical claims, diagnoses, drug names, prescription advice.
+- Sexual or romantic content.
+- Any content suitable only for minors / for minors.
+- Instructions that could cause physical harm.
+- Self-harm, suicide, or harm-to-others content.
+- Discriminatory or slur language.
+
+## Output Format — STRICT JSON ONLY
+Return ONE JSON object and nothing else. No markdown, no commentary, no preamble.
+Schema:
+{
+  "title": string (≤ 50 characters, evocative, no quotes),
+  "scriptText": string (the full script body, ~${wordTarget} words, including SSML <break time="…"/> tags),
+  "estimatedSeconds": number (whole-second estimate of spoken duration; aim near ${estimatedSeconds})
+}`;
 }
 
 /**
  * Builds the prompt for the LLM-based "deep" safety check. The model is
- * asked to emit a single JSON object of the shape
- * `{ "safe": boolean, "reason"?: string }`.
+ * asked to emit a single strict-JSON object of the shape
+ * `{ "safe": boolean, "flags": string[] }` where `flags` is drawn from
+ * the controlled vocabulary listed below.
  */
 export function buildSafetyCheckPrompt(scriptText: string): string {
-  return `You are a safety reviewer for hypnosis scripts. Review the following script and determine if it's safe for consumer use.
+  return `You are a safety reviewer for hypnosis scripts. Review the following script and decide whether it is safe for adult consumer use.
 
-Flag the script as UNSAFE if it contains ANY of the following:
-1. Claims to cure, treat, or diagnose medical conditions
-2. Suggestions to stop taking prescribed medication
-3. Content that could cause panic, distress, or psychological harm
-4. Sexually explicit or inappropriate content
-5. Content encouraging self-harm or harm to others
-6. Instructions to perform dangerous physical actions while in a relaxed state
+Flag the script as UNSAFE if it contains ANY of the following. Use the listed flag tokens.
+
+Possible flags (use only these values):
+- "medical_claim"          — claims to cure, treat, diagnose, or replace medical advice / prescribed medication.
+- "drug_reference"         — explicit drug names (xanax, ambien, prozac, antidepressants, antipsychotics, etc.).
+- "harmful_to_vulnerable"  — content likely to harm someone with anxiety, phobias, addiction, or other vulnerabilities (e.g. amplifying a phobia, encouraging relapse).
+- "sexual"                 — sexual or romantic content.
+- "discriminatory"         — slurs or discriminatory language.
+- "physical_harm"          — instructions that could cause physical injury (driving while in trance, unsafe physical actions).
+- "suicide_self_harm"      — references to suicide, self-harm, ending one's life, harming others.
 
 Script to review:
 """
 ${scriptText}
 """
 
-Respond in JSON format only:
-{ "safe": true } or { "safe": false, "reason": "brief explanation" }`;
+Output STRICT JSON only — no markdown, no commentary, no preamble:
+{ "safe": boolean, "flags": string[] }
+
+If the script is safe, return { "safe": true, "flags": [] }.
+Otherwise list every applicable flag from the controlled vocabulary above.`;
 }
 
 /**

@@ -26,6 +26,12 @@ export interface ScriptGenerationResult {
   tokensInput: number;
   tokensOutput: number;
   generationMs: number;
+  /**
+   * Estimated playback duration in whole seconds, as reported by the
+   * model in the JSON envelope. Defaults to `0` if the model omitted
+   * or returned a non-numeric value.
+   */
+  estimatedSeconds: number;
 }
 
 /** Job data for BullMQ audio generation queue */
@@ -53,8 +59,13 @@ export interface GenerationProgressEvent {
   sessionId: string;
 }
 
-/** Safety check result */
+/**
+ * Safety check result. Both quick and deep checks share this shape
+ * so callers can treat them uniformly: `safe === false` indicates
+ * the script must be rejected, and `flags` enumerates the machine-
+ * readable reason codes (e.g. `medical_claim`, `parse_error`).
+ */
 export interface SafetyCheckResult {
-  isSafe: boolean;
-  reason?: string;
+  safe: boolean;
+  flags: string[];
 }

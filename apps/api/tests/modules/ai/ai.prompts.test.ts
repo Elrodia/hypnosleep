@@ -25,24 +25,24 @@ describe('buildScriptPrompt', () => {
     expect(prompt).toContain('Help me sleep deeply');
   });
 
-  it('includes the target word count derived from duration', () => {
+  it('includes the target word count derived from duration (150 wpm)', () => {
     const prompt = buildScriptPrompt({ ...baseInput, durationMinutes: 10 });
-    // 10 × 130 = 1300 words
-    expect(prompt).toContain('1300 words');
+    // 10 × 150 = 1500 words
+    expect(prompt).toContain('1500 words');
   });
 
-  it('uses a sleep-ending when wakeUpEnding is false', () => {
+  it('uses a sleep fade-out when wakeUpEnding is false', () => {
     const prompt = buildScriptPrompt({ ...baseInput, wakeUpEnding: false });
-    expect(prompt.toLowerCase()).toContain('natural, restful sleep');
+    expect(prompt.toLowerCase()).toContain('fade gently into sleep');
   });
 
-  it('uses a wake-up ending when wakeUpEnding is true', () => {
+  it('uses a count-up wake-up ending when wakeUpEnding is true', () => {
     const prompt = buildScriptPrompt({
       ...baseInput,
       wakeUpEnding: true,
       category: 'confidence',
     });
-    expect(prompt.toLowerCase()).toContain('count-up awakening');
+    expect(prompt).toContain('count up 1 → 5');
   });
 
   it('embeds the voice-specific tone hint', () => {
@@ -69,7 +69,29 @@ describe('buildScriptPrompt', () => {
       inductionStyle: 'countdown',
     });
     expect(progressive).toContain('progressive muscle relaxation');
-    expect(countdown).toContain('countdown induction from 10 to 1');
+    expect(countdown).toContain('countdown induction');
+  });
+
+  it('demands strict JSON output with the {title, scriptText, estimatedSeconds} envelope', () => {
+    const prompt = buildScriptPrompt(baseInput);
+    expect(prompt).toContain('STRICT JSON');
+    expect(prompt).toContain('"title"');
+    expect(prompt).toContain('"scriptText"');
+    expect(prompt).toContain('"estimatedSeconds"');
+  });
+
+  it('mentions all five sections with their target proportions', () => {
+    const prompt = buildScriptPrompt(baseInput);
+    expect(prompt).toContain('Induction (≈20%)');
+    expect(prompt).toContain('Deepening (≈15%)');
+    expect(prompt).toContain('Suggestion (≈50%)');
+    expect(prompt).toContain('Integration (≈10%)');
+  });
+
+  it('asks the model to insert SSML <break> tags', () => {
+    const prompt = buildScriptPrompt(baseInput);
+    expect(prompt).toContain('<break time="2s"/>');
+    expect(prompt).toContain('<break time="3s"/>');
   });
 });
 
@@ -80,10 +102,26 @@ describe('buildSafetyCheckPrompt', () => {
     expect(prompt).toContain('You are calm.');
   });
 
-  it('requests a JSON-only response shape', () => {
+  it('requests a strict-JSON response with safe + flags fields', () => {
     const prompt = buildSafetyCheckPrompt('script');
-    expect(prompt).toContain('JSON format only');
+    expect(prompt).toContain('STRICT JSON');
     expect(prompt).toContain('"safe"');
+    expect(prompt).toContain('"flags"');
+  });
+
+  it('lists the controlled-vocabulary flag tokens', () => {
+    const prompt = buildSafetyCheckPrompt('script');
+    for (const flag of [
+      'medical_claim',
+      'drug_reference',
+      'harmful_to_vulnerable',
+      'sexual',
+      'discriminatory',
+      'physical_harm',
+      'suicide_self_harm',
+    ]) {
+      expect(prompt).toContain(flag);
+    }
   });
 });
 
