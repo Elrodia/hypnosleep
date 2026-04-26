@@ -7,6 +7,7 @@ import { subscriptionRouter } from './modules/subscription/subscription.routes.j
 import { progressRouter } from './modules/progress/progress.routes.js';
 import { profileRouter } from './modules/profile/profile.routes.js';
 import { kvRouter } from './modules/kv/kv.routes.js';
+import { notificationsRouter } from './modules/notifications/notifications.routes.js';
 import { adminDebugRouter } from './modules/admin/debug.routes.js';
 import { authenticate } from './middleware/authenticate.js';
 import { env, validateAuthRuntimeConfig } from './config/env.js';
@@ -63,6 +64,10 @@ export function registerRoutes(app: Express): void {
   // (onboarding flags, preferences, cached stats) across devices. Backed
   // by Redis; keys are namespaced per authenticated user.
   app.use('/api/kv', kvRouter);
+
+  // Per-user notifications inbox (in-app bell). Backed by Redis with a
+  // capped per-user list so it cannot grow unbounded.
+  app.use('/api/notifications', notificationsRouter);
 
   // Admin-only diagnostic endpoints: debug event lookup by rid,
   // filtered listing, JSONL export, health. Gated at the router level

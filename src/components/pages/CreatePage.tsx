@@ -19,6 +19,8 @@ import {
   listSessions,
   regenerateSessionAudio,
   deleteSession,
+  cancelSessionGeneration,
+  editSessionScript,
   type SessionDetail,
 } from '@/lib/api-endpoints'
 import { ApiError } from '@/lib/api'
@@ -244,6 +246,11 @@ export function CreatePage() {
       }
     })
 
+  // Tracks the in-flight session id so handleCancelGeneration can
+  // POST to the server-side cancel endpoint, not just close the SSE.
+  // Cleared on every settled outcome (success / error / cancel).
+  const activeSessionIdRef = useRef<string | null>(null)
+
   const handleGenerate = async () => {
     if (!inputValue.trim()) return
 
@@ -265,8 +272,10 @@ export function CreatePage() {
         background: backgroundSound,
         category,
       })
+      activeSessionIdRef.current = sessionId
 
       const detail = await subscribeToGeneration(sessionId)
+      activeSessionIdRef.current = null
       setGeneratedSession(detail)
       qc.invalidateQueries({ queryKey: ['sessions'] })
       setIsGenerating(false)
@@ -275,6 +284,7 @@ export function CreatePage() {
       setIsGenerating(false)
       eventSourceRef.current?.close()
       eventSourceRef.current = null
+      activeSessionIdRef.current = null
 
       if (err instanceof ApiError) {
         if (err.status === 402) {
@@ -311,9 +321,19 @@ export function CreatePage() {
   }
 
   const handleCancelGeneration = () => {
+    const sid = activeSessionIdRef.current
     eventSourceRef.current?.close()
     eventSourceRef.current = null
     setIsGenerating(false)
+    // Server-side abort: tells the worker to skip the next steps and
+    // refunds the user's quota slot. Best-effort — local UI state is
+    // already in the cancelled state regardless of network outcome.
+    if (sid) {
+      void cancelSessionGeneration(sid).catch(() => {
+        /* swallow — local state is already cancelled */
+      })
+    }
+    activeSessionIdRef.current = null
     toast.info('Session generation cancelled')
   }
 
@@ -333,7 +353,32 @@ export function CreatePage() {
     setShowScriptEditor(true)
   }
 
-  const handleSaveScript = (_edited: string, _modified: Set<number>) => {
+  const handleSaveScript = async (edited: string, _modified: Set<number>) => {
+    if (!generatedSession) {
+      setShowScriptEditor(false)
+      setShowPreview(true)
+      return
+    }
+    try {
+      // Persist the edited script to the backend so the change isn't
+      // silently lost when the user dismisses the preview. The audio
+      // does not auto-regenerate — the next "Regenerate audio" click
+      // is responsible for re-running TTS against the new script.
+      await editSessionScript(generatedSession.id, edited)
+      // Mirror the edit into local state so the preview re-opens with
+      // the new text without an extra round-trip.
+      setGeneratedSession({ ...generatedSession, scriptText: edited })
+      qc.invalidateQueries({ queryKey: ['sessions'] })
+      toast.success('Script saved')
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 402) {
+        setPaywallTrigger('premium-voice')
+        setShowPaywall(true)
+        return
+      }
+      toast.error(err instanceof Error ? err.message : 'Could not save script.')
+      return
+    }
     setShowScriptEditor(false)
     setShowPreview(true)
   }
@@ -394,13 +439,36 @@ export function CreatePage() {
 
   const handleClosePaywall = () => setShowPaywall(false)
 
-  const handlePlaySession = (_sessionId: string) => {
-    // Delegated to RecentCreations / Library; we just surface a toast.
-    toast.success('Starting session...')
+  const handlePlaySession = async (sessionId: string) => {
+    // Fetch the latest session detail so we use the real title /
+    // category / duration rather than the abbreviated card data —
+    // and so we know whether the audio is actually `ready` (templates
+    // and in-flight generations should preview, not stream).
+    try {
+      const detail = await getSession(sessionId)
+      play({
+        sessionId: detail.status === 'ready' ? detail.id : undefined,
+        title: detail.title,
+        category: formatCategory(detail.category),
+        duration: detail.durationSec,
+      })
+    } catch {
+      toast.error('Could not load session.')
+    }
   }
 
-  const handleEditSession = (_sessionId: string) => {
-    toast.info('Open the session from your library to edit its script.')
+  const handleEditSession = async (sessionId: string) => {
+    // Open the script editor for an existing session by hydrating the
+    // CreatePage's `generatedSession` with the row from the backend
+    // and switching to the editor modal.
+    try {
+      const detail = await getSession(sessionId)
+      setGeneratedSession(detail)
+      setShowPreview(false)
+      setShowScriptEditor(true)
+    } catch {
+      toast.error('Could not open session for editing.')
+    }
   }
 
   const handleRegenerateAudio = async (sessionId: string) => {

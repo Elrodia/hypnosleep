@@ -476,6 +476,7 @@ function AppContent() {
         onClose={() => setShowFeedback(false)}
         sessionTitle={completedSession?.title || ''}
         sessionDuration={completedSession?.duration || 0}
+        sessionId={completedSession?.sessionId ?? null}
       />
     </>
   )

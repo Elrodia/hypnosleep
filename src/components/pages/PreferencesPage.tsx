@@ -60,6 +60,19 @@ export function PreferencesPage({ onBack }: PreferencesPageProps) {
   const handleThemeToggle = (checked: boolean) => {
     const newTheme = checked ? 'light' : 'dark'
     setTheme(newTheme)
+    // Apply immediately so the toggle takes visual effect without
+    // waiting for a route change. The bootstrap effect in main.tsx
+    // mirrors this on initial page load.
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('light', newTheme === 'light')
+    }
+    // Mirror to localStorage so main.tsx's pre-mount bootstrap can
+    // pick the right theme on the next reload without a network call.
+    try {
+      localStorage.setItem('hypno-theme', newTheme)
+    } catch {
+      /* private-mode browsers — non-fatal */
+    }
     toast.success(`${newTheme === 'dark' ? 'Dark' : 'Light'} theme activated`)
   }
 

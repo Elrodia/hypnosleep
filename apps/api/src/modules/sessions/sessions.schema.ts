@@ -87,6 +87,14 @@ export const sessionIdSchema = z.object({
   id: z.string().uuid('Invalid session ID'),
 });
 
+/** Body schema for `POST /api/sessions/:id/report`. */
+export const reportSessionSchema = z.object({
+  reason: z.enum(['inappropriate', 'inaccurate', 'unsafe', 'low_quality', 'other']),
+  details: z.string().max(500).optional().default(''),
+});
+
+export type ReportSessionInput = z.infer<typeof reportSessionSchema>;
+
 /**
  * @deprecated Kept as an alias for back-compat with earlier callers.
  * Prefer {@link listSessionsQuerySchema}.

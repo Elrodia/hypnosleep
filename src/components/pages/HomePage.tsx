@@ -286,7 +286,10 @@ export function HomePage() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">Quick Sessions</h2>
-          <button className="flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors font-medium">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('navigate-to-tab', { detail: 'library' }))}
+            className="flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors font-medium"
+          >
             See All
             <CaretRight weight="bold" size={16} />
           </button>

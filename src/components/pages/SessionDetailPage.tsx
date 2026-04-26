@@ -101,17 +101,26 @@ export function SessionDetailPage({ sessionId, onBack, onPlay, onDeleted }: Sess
 
   const handleShare = async () => {
     if (!session) return
-    if (navigator.share) {
+    const url = `${window.location.origin}/?session=${encodeURIComponent(session.id)}`
+    const payload = {
+      title: session.title,
+      text: `Check out this hypnosis session: ${session.title}`,
+      url,
+    }
+    if (typeof navigator !== 'undefined' && 'share' in navigator) {
       try {
-        await navigator.share({
-          title: session.title,
-          text: `Check out this hypnosis session: ${session.title}`,
-        })
+        await (navigator as Navigator & { share: (d: ShareData) => Promise<void> }).share(payload)
+        return
       } catch (err) {
-        if ((err as Error).name !== 'AbortError') toast.error('Failed to share')
+        if ((err as Error).name === 'AbortError') return
+        // Fall through to clipboard fallback below.
       }
-    } else {
+    }
+    try {
+      await navigator.clipboard.writeText(url)
       toast.success('Link copied to clipboard!')
+    } catch {
+      toast.error('Could not copy link.')
     }
   }
 

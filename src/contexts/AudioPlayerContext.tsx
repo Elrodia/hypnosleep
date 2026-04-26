@@ -69,9 +69,20 @@ interface AudioPlayerContextType {
   stop: () => void
   setProgress: (progress: number | ((prev: number) => number)) => void
   togglePlayPause: () => void
+  /** Loop the underlying media element when it ends. */
+  setLoop: (enabled: boolean) => void
+  /** 0..1 master volume on the underlying media element. */
+  setVolume: (volume: number) => void
+  /** Real `<audio>` playbackRate (e.g. 0.75, 1, 1.25). */
+  setPlaybackRate: (rate: number) => void
+  /**
+   * When true, the player ramps `audio.volume` down to 0 over the
+   * final 30 seconds of the session so it doesn't end abruptly.
+   */
+  setFadeOut: (enabled: boolean) => void
   showFeedback: boolean
   setShowFeedback: (show: boolean) => void
-  completedSession: { title: string; duration: number } | null
+  completedSession: { title: string; duration: number; sessionId: string | null } | null
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined)
@@ -91,7 +102,7 @@ const INITIAL_STATE: AudioPlayerState = {
 export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [player, setPlayer] = useState<AudioPlayerState>(INITIAL_STATE)
   const [showFeedback, setShowFeedback] = useState(false)
-  const [completedSession, setCompletedSession] = useState<{ title: string; duration: number } | null>(null)
+  const [completedSession, setCompletedSession] = useState<{ title: string; duration: number; sessionId: string | null } | null>(null)
 
   /**
    * Single shared `<audio>` element so that `play()` after a previous
@@ -107,6 +118,52 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   // Whether we've already recorded the completion for this session, so
   // repeated end/seek-past-end callbacks don't double-count plays.
   const recordedSessionIdRef = useRef<string | null>(null)
+
+  // Persisted controls — applied to the underlying `<audio>` element
+  // every time it (or its parameters) change. Stored in refs so the
+  // setters can mutate the live audio without forcing a re-render of
+  // every consumer of the context.
+  const loopRef = useRef<boolean>(false)
+  const volumeRef = useRef<number>(1)
+  const playbackRateRef = useRef<number>(1)
+  const fadeOutRef = useRef<boolean>(false)
+  /** Fade-out duration in seconds; matches the visual hint in MiniPlayer. */
+  const FADE_OUT_SECONDS = 30
+
+  const applyAudioSettings = useCallback(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    audio.loop = loopRef.current
+    audio.playbackRate = playbackRateRef.current
+    // Fade-out is computed off `currentTime`/`duration` in the
+    // timeupdate handler; volume here is the un-faded baseline.
+    audio.volume = volumeRef.current
+  }, [])
+
+  const setLoop = useCallback((enabled: boolean) => {
+    loopRef.current = enabled
+    const audio = audioRef.current
+    if (audio) audio.loop = enabled
+  }, [])
+
+  const setVolume = useCallback((volume: number) => {
+    const v = Math.max(0, Math.min(1, volume))
+    volumeRef.current = v
+    const audio = audioRef.current
+    if (audio) audio.volume = v
+  }, [])
+
+  const setPlaybackRate = useCallback((rate: number) => {
+    playbackRateRef.current = rate
+    const audio = audioRef.current
+    if (audio) audio.playbackRate = rate
+  }, [])
+
+  const setFadeOut = useCallback((enabled: boolean) => {
+    fadeOutRef.current = enabled
+    const audio = audioRef.current
+    if (audio && !enabled) audio.volume = volumeRef.current
+  }, [])
 
   const play = useCallback(
     (titleOrOpts: string | PlayOptions, category = 'Session', duration = 600) => {
@@ -149,6 +206,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         try {
           const { url } = await getSessionAudioUrl(opts.sessionId!)
           audio.src = url
+          // Apply user-controlled settings (loop, playbackRate, volume)
+          // before play so the very first chunk respects them.
+          applyAudioSettings()
           try {
             await audio.play()
             setPlayer((prev) => ({ ...prev, isLoading: false, isPlaying: true }))
@@ -176,7 +236,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         }
       })()
     },
-    [],
+    [applyAudioSettings],
   )
 
   const pause = useCallback(() => {
@@ -219,7 +279,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     }
     setPlayer((prev) => {
       recordCompletion(prev)
-      setCompletedSession({ title: prev.sessionTitle, duration: prev.duration })
+      setCompletedSession({ title: prev.sessionTitle, duration: prev.duration, sessionId: prev.sessionId })
       setShowFeedback(true)
       return INITIAL_STATE
     })
@@ -270,6 +330,30 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
     const handleTime = () => {
       setPlayer((prev) => ({ ...prev, progress: audio.currentTime }))
+      // Fade-out: when within FADE_OUT_SECONDS of the end, ramp
+      // `audio.volume` from `volumeRef.current` down to 0. We mutate
+      // the live element directly to avoid re-rendering on every
+      // timeupdate tick.
+      if (fadeOutRef.current && Number.isFinite(audio.duration) && audio.duration > 0) {
+        const remaining = audio.duration - audio.currentTime
+        if (remaining < FADE_OUT_SECONDS) {
+          const ratio = Math.max(0, remaining / FADE_OUT_SECONDS)
+          audio.volume = volumeRef.current * ratio
+        } else if (audio.volume !== volumeRef.current) {
+          audio.volume = volumeRef.current
+        }
+      }
+    }
+    const handleEnded = () => {
+      // When loop is enabled the browser auto-restarts; only treat a
+      // true end-of-stream as a session completion.
+      if (audio.loop) return
+      setPlayer((prev) => {
+        recordCompletion(prev)
+        setCompletedSession({ title: prev.sessionTitle, duration: prev.duration, sessionId: prev.sessionId })
+        setShowFeedback(true)
+        return INITIAL_STATE
+      })
     }
     const handleMeta = () => {
       if (Number.isFinite(audio.duration) && audio.duration > 0) {
@@ -281,14 +365,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     }
     const handlePaused = () => {
       setPlayer((prev) => ({ ...prev, isPlaying: false }))
-    }
-    const handleEnded = () => {
-      setPlayer((prev) => {
-        recordCompletion(prev)
-        setCompletedSession({ title: prev.sessionTitle, duration: prev.duration })
-        setShowFeedback(true)
-        return INITIAL_STATE
-      })
     }
     const handleError = () => {
       toast.error('Audio playback failed.')
@@ -340,7 +416,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     const interval = setInterval(() => {
       setPlayer((prev) => {
         if (prev.progress >= prev.duration) {
-          setCompletedSession({ title: prev.sessionTitle, duration: prev.duration })
+          setCompletedSession({ title: prev.sessionTitle, duration: prev.duration, sessionId: prev.sessionId })
           setShowFeedback(true)
           return { ...prev, isPlaying: false }
         }
@@ -360,11 +436,15 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       stop,
       setProgress,
       togglePlayPause,
+      setLoop,
+      setVolume,
+      setPlaybackRate,
+      setFadeOut,
       showFeedback,
       setShowFeedback,
       completedSession,
     }),
-    [player, play, pause, resume, stop, setProgress, togglePlayPause, showFeedback, completedSession],
+    [player, play, pause, resume, stop, setProgress, togglePlayPause, setLoop, setVolume, setPlaybackRate, setFadeOut, showFeedback, completedSession],
   )
 
   return (
