@@ -49,7 +49,7 @@ dockerfilePath = "Dockerfile"
 # Gemini rate-limit must not block sign-in. It is safe to run on every
 # replica because the seeder is idempotent.
 preDeployCommand = "node --import tsx scripts/bootstrap-migrations.ts && npm run db:migrate"
-startCommand = "(node --import tsx scripts/seed-templates.ts || echo 'startup: seed failed, continuing') && exec node dist/server.js"
+startCommand = "/bin/sh -c \"(node --import tsx scripts/seed-templates.ts || echo 'startup: seed failed, continuing') && exec node dist/server.js\""
 # `/health` is registered before the rate limiter and before the Sentry
 # error handler, so Railway's probes never get 429'd or accidentally
 # captured as synthetic errors. The richer `/api/health` endpoint is
