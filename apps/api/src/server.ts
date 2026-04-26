@@ -6,6 +6,7 @@ import compression from 'compression';
 import cors from 'cors';
 import pinoHttp from 'pino-http';
 import * as Sentry from '@sentry/node';
+import { execa } from 'execa';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { detectOAuthCredentialIssues, env, validateAuthRuntimeConfig } from './config/env.js';
 import { logger } from './utils/logger.js';
@@ -113,6 +114,24 @@ void (async () => {
     );
   }
 })();
+
+// Startup FFmpeg sanity check. The audio pipeline shells out to
+// `ffmpeg` / `ffprobe` for every generation job (voice mix, fade in/out,
+// duration probe). If the binary is missing the worker would fail every
+// job with a confusing `ENOENT` deep inside the queue — much better to
+// refuse to start so the deploy fails loudly and Railway rolls back.
+//
+// In production (Docker) the runtime stage installs ffmpeg via apt, so
+// this should always succeed. Local dev expects `brew install ffmpeg`
+// (macOS) or `sudo apt install ffmpeg` (Linux).
+async function verifyFfmpeg(): Promise<void> {
+  const { stdout } = await execa('ffmpeg', ['-version']);
+  logger.info({ version: stdout.split('\n')[0] }, 'FFmpeg available');
+}
+verifyFfmpeg().catch((err) => {
+  logger.fatal({ err }, 'FFmpeg not found — refusing to start');
+  process.exit(1);
+});
 
 const SAME_ORIGIN = (() => {
   try {

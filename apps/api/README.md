@@ -207,3 +207,20 @@ npm run build      # tsc -b
 npm run test       # vitest run
 npm run lint       # eslint src/
 ```
+
+## Local development prerequisites
+
+### FFmpeg
+
+The audio pipeline (`apps/api/src/modules/audio/audio.mixer.ts`) shells
+out to `ffmpeg` and `ffprobe` for every generation job. The server
+performs a startup self-check (`verifyFfmpeg` in `server.ts`) that
+refuses to boot if the binary is missing — install it before running
+`npm run dev`:
+
+- **macOS:** `brew install ffmpeg`
+- **Debian / Ubuntu:** `sudo apt install ffmpeg`
+
+In production the API container installs ffmpeg via `apt-get` in the
+runtime stage of `apps/api/Dockerfile`, so no manual step is required
+there.
