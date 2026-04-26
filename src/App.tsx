@@ -167,13 +167,17 @@ function AppContent() {
         setShowOnboarding(true)
       } else if (!hasCompletedQuiz) {
         setShowQuiz(true)
-      } else if (quizData && !showResults) {
-        setShowResults(true)
       }
+      // Note: the Results page is shown directly by `handleQuizComplete`
+      // immediately after the quiz is submitted. We deliberately do NOT
+      // re-trigger it from this effect based on the persisted `quizData`,
+      // because that would cause an infinite loop: dismissing the results
+      // (skip / start session) flips `showResults` back to false, the
+      // effect re-runs, and the dismissed screen is shown again.
     }, 2500)
 
     return () => clearTimeout(timer)
-  }, [status, hasCompletedOnboarding, hasCompletedQuiz, isLoggedIn, quizData, showResults])
+  }, [status, hasCompletedOnboarding, hasCompletedQuiz, isLoggedIn])
 
   useEffect(() => {
     const handleNavigateToTab = (event: CustomEvent<TabId>) => {
