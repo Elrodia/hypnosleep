@@ -28,6 +28,12 @@ describe('quickSafetyCheck', () => {
     expect(result.flags).toContain('medical_claim');
   });
 
+  it('flags explicit drug names', () => {
+    const result = quickSafetyCheck('You no longer need Xanax to feel calm.');
+    expect(result.safe).toBe(false);
+    expect(result.flags).toContain('drug_reference');
+  });
+
   it('flags self-harm content', () => {
     const result = quickSafetyCheck(
       'Imagine yourself ending your life peacefully.',
@@ -36,10 +42,24 @@ describe('quickSafetyCheck', () => {
     expect(result.flags).toContain('suicide_self_harm');
   });
 
-  it('is case-insensitive', () => {
+  it('is case-insensitive on harm phrases', () => {
     const result = quickSafetyCheck('KILL YOURSELF now.');
     expect(result.safe).toBe(false);
     expect(result.flags).toContain('suicide_self_harm');
+  });
+
+  it('flags sexual content', () => {
+    const result = quickSafetyCheck('You feel deeply aroused and erotic.');
+    expect(result.safe).toBe(false);
+    expect(result.flags).toContain('sexual');
+  });
+
+  it('flags discriminatory slurs', () => {
+    // Using a representative slur from the controlled list. The matched
+    // term is intentionally never echoed back from the function itself.
+    const result = quickSafetyCheck('Imagine that retard relaxing here.');
+    expect(result.safe).toBe(false);
+    expect(result.flags).toContain('discriminatory');
   });
 });
 
@@ -59,40 +79,62 @@ describe('deepSafetyCheck', () => {
     };
   }
 
-  it('returns isSafe: true for benign scripts', async () => {
+  it('returns { safe: true, flags: [] } for benign scripts', async () => {
     _setModel(
-      mockModel('{ "safe": true }') as unknown as Parameters<typeof _setModel>[0],
+      mockModel('{ "safe": true, "flags": [] }') as unknown as Parameters<
+        typeof _setModel
+      >[0],
     );
     const result = await deepSafetyCheck('You are calm.');
-    expect(result.isSafe).toBe(true);
+    expect(result.safe).toBe(true);
+    expect(result.flags).toEqual([]);
   });
 
-  it('returns isSafe: false with a reason when flagged', async () => {
+  it('returns { safe: false, flags: [...] } when flagged', async () => {
     _setModel(
       mockModel(
-        '{ "safe": false, "reason": "medical claim detected" }',
+        '{ "safe": false, "flags": ["medical_claim"] }',
       ) as unknown as Parameters<typeof _setModel>[0],
     );
     const result = await deepSafetyCheck('This cures cancer.');
-    expect(result.isSafe).toBe(false);
-    expect(result.reason).toContain('medical claim');
+    expect(result.safe).toBe(false);
+    expect(result.flags).toContain('medical_claim');
   });
 
   it('strips ```json code fences before parsing', async () => {
     _setModel(
-      mockModel('```json\n{ "safe": true }\n```') as unknown as Parameters<
-        typeof _setModel
-      >[0],
+      mockModel(
+        '```json\n{ "safe": true, "flags": [] }\n```',
+      ) as unknown as Parameters<typeof _setModel>[0],
     );
     const result = await deepSafetyCheck('Peaceful script.');
-    expect(result.isSafe).toBe(true);
+    expect(result.safe).toBe(true);
   });
 
-  it('defaults to safe when the underlying call throws', async () => {
+  it('fails closed with parse_error when the underlying call throws', async () => {
     _setModel({
       generateContent: vi.fn().mockRejectedValue(new Error('boom')),
     } as unknown as Parameters<typeof _setModel>[0]);
     const result = await deepSafetyCheck('anything');
-    expect(result.isSafe).toBe(true);
+    expect(result.safe).toBe(false);
+    expect(result.flags).toEqual(['parse_error']);
+  });
+
+  it('fails closed with parse_error when JSON cannot be parsed', async () => {
+    _setModel(
+      mockModel('not json at all') as unknown as Parameters<typeof _setModel>[0],
+    );
+    const result = await deepSafetyCheck('script');
+    expect(result.safe).toBe(false);
+    expect(result.flags).toEqual(['parse_error']);
+  });
+
+  it('fails closed with parse_error when `safe` field is missing', async () => {
+    _setModel(
+      mockModel('{ "flags": [] }') as unknown as Parameters<typeof _setModel>[0],
+    );
+    const result = await deepSafetyCheck('script');
+    expect(result.safe).toBe(false);
+    expect(result.flags).toEqual(['parse_error']);
   });
 });

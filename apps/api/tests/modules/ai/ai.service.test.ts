@@ -39,16 +39,15 @@ describe('AI Service — generateScript', () => {
     _setModel(null);
   });
 
-  it('should generate a script with title and body', async () => {
-    const mockText = `Peaceful Slumber Awaits
+  it('should generate a script with title and body from the JSON envelope', async () => {
+    const envelope = JSON.stringify({
+      title: 'Peaceful Slumber Awaits',
+      scriptText:
+        'Close your eyes and take a deep breath in... and slowly let it out.\n\nYour body is becoming heavier with each breath. You are safe and calm.\n\nAs you drift deeper, positive suggestions take root in your mind.',
+      estimatedSeconds: 900,
+    });
 
-Close your eyes and take a deep breath in... and slowly let it out.
-
-Your body is becoming heavier with each breath. You are safe and calm.
-
-As you drift deeper, positive suggestions take root in your mind.`;
-
-    const mockModel = createMockModel(mockText);
+    const mockModel = createMockModel(envelope);
     _setModel(mockModel as unknown as Parameters<typeof _setModel>[0]);
 
     const result = await generateScript(sampleInput);
@@ -56,6 +55,7 @@ As you drift deeper, positive suggestions take root in your mind.`;
     expect(result.title).toBe('Peaceful Slumber Awaits');
     expect(result.scriptText).toContain('Close your eyes');
     expect(result.scriptText).toContain('positive suggestions');
+    expect(result.estimatedSeconds).toBe(900);
     expect(result.tokensInput).toBe(100);
     expect(result.tokensOutput).toBe(500);
     expect(result.generationMs).toBeGreaterThanOrEqual(0);
@@ -71,25 +71,67 @@ As you drift deeper, positive suggestions take root in your mind.`;
     );
   });
 
-  it('should truncate title to 60 characters', async () => {
+  it('should truncate title to 50 characters', async () => {
     const longTitle = 'A'.repeat(80);
-    const mockText = `${longTitle}\n\nSome script body text here.`;
+    const envelope = JSON.stringify({
+      title: longTitle,
+      scriptText: 'Some script body text here.',
+      estimatedSeconds: 600,
+    });
 
-    const mockModel = createMockModel(mockText);
+    const mockModel = createMockModel(envelope);
     _setModel(mockModel as unknown as Parameters<typeof _setModel>[0]);
 
     const result = await generateScript(sampleInput);
-    expect(result.title.length).toBeLessThanOrEqual(60);
+    expect(result.title.length).toBeLessThanOrEqual(50);
   });
 
-  it('should strip markdown heading prefix from title', async () => {
-    const mockText = `# My Session Title\n\nScript body paragraph one.\n\nParagraph two.`;
+  it('should strip ```json code fences from the JSON envelope', async () => {
+    const envelope =
+      '```json\n' +
+      JSON.stringify({
+        title: 'My Session Title',
+        scriptText: 'Script body paragraph one.\n\nParagraph two.',
+        estimatedSeconds: 600,
+      }) +
+      '\n```';
 
-    const mockModel = createMockModel(mockText);
+    const mockModel = createMockModel(envelope);
     _setModel(mockModel as unknown as Parameters<typeof _setModel>[0]);
 
     const result = await generateScript(sampleInput);
     expect(result.title).toBe('My Session Title');
+    expect(result.scriptText).toContain('Paragraph two.');
+  });
+
+  it('should reject the response when JSON cannot be parsed', async () => {
+    const mockModel = createMockModel('this is not json at all');
+    _setModel(mockModel as unknown as Parameters<typeof _setModel>[0]);
+
+    await expect(generateScript(sampleInput)).rejects.toThrow(
+      'Gemini returned invalid JSON envelope',
+    );
+  });
+
+  it('should reject content with safety flags as a 400 GENERATION_FAILED', async () => {
+    const envelope = JSON.stringify({
+      title: 'Calm Flight',
+      // `cure your` is a quick-safety medical_claim trigger.
+      scriptText:
+        'You may notice that this will cure your fear of flying forever.',
+      estimatedSeconds: 600,
+    });
+
+    const mockModel = createMockModel(envelope);
+    _setModel(mockModel as unknown as Parameters<typeof _setModel>[0]);
+
+    await expect(
+      generateScript({ ...sampleInput, category: 'sleep' }),
+    ).rejects.toMatchObject({
+      code: 'GENERATION_FAILED',
+      statusCode: 400,
+      details: { safetyFlags: expect.arrayContaining(['medical_claim']) },
+    });
   });
 
   it('should bail out without retrying when Gemini reports a daily/free-tier quota exhaustion', async () => {
@@ -188,41 +230,44 @@ describe('AI Service — checkScriptSafety', () => {
     _setModel(null);
   });
 
-  it('should return safe for a normal script', async () => {
-    const mockModel = createMockModel('{ "safe": true }');
+  it('should return { safe: true, flags: [] } for a normal script', async () => {
+    const mockModel = createMockModel('{ "safe": true, "flags": [] }');
     _setModel(mockModel as unknown as Parameters<typeof _setModel>[0]);
 
     const result = await checkScriptSafety('You are relaxing deeply...');
-    expect(result.isSafe).toBe(true);
-    expect(result.reason).toBeUndefined();
+    expect(result.safe).toBe(true);
+    expect(result.flags).toEqual([]);
   });
 
-  it('should return unsafe with reason for harmful content', async () => {
+  it('should return { safe: false, flags: [...] } for harmful content', async () => {
     const mockModel = createMockModel(
-      '{ "safe": false, "reason": "Contains medical claims about curing diseases" }',
+      '{ "safe": false, "flags": ["medical_claim"] }',
     );
     _setModel(mockModel as unknown as Parameters<typeof _setModel>[0]);
 
     const result = await checkScriptSafety('This will cure your cancer...');
-    expect(result.isSafe).toBe(false);
-    expect(result.reason).toContain('medical claims');
+    expect(result.safe).toBe(false);
+    expect(result.flags).toContain('medical_claim');
   });
 
   it('should handle JSON wrapped in markdown code blocks', async () => {
-    const mockModel = createMockModel('```json\n{ "safe": true }\n```');
+    const mockModel = createMockModel(
+      '```json\n{ "safe": true, "flags": [] }\n```',
+    );
     _setModel(mockModel as unknown as Parameters<typeof _setModel>[0]);
 
     const result = await checkScriptSafety('Peaceful script text');
-    expect(result.isSafe).toBe(true);
+    expect(result.safe).toBe(true);
   });
 
-  it('should default to safe when safety check itself fails', async () => {
+  it('should fail closed (parse_error) when the safety check itself fails', async () => {
     const mockModel = {
       generateContent: vi.fn().mockRejectedValue(new Error('API error')),
     };
     _setModel(mockModel as unknown as Parameters<typeof _setModel>[0]);
 
     const result = await checkScriptSafety('Some script');
-    expect(result.isSafe).toBe(true);
+    expect(result.safe).toBe(false);
+    expect(result.flags).toEqual(['parse_error']);
   });
 });

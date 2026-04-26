@@ -311,8 +311,9 @@ vi.mock('@/modules/ai/ai.service', () => ({
     tokensInput: 42,
     tokensOutput: 128,
     generationMs: 10,
+    estimatedSeconds: 600,
   })),
-  checkScriptSafety: vi.fn(async () => ({ isSafe: true })),
+  checkScriptSafety: vi.fn(async () => ({ safe: true, flags: [] })),
 }));
 
 // S3 — record key deletions.

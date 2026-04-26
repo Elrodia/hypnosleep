@@ -78,9 +78,57 @@ function parseExhaustedQuota(err: unknown): {
 
 /**
  * Sensitive categories that warrant a second, LLM-based safety pass
- * after the quick heuristic check.
+ * after the quick heuristic check. Keep in sync with the spec in
+ * `ai.prompts.ts`: anxiety / fears / habits all involve emotionally
+ * loaded content where heuristics alone are not sufficient.
  */
-const SENSITIVE_CATEGORIES = new Set(['fears', 'habits']);
+const SENSITIVE_CATEGORIES = new Set(['anxiety', 'fears', 'habits']);
+
+/**
+ * Parses Gemini's strict-JSON envelope. We strip stray markdown code
+ * fences defensively because some Gemini snapshots still emit them
+ * even when `responseMimeType: 'application/json'` is set.
+ *
+ * Throws an `AppError('GENERATION_FAILED', …)` if the output cannot be
+ * parsed or is missing required fields — caller treats these as
+ * permanent (not retried) since retrying produces the same garbage.
+ */
+function parseScriptEnvelope(rawText: string): {
+  title: string;
+  scriptText: string;
+  estimatedSeconds: number;
+} {
+  const stripped = rawText
+    .trim()
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/```\s*$/i, '')
+    .trim();
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stripped);
+  } catch {
+    throw generationFailed('Gemini returned invalid JSON envelope');
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw generationFailed('Gemini returned a non-object response');
+  }
+  const obj = parsed as { title?: unknown; scriptText?: unknown; estimatedSeconds?: unknown };
+  if (typeof obj.title !== 'string' || typeof obj.scriptText !== 'string') {
+    throw generationFailed('Gemini response missing required fields');
+  }
+  const estimatedSeconds =
+    typeof obj.estimatedSeconds === 'number' && Number.isFinite(obj.estimatedSeconds)
+      ? Math.max(0, Math.round(obj.estimatedSeconds))
+      : 0;
+  return {
+    title: obj.title.trim(),
+    scriptText: obj.scriptText.trim(),
+    estimatedSeconds,
+  };
+}
 
 /**
  * Best-effort audit log insert into the `ai_generations` Postgres table.
@@ -156,16 +204,22 @@ export async function generateScript(
   let didLogAudit = false;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const { text, tokensInput, tokensOutput } = await callGemini(prompt);
+      const { text, tokensInput, tokensOutput } = await callGemini(prompt, {
+        generationConfig: { responseMimeType: 'application/json' },
+      });
 
       if (!text || text.trim().length === 0) {
         throw generationFailed('Gemini returned an empty response');
       }
 
-      // Parse: first non-empty line is title, rest is body.
-      const lines = text.trim().split('\n');
-      const title = lines[0].replace(/^#\s*/, '').trim().slice(0, 60);
-      const scriptText = lines.slice(1).join('\n').trim();
+      // Parse: Gemini is configured with `responseMimeType: 'application/json'`,
+      // and the master prompt asks for a strict envelope:
+      //   { title: string, scriptText: string, estimatedSeconds: number }
+      // We still strip stray markdown code fences defensively.
+      const parsed = parseScriptEnvelope(text);
+      const title = parsed.title.slice(0, 50);
+      const scriptText = parsed.scriptText;
+      const estimatedSeconds = parsed.estimatedSeconds;
       if (scriptText.length === 0) {
         throw generationFailed('Gemini returned an empty script body');
       }
@@ -180,14 +234,14 @@ export async function generateScript(
 
       // Cheap heuristic safety pass — always runs.
       const quick = quickSafetyCheck(contentForSafetyReview);
-      let safetyFailure: string | null = null;
+      let safetyFlags: string[] | null = null;
       if (!quick.safe) {
-        safetyFailure = `safety_flags: ${quick.flags.join(',')}`;
+        safetyFlags = quick.flags;
       } else if (SENSITIVE_CATEGORIES.has(input.category)) {
         // Deep safety pass only for sensitive categories, to keep cost down.
         const deep = await deepSafetyCheck(contentForSafetyReview);
-        if (!deep.isSafe) {
-          safetyFailure = `safety_unsafe: ${deep.reason ?? 'flagged'}`;
+        if (!deep.safe) {
+          safetyFlags = deep.flags.length > 0 ? deep.flags : ['unsafe'];
         }
       }
 
@@ -200,18 +254,21 @@ export async function generateScript(
         tokensInput,
         tokensOutput,
         generationMs,
-        status: safetyFailure ? 'failed' : 'success',
-        errorMessage: safetyFailure,
+        status: safetyFlags ? 'failed' : 'success',
+        errorMessage: safetyFlags ? `safety_flags:${safetyFlags.join(',')}` : null,
       });
       didLogAudit = true;
 
-      if (safetyFailure) {
-        throw generationFailed(
-          'Generated content failed safety review. Please rephrase your request.',
-          // `reason` matches the key used by the deep-safety path in
-          // `sessions.service` and the one the frontend reads when
-          // rendering the rejection toast.
-          { reason: safetyFailure },
+      if (safetyFlags) {
+        // Spec: throw AppError('GENERATION_FAILED', …, 400, { safetyFlags }).
+        // The 400 status (vs the default 500 from `generationFailed`) signals
+        // to the client that this is a content/input issue they can fix by
+        // rephrasing, not a server fault.
+        throw new AppError(
+          'GENERATION_FAILED',
+          'Content failed safety review. Please rephrase.',
+          400,
+          { safetyFlags, reason: `safety_flags:${safetyFlags.join(',')}` },
         );
       }
 
@@ -226,7 +283,14 @@ export async function generateScript(
         'Script generated successfully',
       );
 
-      return { scriptText, title, tokensInput, tokensOutput, generationMs };
+      return {
+        scriptText,
+        title,
+        tokensInput,
+        tokensOutput,
+        generationMs,
+        estimatedSeconds,
+      };
     } catch (err) {
       // Daily / free-tier quota exhaustion: retrying within the same
       // window cannot succeed, so convert to a typed AppError and let

@@ -10,6 +10,7 @@
     "seed:templates": "tsx scripts/seed-templates.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:live-ai": "RUN_LIVE_AI=1 vitest run ai.fixtures",
     "lint": "eslint src/",
     "db:mysql:generate": "drizzle-kit generate --config=drizzle.config.mysql.ts",
     "db:mysql:migrate": "drizzle-kit migrate --config=drizzle.config.mysql.ts",

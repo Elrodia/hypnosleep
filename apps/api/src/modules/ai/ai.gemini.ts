@@ -1,4 +1,8 @@
-import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai';
+import {
+  GoogleGenerativeAI,
+  type GenerativeModel,
+  type GenerationConfig,
+} from '@google/generative-ai';
 import { externalApiError } from '../../utils/errors.js';
 
 /**
@@ -11,6 +15,18 @@ export interface GeminiResponse {
   tokensOutput: number;
 }
 
+/** Optional per-call overrides forwarded to `generateContent`. */
+export interface CallGeminiOptions {
+  /**
+   * Per-call generation config overrides. Merged on top of the model's
+   * baseline config (set in {@link getModel}). Useful for forcing
+   * `responseMimeType: 'application/json'` on calls that expect strict
+   * JSON output, while leaving other calls (e.g. paragraph regeneration)
+   * as plain text.
+   */
+  generationConfig?: Partial<GenerationConfig>;
+}
+
 let genAI: GoogleGenerativeAI | null = null;
 let model: GenerativeModel | null = null;
 
@@ -18,8 +34,8 @@ let model: GenerativeModel | null = null;
  * Returns the singleton Gemini generative model instance, lazily
  * constructing it from `GEMINI_API_KEY` / `GEMINI_MODEL` the first time
  * it is needed. Uses a creative-but-stable sampling profile tuned for
- * hypnosis script generation; response formatting is determined by callers
- * and prompts rather than enforced as JSON in `generationConfig`.
+ * hypnosis script generation; per-call overrides (e.g. JSON response
+ * mime type) can be supplied via {@link callGemini}.
  */
 export function getModel(): GenerativeModel {
   if (!model) {
@@ -50,11 +66,22 @@ export function getModel(): GenerativeModel {
 /**
  * Invokes Gemini with the provided prompt and returns the generated text
  * along with token usage metadata. Callers are responsible for handling
- * errors and validating the response shape.
+ * errors and validating the response shape. Pass `options.generationConfig`
+ * to override sampling parameters or set `responseMimeType: 'application/json'`
+ * for strict-JSON callers.
  */
-export async function callGemini(prompt: string): Promise<GeminiResponse> {
+export async function callGemini(
+  prompt: string,
+  options: CallGeminiOptions = {},
+): Promise<GeminiResponse> {
   const genModel = getModel();
-  const result = await genModel.generateContent(prompt);
+  const request = options.generationConfig
+    ? {
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: options.generationConfig,
+      }
+    : prompt;
+  const result = await genModel.generateContent(request);
   const response = result.response;
   const text = response.text();
 
