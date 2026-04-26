@@ -23,6 +23,8 @@ export const updateProfileSchema = z.object({
         .string()
         .regex(/^\d{2}:\d{2}$/)
         .optional(),
+      hasCompletedOnboarding: z.boolean().optional(),
+      hasCompletedQuiz: z.boolean().optional(),
     })
     .optional(),
 });
