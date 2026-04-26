@@ -26,6 +26,7 @@ import {
 import { ApiError } from '@/lib/api'
 import { getAuthToken } from '@/lib/auth'
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
+import { useKV } from '@/hooks/use-kv'
 import { formatCategory } from '@/lib/session-ui'
 
 // Backend is the source of truth for library sessions — the old local
@@ -108,13 +109,23 @@ export function CreatePage() {
   const qc = useQueryClient()
   const { play } = useAudioPlayer()
 
+  // User-configured defaults from PreferencesPage. These persist via
+  // the Redis-backed KV hook, so a returning user starts the Create
+  // form pre-filled with their last-saved choices instead of the
+  // hard-coded defaults.
+  const [defaultVoiceKV] = useKV<string>('default-voice', 'en-US-AnaNeural')
+  const [defaultLengthKV] = useKV<string>('default-session-length', '15')
+  const [defaultBackgroundKV] = useKV<string>('background-sound', 'rain')
+
   const [inputValue, setInputValue] = useState('')
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
   const [isGenerating, setIsGenerating] = useState(false)
-  const [selectedVoice, setSelectedVoice] = useState('en-US-AnaNeural')
+  const [selectedVoice, setSelectedVoice] = useState(() => defaultVoiceKV ?? 'en-US-AnaNeural')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [sessionLength, setSessionLength] = useState([15])
-  const [backgroundSound, setBackgroundSound] = useState('rain')
+  const [sessionLength, setSessionLength] = useState<number[]>(() => [
+    Number.parseInt(defaultLengthKV ?? '15', 10) || 15,
+  ])
+  const [backgroundSound, setBackgroundSound] = useState(() => defaultBackgroundKV ?? 'rain')
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
   const [inductionStyle, setInductionStyle] = useState('progressive')
   const [depthLevel, setDepthLevel] = useState<DepthLevel>('medium')

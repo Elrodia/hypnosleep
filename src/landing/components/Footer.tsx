@@ -1,11 +1,66 @@
 import { Twitter, Instagram, Youtube } from 'lucide-react'
 import { Logo } from '../../components/Logo'
 
-const columns: { title: string; links: string[] }[] = [
-  { title: 'Product', links: ['Features', 'Pricing', 'Templates', 'Roadmap'] },
-  { title: 'Company', links: ['About', 'Blog', 'Press Kit', 'Contact'] },
-  { title: 'Resources', links: ['Help Center', 'API', 'Affiliates', 'Sitemap'] },
-  { title: 'Legal', links: ['Terms', 'Privacy', 'Cookies', 'GDPR'] },
+interface FooterLink {
+  label: string
+  href: string
+  /** When true, the link points to a real destination — otherwise it's
+      kept as plain text until the destination comes online. Keeping the
+      label visible (instead of dropping it) preserves the visual layout
+      and signals what's coming. */
+  live?: boolean
+}
+
+/**
+ * Footer link map. Mark entries `live: true` once the destination
+ * page exists. Live entries render as real anchors with hover states;
+ * the rest fall back to non-interactive text so we don't ship `href="#"`
+ * links that scroll to the top and pollute history.
+ */
+const columns: { title: string; links: FooterLink[] }[] = [
+  {
+    title: 'Product',
+    links: [
+      { label: 'Features', href: '#features', live: true },
+      { label: 'Pricing', href: '#pricing', live: true },
+      { label: 'Templates', href: '#templates', live: true },
+      { label: 'Roadmap', href: '/roadmap' },
+    ],
+  },
+  {
+    title: 'Company',
+    links: [
+      { label: 'About', href: '/about', live: true },
+      { label: 'Blog', href: '/blog' },
+      { label: 'Press Kit', href: '/press' },
+      { label: 'Contact', href: 'mailto:hello@hypnosleep.app', live: true },
+    ],
+  },
+  {
+    title: 'Resources',
+    links: [
+      { label: 'Help Center', href: '/help', live: true },
+      { label: 'API', href: '/docs/api' },
+      { label: 'Affiliates', href: '/affiliates' },
+      { label: 'Sitemap', href: '/sitemap.xml' },
+    ],
+  },
+  {
+    title: 'Legal',
+    links: [
+      { label: 'Terms', href: '/legal/terms', live: true },
+      { label: 'Privacy', href: '/legal/privacy', live: true },
+      { label: 'Cookies', href: '/legal/cookies', live: true },
+      { label: 'GDPR', href: '/legal/gdpr' },
+    ],
+  },
+]
+
+const socials: Array<{ label: string; href: string | null; icon: typeof Twitter | null }> = [
+  { label: 'X (Twitter)', href: 'https://x.com/hypnosleepapp', icon: Twitter },
+  { label: 'TikTok', href: null, icon: null },
+  { label: 'Instagram', href: 'https://instagram.com/hypnosleepapp', icon: Instagram },
+  { label: 'YouTube', href: null, icon: Youtube },
 ]
 
 export function Footer() {
@@ -18,15 +73,20 @@ export function Footer() {
               {c.title}
             </h4>
             <ul className="space-y-2">
-              {c.links.map((l) => (
-                <li key={l}>
-                  {/* Placeholders for pre-launch — rendered as non-interactive
-                      text so clicking doesn't jump to the top of the page or
-                      pollute browser history with `#` entries. Swap to real
-                      <a> tags as destinations come online. */}
-                  <span className="text-[color:var(--ls-text-secondary)]">
-                    {l}
-                  </span>
+              {c.links.map((link) => (
+                <li key={link.label}>
+                  {link.live ? (
+                    <a
+                      href={link.href}
+                      className="text-[color:var(--ls-text-secondary)] hover:text-white transition-colors"
+                    >
+                      {link.label}
+                    </a>
+                  ) : (
+                    <span className="text-[color:var(--ls-text-secondary)]/60" title="Coming soon">
+                      {link.label}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -39,33 +99,33 @@ export function Footer() {
           <Logo variant="mark" size={28} className="rounded-full" alt="" />
           <span className="ls-display text-base">HypnoSleep</span>
           <span className="ml-3 text-xs text-[color:var(--ls-text-secondary)]">
-            © 2026 HypnoSleep. Made with <span aria-label="love">❤️</span> in Belgium.
+            © {new Date().getFullYear()} HypnoSleep. Made with <span aria-label="love">❤️</span> in Belgium.
           </span>
         </div>
 
         <ul className="flex items-center gap-2">
-          {[
-            { label: 'X (Twitter)', icon: Twitter },
-            { label: 'TikTok', icon: null },
-            { label: 'Instagram', icon: Instagram },
-            { label: 'YouTube', icon: Youtube },
-          ].map((s) => {
+          {socials.map((s) => {
             const Icon = s.icon
+            const inner = Icon ? <Icon size={16} /> : <span className="ls-display text-sm">t</span>
+            const className =
+              'flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 transition-colors'
             return (
               <li key={s.label}>
-                {/* Social destinations aren't live yet — render as a non-
-                    interactive badge rather than an `href="#"` link that
-                    would scroll to the top and dirty the history stack. */}
-                <span
-                  aria-label={s.label}
-                  role="img"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5"
-                >
-                  {Icon ? <Icon size={16} /> : (
-                    // TikTok glyph — lucide doesn't ship a first-class icon.
-                    <span className="ls-display text-sm">t</span>
-                  )}
-                </span>
+                {s.href ? (
+                  <a
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={s.label}
+                    className={`${className} hover:bg-white/10 hover:border-white/20`}
+                  >
+                    {inner}
+                  </a>
+                ) : (
+                  <span aria-label={`${s.label} (coming soon)`} role="img" className={`${className} opacity-50`}>
+                    {inner}
+                  </span>
+                )}
               </li>
             )
           })}

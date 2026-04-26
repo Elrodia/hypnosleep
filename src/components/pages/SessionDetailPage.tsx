@@ -130,7 +130,17 @@ export function SessionDetailPage({ sessionId, onBack, onPlay, onDeleted }: Sess
   }
 
   const handleUnlockPro = () => {
-    window.dispatchEvent(new CustomEvent('show-subscription'))
+    // Switch to the profile tab first so the ProUpgradePage (mounted
+    // inside ProfilePage) is actually rendered when the
+    // `show-subscription` listener fires. Without this, the event is
+    // dispatched but no listener is mounted because the user is on a
+    // different tab.
+    window.dispatchEvent(new CustomEvent('navigate-to-tab', { detail: 'profile' }))
+    // Defer the subscription event by a tick so the profile tab has
+    // mounted its event listener before we fire.
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('show-subscription'))
+    }, 50)
   }
 
   if (isLoading) {

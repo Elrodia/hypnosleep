@@ -11,20 +11,23 @@ import {
 import { useKV } from '@/hooks/use-kv'
 import { toast } from 'sonner'
 
+// Voice ids match the backend `VOICES` registry (Azure TTS names) so
+// the value the user picks here is the same value the Create screen
+// sends to `/api/sessions/generate` — no display-to-id mapping needed.
 const VOICE_OPTIONS = [
-  { value: 'calm-female', label: 'Calm Female' },
-  { value: 'deep-male', label: 'Deep Male' },
-  { value: 'soft-whisper', label: 'Soft Whisper' },
-  { value: 'gentle-british', label: 'Gentle British' },
-  { value: 'warm-australian', label: 'Warm Australian' },
+  { value: 'en-US-AnaNeural', label: 'Calm Female' },
+  { value: 'en-US-GuyNeural', label: 'Deep Male' },
+  { value: 'en-US-AriaNeural', label: 'Soft Whisper (Pro)' },
+  { value: 'en-GB-SoniaNeural', label: 'Gentle British (Pro)' },
+  { value: 'en-AU-NatashaNeural', label: 'Warm Australian (Pro)' },
 ]
 
+// Background ids match the backend `BACKGROUND_SOUNDS` enum.
 const BACKGROUND_SOUND_OPTIONS = [
   { value: 'rain', label: 'Rain' },
   { value: 'ocean', label: 'Ocean' },
   { value: 'forest', label: 'Forest' },
   { value: 'wind', label: 'Wind' },
-  { value: 'white-noise', label: 'White Noise' },
   { value: 'silence', label: 'Silence' },
 ]
 
@@ -44,7 +47,7 @@ export function PreferencesPage({ onBack }: PreferencesPageProps) {
   const [dailyReminderEnabled, setDailyReminderEnabled] = useKV<boolean>('daily-reminder-enabled', false)
   const [reminderTime, setReminderTime] = useKV<string>('reminder-time', '22:00')
   const [defaultSessionLength, setDefaultSessionLength] = useKV<string>('default-session-length', '10')
-  const [defaultVoice, setDefaultVoice] = useKV<string>('default-voice', 'calm-female')
+  const [defaultVoice, setDefaultVoice] = useKV<string>('default-voice', 'en-US-AnaNeural')
   const [backgroundSound, setBackgroundSound] = useKV<string>('background-sound', 'rain')
   const [theme, setTheme] = useKV<'dark' | 'light'>('theme', 'dark')
 
