@@ -51,10 +51,27 @@ function getBucket(): string {
 }
 
 /**
+ * Optional per-upload metadata. Stored as S3 user-defined metadata
+ * (the SDK serializes these to `x-amz-meta-*` headers). Keys must
+ * match S3's user-metadata constraints (lowercase ASCII, hyphens),
+ * which is why we use kebab-case names like `user-id`.
+ */
+export interface UploadMetadata {
+  userId?: string;
+  sessionId?: string;
+  /** ISO-8601 timestamp; defaults to "now" if userId/sessionId are set. */
+  generatedAt?: string;
+}
+
+/**
  * Uploads a local file to the configured S3-compatible bucket.
  *
  * Sets `Cache-Control: public, max-age=31536000, immutable` because
  * generated session audio is keyed by an immutable session id.
+ *
+ * When `metadata` is provided, attaches `x-amz-meta-user-id`,
+ * `x-amz-meta-session-id`, and `x-amz-meta-generated-at` so the
+ * object is self-describing for ops/audits and lifecycle tooling.
  *
  * @returns The object key (not a URL) so callers can persist it and
  *   later mint presigned URLs via {@link getStreamUrl}.
@@ -63,8 +80,18 @@ export async function uploadFile(
   localPath: string,
   key: string,
   contentType = 'audio/mpeg',
+  metadata?: UploadMetadata,
 ): Promise<string> {
   const body = await readFile(localPath);
+
+  let s3Metadata: Record<string, string> | undefined;
+  if (metadata) {
+    s3Metadata = {};
+    if (metadata.userId) s3Metadata['user-id'] = metadata.userId;
+    if (metadata.sessionId) s3Metadata['session-id'] = metadata.sessionId;
+    s3Metadata['generated-at'] = metadata.generatedAt ?? new Date().toISOString();
+  }
+
   await getClient().send(
     new PutObjectCommand({
       Bucket: getBucket(),
@@ -72,6 +99,7 @@ export async function uploadFile(
       Body: body,
       ContentType: contentType,
       CacheControl: 'public, max-age=31536000, immutable',
+      Metadata: s3Metadata,
     }),
   );
   logger.info({ key, sizeBytes: body.length }, 'Uploaded to S3 bucket');

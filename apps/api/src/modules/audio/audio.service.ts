@@ -183,7 +183,11 @@ export async function generateAudio(
     // ── Step 4: upload to S3 ─────────────────────────────────────
     await emit('upload', UPLOAD_PERCENT, 'Uploading your session...');
     const audioKey = buildSessionKey(input.userId, input.sessionId);
-    await uploadFile(mixedPath, audioKey);
+    await uploadFile(mixedPath, audioKey, 'audio/mpeg', {
+      userId: input.userId,
+      sessionId: input.sessionId,
+      generatedAt: new Date().toISOString(),
+    });
 
     return {
       audioKey,

@@ -104,8 +104,8 @@ export async function handleGetAudio(
   try {
     const user = req.user as JwtPayload;
     const { id } = parseOrThrow(sessionIdSchema, req.params, 'Invalid session ID');
-    const url = await getAudioUrl(user.userId, id);
-    res.json({ data: { url } });
+    const result = await getAudioUrl(user.userId, id);
+    res.json({ data: result });
   } catch (err) {
     next(err);
   }

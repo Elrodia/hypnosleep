@@ -18,7 +18,13 @@ export {
   getStreamUrl,
   deleteFile,
   buildSessionKey,
+  type UploadMetadata,
 } from './audio.s3.js';
+export {
+  getCachedStreamUrl,
+  setCachedStreamUrl,
+  invalidateAudioCache,
+} from './audio.cache.js';
 export {
   generateAudio,
   type GenerateAudioInput,
