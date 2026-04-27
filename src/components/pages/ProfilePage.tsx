@@ -4,7 +4,10 @@ import { PencilSimple, Moon, Headphones, Flame, CaretRight, SlidersHorizontal, U
 import { PreferencesPage } from './PreferencesPage'
 import { AccountPage } from './AccountPage'
 import { ProUpgradePage } from './ProUpgradePage'
+import { HelpPage } from './HelpPage'
+import { AboutPage } from './AboutPage'
 import { ReferralCard } from '../ReferralCard'
+import { ProfileEditDialog } from '../ProfileEditDialog'
 import { useAuth } from '@/lib/auth-context'
 import { getProgressStats, getStreak } from '@/lib/api-endpoints'
 
@@ -13,6 +16,9 @@ export function ProfilePage() {
   const [showPreferences, setShowPreferences] = useState(false)
   const [showAccount, setShowAccount] = useState(false)
   const [showSubscription, setShowSubscription] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
+  const [showAbout, setShowAbout] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
 
   const { data: stats } = useQuery({ queryKey: ['progress', 'stats'], queryFn: getProgressStats })
   const { data: streak } = useQuery({ queryKey: ['progress', 'streak'], queryFn: getStreak })
@@ -65,6 +71,10 @@ export function ProfilePage() {
       setShowAccount(true)
     } else if (categoryId === 'subscription') {
       setShowSubscription(true)
+    } else if (categoryId === 'help') {
+      setShowHelp(true)
+    } else if (categoryId === 'about') {
+      setShowAbout(true)
     }
   }
 
@@ -80,6 +90,14 @@ export function ProfilePage() {
     return <ProUpgradePage onBack={() => setShowSubscription(false)} />
   }
 
+  if (showHelp) {
+    return <HelpPage onBack={() => setShowHelp(false)} />
+  }
+
+  if (showAbout) {
+    return <AboutPage onBack={() => setShowAbout(false)} />
+  }
+
   return (
     <div className="min-h-screen">
       <div className="p-6 space-y-6">
@@ -91,6 +109,7 @@ export function ProfilePage() {
               </span>
             </div>
             <button 
+              onClick={() => setShowEdit(true)}
               className="absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-card border-2 border-background flex items-center justify-center hover:bg-accent transition-colors"
               aria-label="Edit profile"
             >
@@ -183,6 +202,7 @@ export function ProfilePage() {
           })}
         </div>
       </div>
+      <ProfileEditDialog isOpen={showEdit} onClose={() => setShowEdit(false)} />
     </div>
   )
 }

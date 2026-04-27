@@ -101,17 +101,26 @@ export function SessionDetailPage({ sessionId, onBack, onPlay, onDeleted }: Sess
 
   const handleShare = async () => {
     if (!session) return
-    if (navigator.share) {
+    const url = `${window.location.origin}/?session=${encodeURIComponent(session.id)}`
+    const payload = {
+      title: session.title,
+      text: `Check out this hypnosis session: ${session.title}`,
+      url,
+    }
+    if (typeof navigator !== 'undefined' && 'share' in navigator) {
       try {
-        await navigator.share({
-          title: session.title,
-          text: `Check out this hypnosis session: ${session.title}`,
-        })
+        await (navigator as Navigator & { share: (d: ShareData) => Promise<void> }).share(payload)
+        return
       } catch (err) {
-        if ((err as Error).name !== 'AbortError') toast.error('Failed to share')
+        if ((err as Error).name === 'AbortError') return
+        // Fall through to clipboard fallback below.
       }
-    } else {
+    }
+    try {
+      await navigator.clipboard.writeText(url)
       toast.success('Link copied to clipboard!')
+    } catch {
+      toast.error('Could not copy link.')
     }
   }
 
@@ -121,7 +130,17 @@ export function SessionDetailPage({ sessionId, onBack, onPlay, onDeleted }: Sess
   }
 
   const handleUnlockPro = () => {
-    window.dispatchEvent(new CustomEvent('show-subscription'))
+    // Switch to the profile tab first so the ProUpgradePage (mounted
+    // inside ProfilePage) is actually rendered when the
+    // `show-subscription` listener fires. Without this, the event is
+    // dispatched but no listener is mounted because the user is on a
+    // different tab.
+    window.dispatchEvent(new CustomEvent('navigate-to-tab', { detail: 'profile' }))
+    // Defer the subscription event by a tick so the profile tab has
+    // mounted its event listener before we fire.
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('show-subscription'))
+    }, 50)
   }
 
   if (isLoading) {

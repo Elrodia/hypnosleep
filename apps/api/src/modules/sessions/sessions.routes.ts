@@ -14,6 +14,8 @@ import {
   handleEditScript,
   handleRegenerate,
   handleTrending,
+  handleCancel,
+  handleReport,
 } from './sessions.controller.js';
 import { sessionEventsHandler } from './sessions.sse.js';
 
@@ -97,6 +99,18 @@ router.post(
   rateLimit(RATE_LIMITS.API_GLOBAL.window, RATE_LIMITS.API_GLOBAL.max),
   authenticate(),
   handleRegenerate,
+);
+router.post(
+  '/:id/cancel',
+  rateLimit(RATE_LIMITS.API_GLOBAL.window, RATE_LIMITS.API_GLOBAL.max),
+  authenticate(),
+  handleCancel,
+);
+router.post(
+  '/:id/report',
+  rateLimit(RATE_LIMITS.API_GLOBAL.window, RATE_LIMITS.API_GLOBAL.max),
+  authenticate(),
+  handleReport,
 );
 
 // SSE: query-token auth so the browser's EventSource can connect.

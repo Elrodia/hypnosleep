@@ -31,6 +31,39 @@
   --radius: 0.625rem;
 }
 
+/*
+  Light theme variant. Activated by adding a `light` class on
+  <html> (see `applyTheme()` in main.tsx). We keep the same hue so
+  the brand reads as the same product, just inverted.
+*/
+:root.light {
+  --hypno-bg: #f7f7fb;
+  --hypno-card: #ffffff;
+  --hypno-accent: #7c5cfc;
+  --hypno-text: #0e0e1a;
+  --hypno-text-muted: #5a5a72;
+
+  --background: oklch(0.98 0.005 285);
+  --foreground: oklch(0.18 0.02 285);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.02 285);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.02 285);
+  --primary: oklch(0.55 0.2 285);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.94 0.01 285);
+  --secondary-foreground: oklch(0.18 0.02 285);
+  --muted: oklch(0.94 0.01 285);
+  --muted-foreground: oklch(0.45 0.02 285);
+  --accent: oklch(0.55 0.2 285);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.9 0.01 285);
+  --input: oklch(0.9 0.01 285);
+  --ring: oklch(0.55 0.2 285);
+}
+
 @layer base {
   * {
     @apply border-border;

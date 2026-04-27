@@ -19,6 +19,8 @@ import {
 } from './events.bus.js';
 import { getRedis } from '../db/redis/client.js';
 import type { AudioGenerationJobData } from '../modules/ai/ai.types.js';
+import { consumeCancelFlag } from '../modules/sessions/sessions.service.js';
+import { enqueueNotification } from '../modules/notifications/notifications.controller.js';
 
 /**
  * AppError codes that represent permanent, user-facing problems with
@@ -34,6 +36,7 @@ const NON_RETRYABLE_ERROR_CODES = new Set([
   'QUOTA_EXHAUSTED',
   'FORBIDDEN',
   'UNAUTHENTICATED',
+  'CANCELLED',
 ]);
 
 /**
@@ -148,6 +151,13 @@ export function createAudioGenerationWorker(): Worker<AudioGenerationJobData> {
         // immediately.
         emit('script', 10, 'Script ready, preparing audio...');
 
+        // Honor a cancel request that arrived between enqueue and
+        // start: short-circuit the entire pipeline before paying for
+        // any TTS work.
+        if (await consumeCancelFlag(sessionId)) {
+          throw new AppError('CANCELLED', 'Generation cancelled by user', 499);
+        }
+
         const result = await generateAudio({
           userId,
           sessionId,
@@ -158,6 +168,13 @@ export function createAudioGenerationWorker(): Worker<AudioGenerationJobData> {
             emit(step, percent, message);
           },
         });
+
+        // Final cancel check before we persist the ready state — if
+        // the user cancelled during a long TTS run we honor it and
+        // do not mark the session ready.
+        if (await consumeCancelFlag(sessionId)) {
+          throw new AppError('CANCELLED', 'Generation cancelled by user', 499);
+        }
 
         // Persist final row state. We store the S3 *key* in
         // `audio_url` as a marker of readiness — presigned URLs are
@@ -173,6 +190,16 @@ export function createAudioGenerationWorker(): Worker<AudioGenerationJobData> {
 
         emit('done', 100, 'Your session is ready!', {
           audioUrl: result.audioKey,
+        });
+
+        // Inbox notification for the user. Best-effort — failures are
+        // swallowed inside `enqueueNotification` so we never fail the
+        // job over a missed bell ding.
+        void enqueueNotification(userId, {
+          type: 'session_ready',
+          title: 'Your session is ready',
+          body: title || 'Tap to listen now.',
+          url: `/library?session=${sessionId}`,
         });
 
         logger.info(

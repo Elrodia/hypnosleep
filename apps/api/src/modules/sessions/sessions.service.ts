@@ -254,6 +254,120 @@ export async function refundGeneration(userId: string): Promise<void> {
 }
 
 /**
+ * Redis key holding a per-session "cancel requested" flag. The
+ * audio-generation worker reads this in its `emit()` helper and
+ * throws a non-retryable error when set, so a cancel request actually
+ * stops the in-flight job rather than letting it run to completion
+ * after the user has navigated away.
+ *
+ * The TTL matches the worker's longest expected runtime; once the
+ * job settles the flag is no longer relevant.
+ */
+export function sessionCancelKey(sessionId: string): string {
+  return `session:cancel:${sessionId}`;
+}
+
+/**
+ * Cancels an in-flight generation. Sets a Redis abort flag the worker
+ * checks at each progress emit, marks the session row as `failed`, and
+ * refunds the user's monthly quota slot if they're on the free plan.
+ *
+ * Idempotent — calling cancel on an already-failed or already-ready
+ * session is a no-op (no quota refund, no Redis write).
+ */
+export async function cancelGeneration(
+  userId: string,
+  sessionId: string,
+): Promise<void> {
+  const [session] = await mysqlDb
+    .select()
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+  if (!session) throw notFound('Session');
+  if (session.userId !== userId) throw forbidden('Session does not belong to user');
+
+  // Already settled — nothing to cancel and no quota to refund.
+  if (session.status !== 'generating') return;
+
+  const redis = getRedis();
+  if (redis) {
+    try {
+      await redis.set(sessionCancelKey(sessionId), '1', 'EX', 60 * 30);
+    } catch (err) {
+      logger.warn({ err, sessionId }, 'Failed to set cancel flag in Redis');
+    }
+  }
+
+  await mysqlDb
+    .update(sessions)
+    .set({ status: 'failed' })
+    .where(eq(sessions.id, sessionId));
+
+  // Refund the quota slot. Only meaningful for free-tier users; pro
+  // users never had a counter incremented in the first place, so the
+  // clamp-at-zero in `rollbackUsage` makes this a safe no-op.
+  const [user] = await mysqlDb
+    .select({ plan: users.plan })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (user && user.plan !== 'pro') {
+    await refundGeneration(userId);
+  }
+
+  logEvent(userId, sessionId, 'session_cancel', {});
+}
+
+/**
+ * Returns true (and clears the flag) if a cancel was requested for
+ * the given session. The worker calls this from its `emit()` helper
+ * so an aborted job stops emitting and throws on the next step.
+ */
+export async function consumeCancelFlag(sessionId: string): Promise<boolean> {
+  const redis = getRedis();
+  if (!redis) return false;
+  try {
+    const value = await redis.get(sessionCancelKey(sessionId));
+    return value === '1';
+  } catch (err) {
+    logger.warn({ err, sessionId }, 'Failed to read session cancel flag');
+    return false;
+  }
+}
+
+/**
+ * Persists a user-submitted report against a session as a Postgres
+ * analytics event. Centralising the storage means the moderation
+ * dashboard (and any future webhook fan-out) only has to read one
+ * table.
+ *
+ * Non-blocking errors (the underlying `logEvent` is fire-and-forget)
+ * are logged and swallowed — a flaky analytics insert must never
+ * cause a "could not submit report" toast on the user's screen for
+ * a report that's effectively been received.
+ */
+export async function reportSession(
+  userId: string,
+  sessionId: string,
+  reason: string,
+  details: string,
+): Promise<void> {
+  const [session] = await mysqlDb
+    .select({ id: sessions.id, userId: sessions.userId })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+  if (!session) throw notFound('Session');
+
+  logEvent(userId, sessionId, 'session_report', {
+    reason,
+    details: details.slice(0, 500),
+    sessionOwnerId: session.userId,
+  });
+}
+
+/**
  * Decrements the `generationsCount` for a user/period, clamped at 0.
  * Best-effort — a failure here is logged but doesn't propagate because
  * the caller is already handling a primary error.

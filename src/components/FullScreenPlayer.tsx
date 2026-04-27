@@ -1,14 +1,12 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Play, Pause, CaretDown, DotsThree, ArrowCounterClockwise, ArrowClockwise, Clock, Waves, Repeat, TrendDown, Speedometer, Check, Stop } from '@phosphor-icons/react'
+import { Play, Pause, CaretDown, DotsThree, ArrowCounterClockwise, ArrowClockwise, Clock, Waves, Repeat, TrendDown, Speedometer, Check, Stop, Heart, ShareNetwork, Flag } from '@phosphor-icons/react'
 import { useState, useEffect } from 'react'
-import { Button } from './ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-  DropdownMenuLabel,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -17,6 +15,9 @@ import { toast } from 'sonner'
 import { SleepTimerModal } from './SleepTimerModal'
 import { SoundsModal } from './SoundsModal'
 import { useKV } from '@/hooks/use-kv'
+import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
+import { toggleSessionFavorite, reportSession } from '@/lib/api-endpoints'
+import { ReportSessionModal } from './ReportSessionModal'
 
 interface FullScreenPlayerProps {
   isOpen: boolean
@@ -53,6 +54,33 @@ export function FullScreenPlayer({
   const [loopEnabled, setLoopEnabled] = useKV<boolean>('player-loop-enabled', false)
   const [fadeOutEnabled, setFadeOutEnabled] = useKV<boolean>('player-fadeout-enabled', false)
   const [playbackSpeed, setPlaybackSpeed] = useKV<number>('player-playback-speed', 1)
+  const [showReport, setShowReport] = useState(false)
+  const [favoritePending, setFavoritePending] = useState(false)
+  const [favorited, setFavorited] = useState(false)
+  const { player, setLoop, setPlaybackRate, setFadeOut } = useAudioPlayer()
+  const sessionId = player.sessionId
+
+  // Push the persisted control values into the audio context whenever
+  // they change so a fresh playback (or a toggle while playing) takes
+  // effect immediately.
+  useEffect(() => {
+    setLoop(loopEnabled ?? false)
+  }, [loopEnabled, setLoop])
+
+  useEffect(() => {
+    setFadeOut(fadeOutEnabled ?? false)
+  }, [fadeOutEnabled, setFadeOut])
+
+  useEffect(() => {
+    setPlaybackRate(playbackSpeed ?? 1)
+  }, [playbackSpeed, setPlaybackRate])
+
+  // Reset the local favorite flag whenever the active session changes so
+  // we don't carry over a previous toggle across sessions.
+  useEffect(() => {
+    setFavorited(false)
+  }, [sessionId])
+
 
   useEffect(() => {
     if (!isDragging) {
@@ -290,15 +318,62 @@ export function FullScreenPlayer({
                     </DropdownMenuItem>
 
                     <DropdownMenuSeparator />
-                    
-                    <DropdownMenuItem onClick={() => toast.success('Shared!')}>
-                      Share
+
+                    <DropdownMenuItem
+                      onClick={async () => {
+                        const url = sessionId
+                          ? `${window.location.origin}/?session=${encodeURIComponent(sessionId)}`
+                          : window.location.origin
+                        const shareData = { title: sessionTitle, text: `Listen to "${sessionTitle}" on HypnoSleep`, url }
+                        try {
+                          if (typeof navigator !== 'undefined' && 'share' in navigator) {
+                            await (navigator as Navigator & { share: (d: ShareData) => Promise<void> }).share(shareData)
+                            return
+                          }
+                          await (navigator as Navigator).clipboard.writeText(url)
+                          toast.success('Link copied to clipboard')
+                        } catch {
+                          // User cancelled the share sheet — silent.
+                        }
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <ShareNetwork weight="bold" className="w-4 h-4" />
+                        <span>Share</span>
+                      </div>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toast.success('Added to favorites!')}>
-                      Favorite
+                    <DropdownMenuItem
+                      disabled={!sessionId || favoritePending}
+                      onClick={async () => {
+                        if (!sessionId) {
+                          toast.info('Generate this session first to favorite it.')
+                          return
+                        }
+                        setFavoritePending(true)
+                        try {
+                          const { favorited: now } = await toggleSessionFavorite(sessionId)
+                          setFavorited(now)
+                          toast.success(now ? 'Added to favorites' : 'Removed from favorites')
+                        } catch {
+                          toast.error('Could not update favorite.')
+                        } finally {
+                          setFavoritePending(false)
+                        }
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Heart weight={favorited ? 'fill' : 'bold'} className={`w-4 h-4 ${favorited ? 'text-primary' : ''}`} />
+                        <span>{favorited ? 'Unfavorite' : 'Favorite'}</span>
+                      </div>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toast.info('Report submitted')}>
-                      Report
+                    <DropdownMenuItem
+                      onClick={() => setShowReport(true)}
+                      disabled={!sessionId}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Flag weight="bold" className="w-4 h-4" />
+                        <span>Report</span>
+                      </div>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -430,6 +505,21 @@ export function FullScreenPlayer({
           <SoundsModal
             isOpen={showSoundsModal}
             onClose={() => setShowSoundsModal(false)}
+          />
+
+          <ReportSessionModal
+            isOpen={showReport}
+            onClose={() => setShowReport(false)}
+            onSubmit={async (reason, details) => {
+              if (!sessionId) return
+              try {
+                await reportSession(sessionId, reason, details)
+                toast.success('Thanks — our team will review this report.')
+                setShowReport(false)
+              } catch {
+                toast.error('Could not submit report.')
+              }
+            }}
           />
         </motion.div>
       )}

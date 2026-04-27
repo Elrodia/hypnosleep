@@ -4,6 +4,7 @@ import {
   listSessionsQuerySchema,
   editScriptSchema,
   regenerateSchema,
+  reportSessionSchema,
   sessionIdSchema,
 } from './sessions.schema.js';
 import {
@@ -17,6 +18,8 @@ import {
   editScript,
   regenerateAudio,
   getTrending,
+  cancelGeneration,
+  reportSession,
 } from './sessions.service.js';
 import { validationFailed } from '../../utils/errors.js';
 import type { JwtPayload } from '../../middleware/authenticate.js';
@@ -211,6 +214,39 @@ export async function handleTrending(
   try {
     const data = await getTrending();
     res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** POST /api/sessions/:id/cancel — abort an in-flight generation. */
+export async function handleCancel(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const user = req.user as JwtPayload;
+    const { id } = parseOrThrow(sessionIdSchema, req.params, 'Invalid session ID');
+    await cancelGeneration(user.userId, id);
+    res.json({ data: { ok: true } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** POST /api/sessions/:id/report — user-submitted content report. */
+export async function handleReport(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const user = req.user as JwtPayload;
+    const { id } = parseOrThrow(sessionIdSchema, req.params, 'Invalid session ID');
+    const body = parseOrThrow(reportSessionSchema, req.body ?? {}, 'Invalid report body');
+    await reportSession(user.userId, id, body.reason, body.details ?? '');
+    res.json({ data: { ok: true } });
   } catch (err) {
     next(err);
   }

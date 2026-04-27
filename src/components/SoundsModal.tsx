@@ -1,7 +1,9 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Microphone, CloudRain, Waves, Tree, Wind, RadioButton, Icon } from '@phosphor-icons/react'
+import { useEffect } from 'react'
+import { X, Microphone, Info, Icon } from '@phosphor-icons/react'
 import { useKV } from '@/hooks/use-kv'
 import { Slider } from './ui/slider'
+import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
 
 interface SoundsModalProps {
   isOpen: boolean
@@ -15,44 +17,43 @@ interface SoundLayer {
   defaultVolume: number
 }
 
+/**
+ * Per-layer sound mixing (rain / ocean / forest / wind / white noise)
+ * is intentionally not exposed in the player UI right now: the audio
+ * generation pipeline produces a single pre-mixed MP3, so adjusting
+ * the rain slider after the fact wouldn't actually change anything
+ * the user can hear. Until we add a multi-track WebAudio engine on
+ * top of the player, only the master volume is wired to the live
+ * audio element. Voice layer is preserved here as a label-only row
+ * for future expansion.
+ */
 const soundLayers: SoundLayer[] = [
   { id: 'voice', label: 'Voice', icon: Microphone, defaultVolume: 80 },
-  { id: 'rain', label: 'Rain', icon: CloudRain, defaultVolume: 30 },
-  { id: 'ocean', label: 'Ocean', icon: Waves, defaultVolume: 25 },
-  { id: 'forest', label: 'Forest', icon: Tree, defaultVolume: 20 },
-  { id: 'wind', label: 'Wind', icon: Wind, defaultVolume: 15 },
-  { id: 'whiteNoise', label: 'White Noise', icon: RadioButton, defaultVolume: 10 },
 ]
 
 export function SoundsModal({ isOpen, onClose }: SoundsModalProps) {
   const [masterVolume, setMasterVolume] = useKV<number>('sound-master-volume', 100)
   const [voiceVolume, setVoiceVolume] = useKV<number>('sound-voice-volume', 80)
-  const [rainVolume, setRainVolume] = useKV<number>('sound-rain-volume', 30)
-  const [oceanVolume, setOceanVolume] = useKV<number>('sound-ocean-volume', 25)
-  const [forestVolume, setForestVolume] = useKV<number>('sound-forest-volume', 20)
-  const [windVolume, setWindVolume] = useKV<number>('sound-wind-volume', 15)
-  const [whiteNoiseVolume, setWhiteNoiseVolume] = useKV<number>('sound-whitenoise-volume', 10)
 
-  const volumes = {
+  const { setVolume } = useAudioPlayer()
+
+  // Mirror the persisted master volume into the live audio element
+  // whenever it changes (and on first open). The player ref reads
+  // values 0..1, so divide by 100.
+  useEffect(() => {
+    setVolume(((masterVolume ?? 100) / 100))
+  }, [masterVolume, setVolume])
+
+  const volumes: Record<string, number | undefined> = {
     voice: voiceVolume,
-    rain: rainVolume,
-    ocean: oceanVolume,
-    forest: forestVolume,
-    wind: windVolume,
-    whiteNoise: whiteNoiseVolume,
   }
 
-  const setters = {
+  const setters: Record<string, ((value: number) => void) | undefined> = {
     voice: setVoiceVolume,
-    rain: setRainVolume,
-    ocean: setOceanVolume,
-    forest: setForestVolume,
-    wind: setWindVolume,
-    whiteNoise: setWhiteNoiseVolume,
   }
 
   const handleVolumeChange = (id: string, value: number[]) => {
-    const setter = setters[id as keyof typeof setters]
+    const setter = setters[id]
     if (setter) {
       setter(value[0])
     }
@@ -61,7 +62,7 @@ export function SoundsModal({ isOpen, onClose }: SoundsModalProps) {
   const handleResetToDefault = () => {
     setMasterVolume(100)
     soundLayers.forEach((layer) => {
-      const setter = setters[layer.id as keyof typeof setters]
+      const setter = setters[layer.id]
       if (setter) {
         setter(layer.defaultVolume)
       }
@@ -118,7 +119,7 @@ export function SoundsModal({ isOpen, onClose }: SoundsModalProps) {
               <div className="space-y-5">
                 {soundLayers.map((layer) => {
                   const IconComponent = layer.icon
-                  const volume = volumes[layer.id as keyof typeof volumes] ?? layer.defaultVolume
+                  const volume = volumes[layer.id] ?? layer.defaultVolume
 
                   return (
                     <div key={layer.id} className="space-y-2">
@@ -145,6 +146,14 @@ export function SoundsModal({ isOpen, onClose }: SoundsModalProps) {
                     </div>
                   )
                 })}
+              </div>
+
+              <div className="mt-6 flex items-start gap-2 p-3 rounded-lg bg-muted/40 border border-border">
+                <Info weight="bold" className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Background sounds are baked into each session at generation time.
+                  Choose a different background from the Create screen to change them.
+                </p>
               </div>
 
               <div className="mt-8 pt-6 border-t border-border">

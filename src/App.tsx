@@ -59,6 +59,7 @@ import { MiniPlayer } from './components/MiniPlayer'
 import { FullScreenPlayer } from './components/FullScreenPlayer'
 import { OnboardingCarousel } from './components/OnboardingCarousel'
 import { FeedbackModal } from './components/FeedbackModal'
+import { DailyReminderScheduler } from './components/DailyReminderScheduler'
 import { PaymentSuccessScreen } from './components/PaymentSuccessScreen'
 import { AudioPlayerProvider, useAudioPlayer } from './contexts/AudioPlayerContext'
 import { ToastProvider } from './contexts/ToastContext'
@@ -476,7 +477,9 @@ function AppContent() {
         onClose={() => setShowFeedback(false)}
         sessionTitle={completedSession?.title || ''}
         sessionDuration={completedSession?.duration || 0}
+        sessionId={completedSession?.sessionId ?? null}
       />
+      <DailyReminderScheduler />
     </>
   )
 }

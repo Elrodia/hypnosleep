@@ -314,3 +314,64 @@ export function createPortalSession(): Promise<{ url: string }> {
 export function cancelSubscription(): Promise<{ ok: true }> {
   return apiFetch<{ ok: true }>('/api/subscription/cancel', { method: 'POST' })
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Sessions — report + cancel-generation
+// ─────────────────────────────────────────────────────────────────────
+
+export type SessionReportReason =
+  | 'inappropriate'
+  | 'inaccurate'
+  | 'unsafe'
+  | 'low_quality'
+  | 'other'
+
+export function reportSession(
+  id: string,
+  reason: SessionReportReason,
+  details?: string,
+): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(`/api/sessions/${encodeURIComponent(id)}/report`, {
+    method: 'POST',
+    body: { reason, details: details ?? '' },
+  })
+}
+
+/**
+ * Server-side cancellation of an in-flight generation. Sets a Redis
+ * abort flag the worker checks at each step so the queued audio job
+ * stops as soon as it can.
+ */
+export function cancelSessionGeneration(id: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(`/api/sessions/${encodeURIComponent(id)}/cancel`, {
+    method: 'POST',
+  })
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Notifications
+// ─────────────────────────────────────────────────────────────────────
+
+export interface AppNotification {
+  id: string
+  type: 'session_ready' | 'reminder' | 'weekly_insight' | 'system'
+  title: string
+  body: string
+  createdAt: string
+  readAt: string | null
+  url?: string | null
+}
+
+export function listNotifications(): Promise<AppNotification[]> {
+  return apiFetch<AppNotification[]>('/api/notifications')
+}
+
+export function markNotificationRead(id: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(`/api/notifications/${encodeURIComponent(id)}/read`, {
+    method: 'POST',
+  })
+}
+
+export function markAllNotificationsRead(): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>('/api/notifications/read-all', { method: 'POST' })
+}

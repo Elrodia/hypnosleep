@@ -5,12 +5,15 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { useKV } from '@/hooks/use-kv'
 import { toast } from 'sonner'
+import { logMood } from '@/lib/api-endpoints'
 
 interface FeedbackModalProps {
   isOpen: boolean
   onClose: () => void
   sessionTitle: string
   sessionDuration: number
+  /** Backend session id; if null we skip the server-side mood log. */
+  sessionId?: string | null
 }
 
 interface FeedbackEntry {
@@ -36,7 +39,7 @@ const feelings = [
   { id: 'amazing', emoji: '🤩', label: 'Amazing', moodValue: 5 },
 ] as const
 
-export function FeedbackModal({ isOpen, onClose, sessionTitle, sessionDuration }: FeedbackModalProps) {
+export function FeedbackModal({ isOpen, onClose, sessionTitle, sessionDuration, sessionId }: FeedbackModalProps) {
   const [selectedFeeling, setSelectedFeeling] = useState<typeof feelings[number]['id'] | null>(null)
   const [notes, setNotes] = useState('')
   const [showConfetti, setShowConfetti] = useState(false)
@@ -81,6 +84,20 @@ export function FeedbackModal({ isOpen, onClose, sessionTitle, sessionDuration }
 
     setFeedbackHistory((current) => [newEntry, ...(current || [])])
     setMoodRatings((current) => [newMoodRating, ...(current || [])])
+
+    // Persist to the backend so progress / mood-trend charts reflect
+    // the rating across devices. Only meaningful for real sessions —
+    // template/preview playback (no sessionId) stays local-only.
+    if (sessionId) {
+      void logMood({
+        sessionId,
+        rating: moodValue,
+        note: notes.trim() ? notes.trim().slice(0, 500) : undefined,
+      }).catch((err) => {
+        // Non-fatal — the local KV mirror still drives the UI.
+        console.warn('Failed to log mood to backend:', err)
+      })
+    }
 
     if (selectedFeeling === 'amazing') {
       setShowConfetti(true)
