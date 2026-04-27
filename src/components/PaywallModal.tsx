@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, LockKeyOpen, Check, Lightning } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { monthlyPriceLabel, trialCopy } from '@/config/pricing'
 
 interface PaywallModalProps {
   isOpen: boolean
@@ -126,8 +127,8 @@ export function PaywallModal({ isOpen, onClose, onUpgrade, triggerReason }: Payw
                         <h3 className="text-lg font-semibold text-primary mb-1">
                           Pro
                         </h3>
-                        <p className="text-3xl font-bold text-foreground">
-                          $9.99
+                        <p className="text-3xl font-bold text-foreground" data-testid="paywall-pro-price">
+                          {monthlyPriceLabel}
                           <span className="text-sm font-normal text-muted-foreground">/month</span>
                         </p>
                       </div>
@@ -164,7 +165,7 @@ export function PaywallModal({ isOpen, onClose, onUpgrade, triggerReason }: Payw
                     View Pro Features
                   </Button>
                   <p className="text-center text-xs text-muted-foreground">
-                    7-day free trial • Cancel anytime
+                    {trialCopy} • Cancel anytime
                   </p>
                 </div>
 
