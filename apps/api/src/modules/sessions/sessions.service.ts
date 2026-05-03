@@ -32,11 +32,12 @@ import {
 } from '../../utils/errors.js';
 import { logger } from '../../utils/logger.js';
 import {
-  RATE_LIMITS,
   VOICES,
+  PLAN_LIMITS,
   type VoiceId,
   type BackgroundSound,
   type SessionCategory,
+  type PlanKey,
 } from '../../config/constants.js';
 import type { Session as DbSession } from '../../db/mysql/schema/sessions.js';
 import type {
@@ -54,6 +55,15 @@ import type {
 function currentPeriod(): string {
   const d = new Date();
   return `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+/** ISO 8601 timestamp for 00:00 UTC on the 1st of next calendar month. */
+function nextMonthResetIso(): string {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth(); // 0-indexed
+  const next = new Date(Date.UTC(month === 11 ? year + 1 : year, (month + 1) % 12, 1, 0, 0, 0, 0));
+  return next.toISOString();
 }
 
 /**
@@ -81,21 +91,6 @@ function logEvent(
 }
 
 /**
- * Resolves a voice id against the registry. Throws a 400 if the id
- * is unknown and a 402 if the user is on the free plan but the voice
- * is gated behind Pro.
- */
-function assertVoiceAccess(voiceId: string, isPro: boolean): void {
-  const voice = (VOICES as Record<string, { label: string; pro: boolean }>)[voiceId];
-  if (!voice) {
-    throw validationFailed('Unknown voice id', { voiceId });
-  }
-  if (voice.pro && !isPro) {
-    throw proRequired(`The voice "${voice.label}" is Pro only.`);
-  }
-}
-
-/**
  * Creates a `generating`-state session row and enqueues an audio
  * generation job for it.
  *
@@ -104,37 +99,95 @@ function assertVoiceAccess(voiceId: string, isPro: boolean): void {
  * `title` + `scriptText` by the time the frontend subscribes to SSE.
  * The audio worker then handles chunked TTS + mix + upload.
  *
- * Free-tier quota is enforced with a single atomic upsert that
- * *post-increments* the counter; if that pushes the user past their
- * monthly limit we decrement back and reject the request. Any later
- * failure (script generation, safety check, DB insert, enqueue) also
- * rolls the counter back so a failed request doesn't consume quota.
+ * Plan-aware gating runs BEFORE any DB writes:
+ *   1. Duration must lie in `[minDurationMin, maxDurationMin]`.
+ *   2. Voice must be in `voicesAllowed` (or 'all').
+ *   3. Background must be in `backgroundsAllowed` (or 'all').
+ *   4. Free users are capped at `sessionsLifetime` total generations.
+ *   5. Pro users are capped at `sessionsPerMonth` per UTC month with
+ *      the same atomic post-increment + roll-back pattern previously
+ *      used for free users.
  *
- * Pro users are unmetered and skip the counter entirely.
+ * Free-tier lifetime is incremented atomically just BEFORE inserting
+ * the session row so two concurrent requests can't both slip past the
+ * check. Any later failure rolls the per-period pro counter back so
+ * a failed request doesn't consume quota.
  */
 export async function createGenerationSession(
   userId: string,
   input: GenerateSessionInput,
 ): Promise<{ sessionId: string; status: 'generating' }> {
   const [user] = await mysqlDb
-    .select({ id: users.id, plan: users.plan })
+    .select({
+      id: users.id,
+      plan: users.plan,
+      sessionsLifetime: users.sessionsLifetime,
+    })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
   if (!user) throw notFound('User');
 
-  const isPro = user.plan === 'pro';
+  const plan = user.plan as PlanKey;
+  const limits = PLAN_LIMITS[plan];
+  const isPro = plan === 'pro';
 
-  // Voice access gating happens before any writes so a 402/400 leaves
-  // no side effects behind.
-  assertVoiceAccess(input.voiceId, isPro);
+  // ── 1. Duration cap ──────────────────────────────────────────────
+  if (
+    input.durationMin < limits.minDurationMin
+    || input.durationMin > limits.maxDurationMin
+  ) {
+    if (isPro) {
+      throw validationFailed(
+        `Pro tier durations must be between ${limits.minDurationMin}–${limits.maxDurationMin} minutes.`,
+        { durationMin: input.durationMin, min: limits.minDurationMin, max: limits.maxDurationMin },
+      );
+    }
+    const proLimits = PLAN_LIMITS.pro;
+    throw proRequired(
+      `Free tier sessions are fixed at ${limits.minDurationMin} minutes. Upgrade to Pro for ${proLimits.minDurationMin}–${proLimits.maxDurationMin} minute sessions.`,
+    );
+  }
 
-  // ── Atomic post-increment quota check (free tier only) ──────────
-  const period = isPro ? null : currentPeriod();
-  if (!isPro && period) {
-    const limit = RATE_LIMITS.AI_GENERATION_FREE;
+  // ── 2. Voice cap ─────────────────────────────────────────────────
+  // Reject unknown voice ids regardless of plan, then enforce the
+  // per-plan allow-list.
+  if (!(input.voiceId in VOICES)) {
+    throw validationFailed('Unknown voice id', { voiceId: input.voiceId });
+  }
+  if (limits.voicesAllowed !== 'all' && !limits.voicesAllowed.includes(input.voiceId)) {
+    throw proRequired(
+      `This voice is Pro-only. Upgrade to unlock all ${Object.keys(VOICES).length} voices.`,
+    );
+  }
 
-    // Atomic upsert: new row starts at 1, existing row increments.
+  // ── 3. Background cap ────────────────────────────────────────────
+  if (
+    limits.backgroundsAllowed !== 'all'
+    && !limits.backgroundsAllowed.includes(input.background)
+  ) {
+    throw proRequired('This background sound is Pro-only. Upgrade to unlock all sounds.');
+  }
+
+  // ── 4. Free lifetime cap ─────────────────────────────────────────
+  if (plan === 'free' && limits.sessionsLifetime !== null) {
+    if (user.sessionsLifetime >= limits.sessionsLifetime) {
+      throw rateLimitExceeded(
+        `Free tier limit of ${limits.sessionsLifetime} sessions reached. Upgrade to Pro for ${PLAN_LIMITS.pro.sessionsPerMonth}/month.`,
+        {
+          limit: limits.sessionsLifetime,
+          used: user.sessionsLifetime,
+          upgradeUrl: '/upgrade',
+        },
+      );
+    }
+  }
+
+  // ── 5. Pro monthly cap (atomic post-increment + re-select) ───────
+  const period = isPro && limits.sessionsPerMonth !== null ? currentPeriod() : null;
+  if (isPro && period && limits.sessionsPerMonth !== null) {
+    const limit = limits.sessionsPerMonth;
+
     await mysqlDb
       .insert(usageCounters)
       .values({ userId, periodYyyymm: period, generationsCount: 1 })
@@ -144,9 +197,6 @@ export async function createGenerationSession(
         },
       });
 
-    // Re-select the post-increment value and reject if we've gone
-    // past the limit. This closes the race where two concurrent
-    // requests could both pass a stale read-then-write check.
     const [row] = await mysqlDb
       .select()
       .from(usageCounters)
@@ -159,15 +209,21 @@ export async function createGenerationSession(
       .limit(1);
     const used = row?.generationsCount ?? 1;
     if (used > limit) {
-      // Roll back the speculative increment so the counter stays
-      // clamped at `limit` and later legitimate requests aren't
-      // punished by an earlier over-quota attempt.
       await rollbackUsage(userId, period);
       throw rateLimitExceeded(
-        `Free tier limit of ${limit} generations/month reached. Upgrade to Pro for unlimited.`,
-        { limit, used: limit, upgradeUrl: '/upgrade' },
+        `Monthly Pro limit of ${limit} sessions reached. Resets on the 1st of next month.`,
+        { limit, used: limit, resetAt: nextMonthResetIso() },
       );
     }
+  }
+
+  // ── 6. Free lifetime increment (must precede session insert so two
+  //     concurrent free requests can't both pass the check above) ──
+  if (plan === 'free') {
+    await mysqlDb
+      .update(users)
+      .set({ sessionsLifetime: sql`${users.sessionsLifetime} + 1` })
+      .where(eq(users.id, userId));
   }
 
   const sessionId = randomUUID();
@@ -233,9 +289,25 @@ export async function createGenerationSession(
     return { sessionId, status: 'generating' };
   } catch (err) {
     // Any failure after the increment must roll the counter back so
-    // the user doesn't lose a quota slot to a transient error.
-    if (!isPro && period) {
+    // the user doesn't lose a quota slot to a transient error. Pro
+    // monthly counter is in `usage_counters`; the free lifetime
+    // counter is on `users.sessions_lifetime`.
+    if (isPro && period) {
       await rollbackUsage(userId, period);
+    } else if (plan === 'free') {
+      try {
+        await mysqlDb
+          .update(users)
+          .set({
+            sessionsLifetime: sql`GREATEST(${users.sessionsLifetime} - 1, 0)`,
+          })
+          .where(eq(users.id, userId));
+      } catch (rollbackErr) {
+        logger.warn(
+          { err: rollbackErr, userId },
+          'Failed to roll back free-tier lifetime counter',
+        );
+      }
     }
     throw err;
   }
@@ -877,7 +949,6 @@ export async function regenerateAudio(
 
   const voiceId = input.voiceId ?? row.voiceId;
   const background = (input.background ?? row.backgroundSound ?? 'silence') as BackgroundSound;
-  assertVoiceAccess(voiceId, isPro);
 
   await mysqlDb
     .update(sessions)

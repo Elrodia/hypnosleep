@@ -65,3 +65,43 @@ export const MIN_SESSION_DURATION_SEC = 300; // 5 minutes
 
 /** Free tier preview duration in seconds */
 export const FREE_PREVIEW_DURATION_SEC = 30;
+
+/**
+ * Single source of truth for per-plan limits enforced by
+ * `createGenerationSession`. Calibrated for ~60% gross margin on
+ * ElevenLabs Creator ($22 / 100k credits) at Turbo v2.5
+ * (0.5 credit/char). If the project moves back to Multilingual v2
+ * (1 credit/char), reduce `pro.sessionsPerMonth` to 5 and
+ * `pro.maxDurationMin` to 10.
+ */
+export const PLAN_LIMITS = {
+  free: {
+    /** Total free-tier generations a user can ever create. */
+    sessionsLifetime: 2,
+    /** No monthly cap on free — the lifetime cap supersedes it. */
+    sessionsPerMonth: null,
+    /** Free tier is locked to a single duration. */
+    minDurationMin: 5,
+    maxDurationMin: 5,
+    /** The single voice available on free. */
+    voicesAllowed: ['en-US-AnaNeural'] as readonly string[],
+    /** The two background sounds available on free. */
+    backgroundsAllowed: ['silence', 'rain'] as readonly string[],
+  },
+  pro: {
+    /** Pro users have no lifetime cap, only the monthly one. */
+    sessionsLifetime: null,
+    /** Monthly cap, calibrated for ~60% gross margin on Creator
+     *  ($22/100k credits) with Turbo v2.5 (0.5 credit/char). */
+    sessionsPerMonth: 8,
+    /** Pro can pick any duration in this range. */
+    minDurationMin: 3,
+    maxDurationMin: 12,
+    /** Sentinel meaning "no restriction; any value in `VOICES` is OK". */
+    voicesAllowed: 'all' as const,
+    /** Sentinel meaning "no restriction; any value in `BACKGROUND_SOUNDS` is OK". */
+    backgroundsAllowed: 'all' as const,
+  },
+} as const;
+
+export type PlanKey = keyof typeof PLAN_LIMITS;

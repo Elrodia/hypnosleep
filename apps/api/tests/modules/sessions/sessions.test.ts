@@ -15,7 +15,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Stateful in-memory fakes shared across mocks ───────────────────────
 type Plan = 'free' | 'pro';
-interface UserRow { id: string; plan: Plan }
+interface UserRow { id: string; plan: Plan; sessionsLifetime: number }
 interface SessionRow {
   id: string;
   userId: string;
@@ -188,6 +188,22 @@ function makeMysqlFake() {
                   }
                 }
               }
+            } else if (tbl === 'users') {
+              for (const row of state.users.values()) {
+                if (!evalPred(p, row as unknown as Record<string, unknown>)) continue;
+                for (const [k, v] of Object.entries(vals)) {
+                  if (v && typeof v === 'object' && (v as { __sql?: boolean }).__sql) {
+                    // The only sql-valued users update reachable in
+                    // tests is `sessionsLifetime + 1`. Rollback decrements
+                    // are unreachable because no in-memory failure path
+                    // exists between the increment and the eventual
+                    // success here.
+                    if (k === 'sessionsLifetime') row.sessionsLifetime += 1;
+                  } else {
+                    (row as unknown as Record<string, unknown>)[k] = v;
+                  }
+                }
+              }
             }
             return Promise.resolve(undefined).then(r);
           },
@@ -249,6 +265,7 @@ vi.mock('@/db/mysql/schema/users', () => ({
     _: { name: 'users' },
     id: col('users', 'id'),
     plan: col('users', 'plan'),
+    sessionsLifetime: col('users', 'sessionsLifetime'),
   },
 }));
 vi.mock('@/db/mysql/schema/usage-counters', () => ({
@@ -403,14 +420,14 @@ function reset(): void {
   state.enqueued.length = 0;
   state.s3Deleted.length = 0;
   state.redisDeleted.length = 0;
-  state.users.set(USER_FREE, { id: USER_FREE, plan: 'free' });
-  state.users.set(USER_PRO, { id: USER_PRO, plan: 'pro' });
-  state.users.set(OTHER_USER, { id: OTHER_USER, plan: 'free' });
+  state.users.set(USER_FREE, { id: USER_FREE, plan: 'free', sessionsLifetime: 0 });
+  state.users.set(USER_PRO, { id: USER_PRO, plan: 'pro', sessionsLifetime: 0 });
+  state.users.set(OTHER_USER, { id: OTHER_USER, plan: 'free', sessionsLifetime: 0 });
 }
 
 const baseGenerateInput = {
   userPrompt: 'Help me sleep tonight please',
-  durationMin: 10,
+  durationMin: 5,
   voiceId: 'en-US-AnaNeural', // free voice
   inductionStyle: 'progressive' as const,
   depthLevel: 'medium' as const,
@@ -423,32 +440,32 @@ describe('sessions.service', () => {
   beforeEach(() => reset());
 
   describe('createGenerationSession', () => {
-    it('creates a generating row, enqueues a job, and increments usage for free users', async () => {
+    it('creates a generating row, enqueues a job, and increments lifetime usage for free users', async () => {
       const result = await createGenerationSession(USER_FREE, baseGenerateInput);
 
       expect(result.status).toBe('generating');
       expect(state.sessions.get(result.sessionId)?.status).toBe('generating');
       expect(state.sessions.get(result.sessionId)?.userId).toBe(USER_FREE);
-      expect(state.sessions.get(result.sessionId)?.durationSec).toBe(600);
+      expect(state.sessions.get(result.sessionId)?.durationSec).toBe(300);
       expect(state.enqueued).toHaveLength(1);
-      expect(state.usage.size).toBe(1);
-      expect([...state.usage.values()][0].generationsCount).toBe(1);
+      // Free users no longer touch the monthly counter.
+      expect(state.usage.size).toBe(0);
+      expect(state.users.get(USER_FREE)?.sessionsLifetime).toBe(1);
       expect(state.events.find(e => e.eventType === 'session_create')).toBeTruthy();
     });
 
-    it('blocks a free user that has hit the monthly generation limit', async () => {
-      // Pre-fill the usage counter to the limit.
-      const period = `${new Date().getUTCFullYear()}${String(new Date().getUTCMonth() + 1).padStart(2, '0')}`;
-      state.usage.set(usageKey(USER_FREE, period), {
-        userId: USER_FREE, periodYyyymm: period, generationsCount: 3,
-      });
+    it('blocks a free user that has hit the lifetime generation limit', async () => {
+      // Pre-fill the lifetime counter to the new limit (2).
+      state.users.get(USER_FREE)!.sessionsLifetime = 2;
 
       await expect(createGenerationSession(USER_FREE, baseGenerateInput))
         .rejects.toMatchObject({ code: 'RATE_LIMIT_EXCEEDED', statusCode: 429 });
 
-      // No row was inserted, no job enqueued.
+      // No row was inserted, no job enqueued, and the lifetime counter
+      // stays clamped at the limit.
       expect(state.sessions.size).toBe(0);
       expect(state.enqueued).toHaveLength(0);
+      expect(state.users.get(USER_FREE)?.sessionsLifetime).toBe(2);
     });
 
     it('blocks a free user from selecting a Pro-only voice', async () => {
@@ -457,6 +474,23 @@ describe('sessions.service', () => {
       ).rejects.toMatchObject({ code: 'PRO_REQUIRED', statusCode: 402 });
       expect(state.sessions.size).toBe(0);
       expect(state.usage.size).toBe(0);
+      expect(state.users.get(USER_FREE)?.sessionsLifetime).toBe(0);
+    });
+
+    it('blocks a free user from selecting a duration outside the fixed 5-minute slot', async () => {
+      await expect(
+        createGenerationSession(USER_FREE, { ...baseGenerateInput, durationMin: 10 }),
+      ).rejects.toMatchObject({ code: 'PRO_REQUIRED', statusCode: 402 });
+      expect(state.sessions.size).toBe(0);
+      expect(state.users.get(USER_FREE)?.sessionsLifetime).toBe(0);
+    });
+
+    it('blocks a free user from selecting a Pro-only background sound', async () => {
+      await expect(
+        createGenerationSession(USER_FREE, { ...baseGenerateInput, background: 'ocean' }),
+      ).rejects.toMatchObject({ code: 'PRO_REQUIRED', statusCode: 402 });
+      expect(state.sessions.size).toBe(0);
+      expect(state.users.get(USER_FREE)?.sessionsLifetime).toBe(0);
     });
 
     it('rejects unknown voice ids with a 400', async () => {
@@ -465,15 +499,35 @@ describe('sessions.service', () => {
       ).rejects.toMatchObject({ code: 'VALIDATION_FAILED', statusCode: 400 });
     });
 
-    it('does not enforce the monthly limit for Pro users', async () => {
+    it('blocks a Pro user that has hit the monthly generation limit', async () => {
       const period = `${new Date().getUTCFullYear()}${String(new Date().getUTCMonth() + 1).padStart(2, '0')}`;
       state.usage.set(usageKey(USER_PRO, period), {
-        userId: USER_PRO, periodYyyymm: period, generationsCount: 999,
+        userId: USER_PRO, periodYyyymm: period, generationsCount: 8,
       });
 
-      const result = await createGenerationSession(USER_PRO, baseGenerateInput);
+      await expect(createGenerationSession(USER_PRO, { ...baseGenerateInput, durationMin: 10 }))
+        .rejects.toMatchObject({ code: 'RATE_LIMIT_EXCEEDED', statusCode: 429 });
+
+      expect(state.sessions.size).toBe(0);
+      expect(state.enqueued).toHaveLength(0);
+    });
+
+    it('rejects a Pro duration outside the 3–12 minute range with a 400', async () => {
+      await expect(
+        createGenerationSession(USER_PRO, { ...baseGenerateInput, durationMin: 20 }),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED', statusCode: 400 });
+    });
+
+    it('lets a Pro user generate within their monthly cap', async () => {
+      const result = await createGenerationSession(
+        USER_PRO,
+        { ...baseGenerateInput, durationMin: 10, voiceId: 'en-GB-SoniaNeural', background: 'ocean' },
+      );
       expect(result.status).toBe('generating');
       expect(state.enqueued).toHaveLength(1);
+      // Pro generations bump the monthly usage counter.
+      expect(state.usage.size).toBe(1);
+      expect([...state.usage.values()][0].generationsCount).toBe(1);
     });
   });
 
