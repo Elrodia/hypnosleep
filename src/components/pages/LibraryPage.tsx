@@ -1,39 +1,78 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { PlusCircle, MagnifyingGlass, X, Heart, FunnelSimple, Check, Spinner, WarningCircle } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { SessionCard } from '@/components/SessionCard'
-import { SessionDetailPage } from './SessionDetailPage'
-import { SwipeableSessionCard } from '@/components/SwipeableSessionCard'
+import { MagnifyingGlass, FunnelSimple, Check, Bell } from '@phosphor-icons/react'
 import { toast } from 'sonner'
+import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
+import { SessionCardLiminal } from '@/components/SessionCardLiminal'
+import { SessionDetailPage } from './SessionDetailPage'
 import {
   listSessions,
   toggleSessionFavorite,
   deleteSession,
   type ListSessionsParams,
+  type SessionSummary,
 } from '@/lib/api-endpoints'
-import { toUISession } from '@/lib/session-ui'
 
-type FilterCategory = 'All' | 'Sleep' | 'Confidence' | 'Fears' | 'Habits' | 'Focus' | 'Custom'
-type ViewMode = 'all' | 'favorites'
+type Filter = 'all' | 'favorites' | 'sleep' | 'confidence' | 'fears' | 'habits' | 'focus' | 'custom'
 type SortOption = 'newest' | 'oldest' | 'most_played' | 'shortest' | 'longest'
 
-const filterCategories: FilterCategory[] = ['All', 'Sleep', 'Confidence', 'Fears', 'Habits', 'Focus', 'Custom']
+const CATEGORY_ORDER: Filter[] = ['sleep', 'confidence', 'fears', 'habits', 'focus', 'custom']
 
 const sortOptions: { value: SortOption; label: string }[] = [
-  { value: 'newest', label: 'Newest First' },
-  { value: 'oldest', label: 'Oldest First' },
-  { value: 'most_played', label: 'Most Played' },
-  { value: 'shortest', label: 'Shortest Duration' },
-  { value: 'longest', label: 'Longest Duration' },
+  { value: 'newest', label: 'newest first' },
+  { value: 'oldest', label: 'oldest first' },
+  { value: 'most_played', label: 'most played' },
+  { value: 'shortest', label: 'shortest duration' },
+  { value: 'longest', label: 'longest duration' },
 ]
 
+const STYLES = `
+.ls-library{--ls-bg-base:#0a0a0f;--ls-bg-deep:#050507;--ls-bg-card:#0e0e14;--ls-fg-primary:#e8e6e1;--ls-fg-muted:#6b6a6f;--ls-fg-faint:#2a2a30;--ls-accent:#c9b6a3;--ls-glow:rgba(201,182,163,0.08);background:var(--ls-bg-base);color:var(--ls-fg-primary);font-family:'Inter',system-ui,sans-serif;min-height:100vh;position:relative;overflow:hidden;}
+.ls-library__ambient{position:fixed;inset:-25%;background:radial-gradient(circle at 30% 20%,rgba(201,182,163,0.06),transparent 55%),radial-gradient(circle at 70% 80%,rgba(80,90,120,0.08),transparent 60%),radial-gradient(circle at 50% 50%,rgba(40,30,50,0.05),transparent 70%);animation:ls-lib-ambient 240s linear infinite;pointer-events:none;z-index:0;}
+.ls-library__grain{position:fixed;inset:0;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.6'/></svg>");opacity:0.03;mix-blend-mode:overlay;pointer-events:none;z-index:1;}
+.ls-library__vignette{position:fixed;inset:0;box-shadow:inset 0 0 200px var(--ls-bg-deep);pointer-events:none;z-index:2;}
+.ls-library__content{position:relative;z-index:3;}
+.ls-library__brand{font-weight:400;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--ls-fg-primary);}
+.ls-library__title{font-family:'Fraunces','Cormorant Garamond',serif;font-style:italic;font-weight:300;font-size:clamp(2rem,5vw,3rem);letter-spacing:-0.02em;line-height:1.1;text-transform:lowercase;color:var(--ls-fg-primary);margin:0;}
+.ls-library__meta{font-family:'Inter',system-ui,sans-serif;font-weight:400;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ls-fg-muted);}
+.ls-library__search-wrap{position:relative;display:flex;align-items:center;gap:14px;}
+.ls-library__search{position:relative;flex:1;display:flex;align-items:center;border-bottom:1px solid var(--ls-fg-faint);transition:border-color 250ms ease;padding:8px 0;}
+.ls-library__search:focus-within{border-bottom-color:var(--ls-accent);}
+.ls-library__search-icon{color:var(--ls-fg-muted);margin-right:10px;flex-shrink:0;}
+.ls-library__search-input{flex:1;background:transparent;border:none;outline:none;color:var(--ls-fg-primary);font-family:'Inter',system-ui,sans-serif;font-weight:400;font-size:0.875rem;text-transform:lowercase;letter-spacing:0.02em;}
+.ls-library__search-input::placeholder{color:var(--ls-fg-muted);text-transform:lowercase;}
+.ls-library__sort-btn{background:transparent;border:none;cursor:pointer;color:var(--ls-fg-muted);padding:6px;display:flex;align-items:center;justify-content:center;transition:color 200ms ease;}
+.ls-library__sort-btn:hover{color:var(--ls-fg-primary);}
+.ls-library__sort-menu{position:absolute;right:0;top:44px;width:220px;background:var(--ls-bg-card);border:1px solid var(--ls-fg-faint);border-radius:12px;overflow:hidden;z-index:50;box-shadow:0 10px 30px rgba(0,0,0,0.45);}
+.ls-library__sort-item{width:100%;padding:12px 16px;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;color:var(--ls-fg-primary);font-family:'Inter',system-ui,sans-serif;font-weight:400;font-size:0.8125rem;text-transform:lowercase;letter-spacing:0.03em;text-align:left;transition:background 180ms ease,color 180ms ease;}
+.ls-library__sort-item:hover{background:rgba(255,255,255,0.03);}
+.ls-library__sort-item[data-active="true"]{color:var(--ls-accent);}
+.ls-library__filters{display:flex;gap:0;align-items:center;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;}
+.ls-library__filters::-webkit-scrollbar{display:none;}
+.ls-library__pill{position:relative;padding:6px 14px;background:transparent;border:none;cursor:pointer;color:var(--ls-fg-muted);font-family:'Inter',system-ui,sans-serif;font-weight:400;font-size:0.8125rem;letter-spacing:0.05em;text-transform:lowercase;flex-shrink:0;transition:color 220ms ease;}
+.ls-library__pill:hover{color:var(--ls-fg-primary);}
+.ls-library__pill[data-active="true"]{color:var(--ls-fg-primary);}
+.ls-library__pill-underline{position:absolute;left:14px;right:14px;bottom:-2px;height:1px;background:var(--ls-accent);}
+.ls-library__sep{color:var(--ls-fg-faint);font-size:0.8125rem;flex-shrink:0;user-select:none;}
+.ls-library__skeleton{height:88px;background:var(--ls-bg-card);border:1px solid var(--ls-fg-faint);border-radius:14px;margin-bottom:12px;position:relative;overflow:hidden;}
+.ls-library__skeleton::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(232,230,225,0.04),transparent);animation:ls-lib-shimmer 1.6s linear infinite;}
+.ls-library__empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;gap:18px;text-align:center;}
+.ls-library__empty-line{font-family:'Fraunces','Cormorant Garamond',serif;font-style:italic;font-weight:300;font-size:1.25rem;color:var(--ls-fg-muted);text-transform:lowercase;margin:0;}
+.ls-library__link{position:relative;background:transparent;border:none;cursor:pointer;color:var(--ls-accent);font-family:'Inter',system-ui,sans-serif;font-weight:400;font-size:0.875rem;letter-spacing:0.05em;text-transform:lowercase;padding:4px 0;}
+.ls-library__link::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--ls-accent);transform:scaleX(0);transform-origin:left;transition:transform 280ms ease;}
+.ls-library__link:hover::after{transform:scaleX(1);}
+@keyframes ls-lib-ambient{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+@keyframes ls-lib-shimmer{from{transform:translateX(-100%);}to{transform:translateX(100%);}}
+@media (prefers-reduced-motion:reduce){.ls-library__ambient{animation:none;}.ls-library__skeleton::after{animation:none;}}
+`
+
+function fireNavigateToCreate() {
+  window.dispatchEvent(new CustomEvent('navigate-to-tab', { detail: 'create' }))
+}
+
 export function LibraryPage() {
-  const [viewMode, setViewMode] = useState<ViewMode>('all')
-  const [activeFilter, setActiveFilter] = useState<FilterCategory>('All')
+  const [activeFilter, setActiveFilter] = useState<Filter>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [activeSortOption, setActiveSortOption] = useState<SortOption>('newest')
   const [showSortDropdown, setShowSortDropdown] = useState(false)
@@ -43,14 +82,14 @@ export function LibraryPage() {
   const { play } = useAudioPlayer()
   const qc = useQueryClient()
 
-  // Debounce search input so we don't hammer the backend on every
-  // keystroke. 300ms matches the feel of other search-as-you-type UIs.
+  // Debounce search input by 300ms.
   const [debouncedSearch, setDebouncedSearch] = useState('')
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300)
     return () => clearTimeout(t)
   }, [searchQuery])
 
+  // Click-outside handler for sort dropdown.
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -68,306 +107,292 @@ export function LibraryPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showSortDropdown])
 
-  const queryParams = useMemo<ListSessionsParams>(() => ({
-    category: activeFilter === 'All' ? 'all' : activeFilter.toLowerCase(),
-    search: debouncedSearch || undefined,
-    sort: activeSortOption,
-    favoritesOnly: viewMode === 'favorites',
-    limit: 50,
-  }), [activeFilter, debouncedSearch, activeSortOption, viewMode])
+  const queryParams = useMemo<ListSessionsParams>(() => {
+    const isFavorites = activeFilter === 'favorites'
+    const category = activeFilter === 'all' || isFavorites ? 'all' : activeFilter
+    return {
+      category,
+      search: debouncedSearch || undefined,
+      sort: activeSortOption,
+      favoritesOnly: isFavorites,
+      limit: 50,
+    }
+  }, [activeFilter, debouncedSearch, activeSortOption])
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['sessions', queryParams],
     queryFn: () => listSessions(queryParams),
   })
 
+  // Second, parallel query: global per-category counts for the current
+  // user, used to hide pills whose category has zero sessions.
+  const countsQuery = useQuery({
+    queryKey: ['sessions-counts'],
+    queryFn: () =>
+      listSessions({ limit: 50, category: 'all', favoritesOnly: false }),
+  })
+
+  const categoryCounts = useMemo<Record<string, number>>(() => {
+    const map: Record<string, number> = {}
+    for (const s of countsQuery.data?.data ?? []) {
+      const key = (s.category || 'custom').toLowerCase()
+      map[key] = (map[key] ?? 0) + 1
+    }
+    return map
+  }, [countsQuery.data])
+
   const favoriteMutation = useMutation({
     mutationFn: (id: string) => toggleSessionFavorite(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sessions'] }),
-    onError: () => toast.error('Could not update favorite.'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sessions'] })
+      qc.invalidateQueries({ queryKey: ['sessions-counts'] })
+    },
+    onError: () => toast.error('could not update favorite.'),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteSession(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sessions'] })
-      toast.success('Session deleted')
+      qc.invalidateQueries({ queryKey: ['sessions-counts'] })
+      toast.success('session deleted')
     },
-    onError: () => toast.error('Could not delete session.'),
+    onError: () => toast.error('could not delete session.'),
   })
+  // deleteMutation is kept in scope so the cache-invalidation
+  // contract (sessions + sessions-counts) survives any future wiring
+  // from the list view; the detail page owns the delete UX today.
+  void deleteMutation
 
-  const uiSessions = useMemo(() => (data?.data ?? []).map(toUISession), [data])
+  const sessions: SessionSummary[] = data?.data ?? []
 
-  const handlePlaySession = (session: ReturnType<typeof toUISession>) => {
+  const totalMinutes = useMemo(
+    () => sessions.reduce((sum, s) => sum + Math.max(1, Math.round(s.durationSec / 60)), 0),
+    [sessions],
+  )
+
+  const handlePlaySession = (s: SessionSummary) => {
     play({
-      sessionId: session.status === 'ready' ? session.id : undefined,
-      title: session.title,
-      category: session.category,
-      duration: 600,
+      sessionId: s.status === 'ready' ? s.id : undefined,
+      title: s.title,
+      category: s.category,
+      duration: s.durationSec || 600,
     })
-  }
-
-  const handleToggleFavorite = (id: string, _isFavorited: boolean) => {
-    favoriteMutation.mutate(id)
-  }
-
-  const handleRemoveFavorite = (id: string) => {
-    favoriteMutation.mutate(id)
-  }
-
-  const handleSessionClick = (sessionId: string) => setSelectedSessionId(sessionId)
-  const handleBackFromDetail = () => setSelectedSessionId(null)
-  const handlePlayFromDetail = () => {
-    const s = uiSessions.find((x) => x.id === selectedSessionId)
-    if (s) handlePlaySession(s)
   }
 
   if (selectedSessionId) {
     return (
       <SessionDetailPage
         sessionId={selectedSessionId}
-        onBack={handleBackFromDetail}
-        onPlay={handlePlayFromDetail}
-        onDeleted={() => {
-          setSelectedSessionId(null)
+        onBack={() => setSelectedSessionId(null)}
+        onPlay={() => {
+          const s = sessions.find((x) => x.id === selectedSessionId)
+          if (s) handlePlaySession(s)
         }}
+        onDeleted={() => setSelectedSessionId(null)}
       />
     )
   }
 
+  // Build the list of visible filter pills. `all` and `favorites` are
+  // always present; categories appear only if the global count is > 0.
+  const visiblePills: Filter[] = ['all', 'favorites', ...CATEGORY_ORDER.filter((c) => (categoryCounts[c] ?? 0) > 0)]
+
   return (
-    <div className="p-4 pb-6">
-      <h1 className="text-2xl font-semibold tracking-tight mb-6">Library</h1>
+    <div className="ls-library">
+      <style>{STYLES}</style>
+      <div className="ls-library__ambient" aria-hidden="true" />
+      <div className="ls-library__grain" aria-hidden="true" />
+      <div className="ls-library__vignette" aria-hidden="true" />
 
-      <div className="mb-6 flex items-center justify-center">
-        <div className="inline-flex items-center gap-1 p-1 bg-card rounded-lg border border-border">
-          <button
-            onClick={() => setViewMode('all')}
-            className={`px-6 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-              viewMode === 'all'
-                ? 'bg-primary text-primary-foreground shadow-md'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setViewMode('favorites')}
-            className={`px-6 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
-              viewMode === 'favorites'
-                ? 'bg-primary text-primary-foreground shadow-md'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Heart weight={viewMode === 'favorites' ? 'fill' : 'regular'} className="w-4 h-4" />
-            Favorites
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-6 -mx-4 px-4">
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2">
-          {filterCategories.map((category) => {
-            const isActive = activeFilter === category
-            return (
-              <button
-                key={category}
-                onClick={() => setActiveFilter(category)}
-                className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                  isActive
-                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
-                    : 'bg-transparent border border-border text-foreground hover:border-primary/50'
-                }`}
-              >
-                {category}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      <div className="mb-6 flex gap-3">
-        <div className="relative flex-1">
-          <MagnifyingGlass
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none"
-            weight="bold"
-          />
-          <Input
-            type="text"
-            placeholder="Search sessions..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-11 pr-10 h-12 bg-card border-border focus-visible:ring-primary"
-          />
-          <AnimatePresence>
-            {searchQuery && (
-              <motion.button
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.15 }}
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" weight="bold" />
-              </motion.button>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <div className="relative">
-          <button
-            ref={sortButtonRef}
-            onClick={() => setShowSortDropdown(!showSortDropdown)}
-            className="h-12 w-12 rounded-lg bg-card border border-border hover:bg-card/80 flex items-center justify-center text-foreground transition-colors"
-          >
-            <FunnelSimple className="w-5 h-5" weight="bold" />
-          </button>
-
-          <AnimatePresence>
-            {showSortDropdown && (
-              <motion.div
-                ref={sortDropdownRef}
-                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute right-0 top-14 w-56 bg-card border border-border rounded-xl shadow-xl overflow-hidden z-50"
-              >
-                {sortOptions.map((option) => {
-                  const isActive = activeSortOption === option.value
-                  return (
-                    <button
-                      key={option.value}
-                      onClick={() => {
-                        setActiveSortOption(option.value)
-                        setShowSortDropdown(false)
-                      }}
-                      className={`w-full px-4 py-3 flex items-center justify-between text-left transition-colors ${
-                        isActive ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted'
-                      }`}
-                    >
-                      <span className="font-medium text-sm">{option.label}</span>
-                      {isActive && (
-                        <motion.div
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ duration: 0.2, ease: 'backOut' }}
-                        >
-                          <Check className="w-5 h-5" weight="bold" />
-                        </motion.div>
-                      )}
-                    </button>
-                  )
-                })}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-16 px-4">
-          <Spinner size={32} className="text-primary animate-spin mb-4" />
-          <p className="text-sm text-muted-foreground">Loading your sessions…</p>
-        </div>
-      ) : isError ? (
-        <div className="flex flex-col items-center justify-center py-16 px-4">
-          <WarningCircle size={48} className="text-destructive mb-4" />
-          <h2 className="text-lg font-semibold mb-2">Couldn't load sessions</h2>
-          <p className="text-sm text-muted-foreground mb-4">Please check your connection and try again.</p>
-          <Button onClick={() => void refetch()}>Retry</Button>
-        </div>
-      ) : uiSessions.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="flex flex-col items-center justify-center py-16 px-4"
+      <div className="ls-library__content flex flex-col min-h-screen">
+        <motion.header
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="flex items-center justify-between px-6 h-14"
         >
-          {viewMode === 'favorites' ? (
-            <>
-              <div className="mb-6 text-8xl opacity-20">❤️</div>
-              <h2 className="text-xl font-semibold mb-2 text-center">No favorites yet</h2>
-              <p className="text-muted-foreground text-center mb-8 max-w-sm">
-                Tap the heart on any session to save it here.
-              </p>
-            </>
-          ) : searchQuery ? (
-            <>
-              <div className="mb-6 text-8xl opacity-20">🔍</div>
-              <h2 className="text-xl font-semibold mb-2 text-center">No results for '{searchQuery}'</h2>
-              <p className="text-muted-foreground text-center mb-8 max-w-sm">
-                We couldn't find any sessions matching your search. Try different keywords or create a new session.
-              </p>
-              <Button
-                size="lg"
-                className="gap-2"
-                onClick={() => window.dispatchEvent(new CustomEvent('navigate-to-tab', { detail: 'create' }))}
-              >
-                <PlusCircle weight="fill" className="w-5 h-5" />
-                Create New Session
-              </Button>
-            </>
-          ) : (
-            <>
-              <div className="mb-6 text-8xl opacity-20">📚</div>
-              <h2 className="text-xl font-semibold mb-2 text-center">No sessions yet</h2>
-              <p className="text-muted-foreground text-center mb-8 max-w-sm">
-                Create your first session and start your journey to better sleep and self-improvement.
-              </p>
-              <Button
-                size="lg"
-                className="gap-2"
-                onClick={() => window.dispatchEvent(new CustomEvent('navigate-to-tab', { detail: 'create' }))}
-              >
-                <PlusCircle weight="fill" className="w-5 h-5" />
-                Create Your First Session
-              </Button>
-            </>
-          )}
-        </motion.div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {uiSessions.map((session, index) => (
-            <motion.div
-              key={session.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
+          <span className="ls-library__brand">hypnosleep</span>
+          <Bell size={18} weight="thin" aria-hidden="true" style={{ color: 'var(--ls-fg-muted)' }} />
+        </motion.header>
+
+        <main className="flex-1 px-6 pt-6 pb-12 max-w-2xl w-full mx-auto">
+          <motion.h1
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="ls-library__title"
+          >
+            library
+          </motion.h1>
+
+          {sessions.length > 0 && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.15 }}
+              className="ls-library__meta mt-3"
             >
-              {viewMode === 'favorites' ? (
-                <SwipeableSessionCard
-                  id={session.id}
-                  title={session.title}
-                  category={session.category}
-                  duration={session.duration}
-                  gradient={session.gradient}
-                  isFavorited={session.isFavorited}
-                  onPlay={() => handlePlaySession(session)}
-                  onToggleFavorite={handleToggleFavorite}
-                  onRemove={handleRemoveFavorite}
-                  onClick={() => handleSessionClick(session.id)}
-                  searchQuery={searchQuery}
-                />
-              ) : (
-                <SessionCard
-                  id={session.id}
-                  title={session.title}
-                  category={session.category}
-                  duration={session.duration}
-                  gradient={session.gradient}
-                  isFavorited={session.isFavorited}
-                  onPlay={() => handlePlaySession(session)}
-                  onToggleFavorite={handleToggleFavorite}
-                  onClick={() => handleSessionClick(session.id)}
-                  searchQuery={searchQuery}
-                />
-              )}
-            </motion.div>
-          ))}
-        </div>
-      )}
+              {sessions.length} sessions · {totalMinutes} min total
+            </motion.p>
+          )}
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.25 }}
+            className="ls-library__search-wrap mt-8"
+          >
+            <label className="ls-library__search">
+              <MagnifyingGlass size={16} weight="regular" className="ls-library__search-icon" />
+              <input
+                type="text"
+                placeholder="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="ls-library__search-input"
+                aria-label="search sessions"
+              />
+            </label>
+            <div style={{ position: 'relative' }}>
+              <button
+                ref={sortButtonRef}
+                type="button"
+                onClick={() => setShowSortDropdown((v) => !v)}
+                className="ls-library__sort-btn"
+                aria-label="sort sessions"
+              >
+                <FunnelSimple size={18} weight="regular" />
+              </button>
+              <AnimatePresence>
+                {showSortDropdown && (
+                  <motion.div
+                    ref={sortDropdownRef}
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                    className="ls-library__sort-menu"
+                  >
+                    {sortOptions.map((option) => {
+                      const isActive = activeSortOption === option.value
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          data-active={isActive ? 'true' : 'false'}
+                          onClick={() => {
+                            setActiveSortOption(option.value)
+                            setShowSortDropdown(false)
+                          }}
+                          className="ls-library__sort-item"
+                        >
+                          <span>{option.label}</span>
+                          {isActive && <Check size={14} weight="regular" />}
+                        </button>
+                      )
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.35 }}
+            className="ls-library__filters mt-6"
+          >
+            {visiblePills.map((pill, i) => {
+              const isActive = activeFilter === pill
+              return (
+                <div
+                  key={pill}
+                  style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                >
+                  {i > 0 && <span className="ls-library__sep">·</span>}
+                  <button
+                    type="button"
+                    data-active={isActive ? 'true' : 'false'}
+                    onClick={() => setActiveFilter(pill)}
+                    className="ls-library__pill"
+                  >
+                    {pill}
+                    {isActive && (
+                      <motion.span
+                        layoutId="library-filter-underline"
+                        className="ls-library__pill-underline"
+                        transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                      />
+                    )}
+                  </button>
+                </div>
+              )
+            })}
+          </motion.div>
+
+          <div className="mt-8">
+            {isLoading ? (
+              <div>
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="ls-library__skeleton" />
+                ))}
+              </div>
+            ) : isError ? (
+              <div className="ls-library__empty">
+                <p className="ls-library__empty-line">couldn't load your library</p>
+                <button
+                  type="button"
+                  onClick={() => void refetch()}
+                  className="ls-library__link"
+                >
+                  try again
+                </button>
+              </div>
+            ) : sessions.length === 0 ? (
+              <div className="ls-library__empty">
+                <p className="ls-library__empty-line">nothing here yet</p>
+                <button
+                  type="button"
+                  onClick={fireNavigateToCreate}
+                  className="ls-library__link"
+                >
+                  create a session
+                </button>
+              </div>
+            ) : (
+              <div>
+                {sessions.map((s, index) => (
+                  <motion.div
+                    key={s.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.5,
+                      delay: 0.5 + Math.min(index, 7) * 0.08,
+                    }}
+                  >
+                    <SessionCardLiminal
+                      id={s.id}
+                      title={s.title}
+                      category={s.category}
+                      durationSec={s.durationSec}
+                      createdAt={s.createdAt}
+                      isFavorited={s.favorited}
+                      onPlay={() => handlePlaySession(s)}
+                      onToggleFavorite={() => favoriteMutation.mutate(s.id)}
+                      onClick={() => setSelectedSessionId(s.id)}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
     </div>
   )
 }
+
+export default LibraryPage
