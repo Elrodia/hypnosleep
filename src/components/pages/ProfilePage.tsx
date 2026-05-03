@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { PencilSimple, Moon, Headphones, Flame, CaretRight, SlidersHorizontal, UserCircle, CreditCard, Question, Info } from '@phosphor-icons/react'
+import { PencilSimple, CaretRight } from '@phosphor-icons/react'
 import { PreferencesPage } from './PreferencesPage'
 import { AccountPage } from './AccountPage'
 import { ProUpgradePage } from './ProUpgradePage'
 import { HelpPage } from './HelpPage'
 import { AboutPage } from './AboutPage'
-import { ReferralCard } from '../ReferralCard'
 import { ProfileEditDialog } from '../ProfileEditDialog'
 import { useAuth } from '@/lib/auth-context'
-import { getProgressStats, getStreak } from '@/lib/api-endpoints'
+import { getProgressStats, getStreak, getSubscriptionStatus } from '@/lib/api-endpoints'
 import { consumeUpgradeRequest } from '@/lib/upgrade-intent'
 
 export function ProfilePage() {
@@ -23,6 +22,16 @@ export function ProfilePage() {
 
   const { data: stats } = useQuery({ queryKey: ['progress', 'stats'], queryFn: getProgressStats })
   const { data: streak } = useQuery({ queryKey: ['progress', 'streak'], queryFn: getStreak })
+  const { data: subStatus } = useQuery({
+    queryKey: ['subscription', 'status'],
+    queryFn: getSubscriptionStatus,
+    // Subscription state changes rarely; cache aggressively to avoid
+    // hammering Stripe on every Profile mount.
+    staleTime: 60_000,
+  })
+
+  const planLabel = subStatus?.plan ?? user?.plan ?? 'free'
+  const isPro = planLabel === 'pro'
 
   const safeProfile = {
     name: user?.name ?? 'Welcome',
@@ -58,12 +67,12 @@ export function ProfilePage() {
   }, [])
 
   const settingsCategories = [
-    { id: 'preferences', label: 'Preferences', icon: SlidersHorizontal },
-    { id: 'account', label: 'Account', icon: UserCircle },
-    { id: 'subscription', label: 'Subscription', icon: CreditCard },
-    { id: 'help', label: 'Help & Support', icon: Question },
-    { id: 'about', label: 'About', icon: Info },
-  ]
+    { id: 'preferences', label: 'Preferences' },
+    { id: 'account', label: 'Account' },
+    { id: 'subscription', label: 'Subscription' },
+    { id: 'help', label: 'Help & Support' },
+    { id: 'about', label: 'About' },
+  ] as const
 
   const handleCategoryClick = (categoryId: string) => {
     if (categoryId === 'preferences') {
@@ -100,109 +109,123 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="p-6 space-y-6">
-        <div className="flex flex-col items-center text-center space-y-4 pb-6">
+    <div className="ls-profile min-h-screen bg-[var(--ls-bg)] text-[var(--ls-text)]">
+      <div className="mx-auto max-w-xl px-6 pt-12 pb-24 space-y-12">
+
+        {/* === HEADER: avatar + name + meta === */}
+        <header className="flex flex-col items-center text-center space-y-4">
           <div className="relative">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary via-primary/80 to-primary/60 flex items-center justify-center">
-              <span className="text-3xl font-semibold text-primary-foreground">
-                {safeProfile.avatarInitials}
+            <div className="w-20 h-20 rounded-full border border-[var(--ls-sand)] flex items-center justify-center bg-[var(--ls-bg)]">
+              <span className="font-fraunces italic text-2xl text-[var(--ls-sand)]">
+                {safeProfile.avatarInitials.toLowerCase()}
               </span>
             </div>
-            <button 
+            <button
+              type="button"
               onClick={() => setShowEdit(true)}
-              className="absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-card border-2 border-background flex items-center justify-center hover:bg-accent transition-colors"
-              aria-label="Edit profile"
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[var(--ls-bg-elevated)] border border-[var(--ls-border-strong)] flex items-center justify-center hover:border-[var(--ls-sand-dim)] transition-colors"
+              aria-label="edit profile"
             >
-              <PencilSimple className="w-4 h-4 text-foreground" weight="bold" />
+              <PencilSimple className="w-3.5 h-3.5 text-[var(--ls-text-muted)]" weight="regular" />
             </button>
           </div>
 
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {safeProfile.name}
+            <h1 className="font-fraunces italic lowercase text-3xl text-[var(--ls-text)]">
+              {safeProfile.name.toLowerCase()}
             </h1>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-[var(--ls-text-muted)]">
               {safeProfile.email}
             </p>
-            <p className="text-xs text-muted-foreground/80 pt-1">
-              Member since {formatMemberSince(safeProfile.memberSince)}
+            <p className="text-xs text-[var(--ls-text-subtle)] pt-1">
+              member since {formatMemberSince(safeProfile.memberSince).toLowerCase()}
             </p>
           </div>
-        </div>
+        </header>
 
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-card border border-border rounded-xl p-4 flex flex-col items-center justify-center space-y-2">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Headphones className="w-5 h-5 text-primary" weight="bold" />
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-semibold tracking-tight">
-                {safeTotalSessions}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Sessions
-              </p>
-            </div>
+        {/* === STATS: three numbers, no boxes === */}
+        <section className="grid grid-cols-3 gap-2 py-4 border-y border-[var(--ls-border)]">
+          <div className="flex flex-col items-center gap-1 py-2">
+            <span className="font-fraunces italic text-3xl text-[var(--ls-text)] tabular-nums">
+              {safeTotalSessions}
+            </span>
+            <span className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
+              sessions
+            </span>
           </div>
-
-          <div className="bg-card border border-border rounded-xl p-4 flex flex-col items-center justify-center space-y-2">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Moon className="w-5 h-5 text-primary" weight="bold" />
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-semibold tracking-tight">
-                {formatListenedTime(safeTotalListened)}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Listened
-              </p>
-            </div>
+          <div className="flex flex-col items-center gap-1 py-2 border-x border-[var(--ls-border)]">
+            <span className="font-fraunces italic text-3xl text-[var(--ls-text)] tabular-nums">
+              {formatListenedTime(safeTotalListened)}
+            </span>
+            <span className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
+              listened
+            </span>
           </div>
-
-          <div className="bg-card border border-border rounded-xl p-4 flex flex-col items-center justify-center space-y-2">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Flame className="w-5 h-5 text-primary" weight="fill" />
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-semibold tracking-tight">
-                {safeCurrentStreak}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Day Streak
-              </p>
-            </div>
+          <div className="flex flex-col items-center gap-1 py-2">
+            <span className="font-fraunces italic text-3xl text-[var(--ls-text)] tabular-nums">
+              {safeCurrentStreak}
+            </span>
+            <span className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
+              day streak
+            </span>
           </div>
-        </div>
+        </section>
 
-        <ReferralCard />
-
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          {settingsCategories.map((category, index) => {
-            const Icon = category.icon
+        {/* === SETTINGS MENU === */}
+        <nav aria-label="settings" className="space-y-px">
+          {settingsCategories.map((category) => {
+            const isSubscription = category.id === 'subscription'
             return (
               <button
                 key={category.id}
+                type="button"
                 onClick={() => handleCategoryClick(category.id)}
-                className="w-full flex items-center justify-between p-4 hover:bg-accent/50 transition-colors active:scale-[0.99]"
-                style={{
-                  borderBottom: index < settingsCategories.length - 1 ? '1px solid hsl(var(--border))' : 'none'
-                }}
+                className="w-full flex items-center justify-between py-4 border-b border-[var(--ls-border)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors group"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Icon className="w-5 h-5 text-primary" weight="bold" />
-                  </div>
-                  <span className="font-medium">
-                    {category.label}
-                  </span>
+                <span className="text-base text-[var(--ls-text)] lowercase">
+                  {category.label.toLowerCase()}
+                </span>
+                <div className="flex items-center gap-3 text-[var(--ls-text-muted)] group-hover:text-[var(--ls-text)] transition-colors">
+                  {isSubscription && (
+                    <span
+                      className={
+                        isPro
+                          ? 'text-xs lowercase text-[var(--ls-sand)]'
+                          : 'text-xs lowercase text-[var(--ls-sand-dim)]'
+                      }
+                    >
+                      {planLabel}
+                    </span>
+                  )}
+                  <CaretRight className="w-4 h-4" weight="regular" />
                 </div>
-                <CaretRight className="w-5 h-5 text-muted-foreground" weight="bold" />
               </button>
             )
           })}
-        </div>
+        </nav>
+
+        {/* === FOOTER: discreet referral link === */}
+        <footer className="pt-8 flex flex-col items-center gap-1 text-xs">
+          <button
+            type="button"
+            onClick={() => {
+              // Surface the existing referral mechanic without giving it
+              // page-level real estate. The dedicated /referral route
+              // (or the ReferralCard mounted there) is where the loud
+              // viral-loop UI lives, if/when it justifies its space.
+              window.dispatchEvent(new CustomEvent('navigate-to-referral'))
+            }}
+            className="text-[var(--ls-text-muted)] hover:text-[var(--ls-sand)] underline-offset-4 hover:underline transition-colors"
+          >
+            share with a friend
+          </button>
+          <p className="text-[var(--ls-text-subtle)]">
+            give 7 days free, get 7 days free
+          </p>
+        </footer>
+
       </div>
+
       <ProfileEditDialog isOpen={showEdit} onClose={() => setShowEdit(false)} />
     </div>
   )
