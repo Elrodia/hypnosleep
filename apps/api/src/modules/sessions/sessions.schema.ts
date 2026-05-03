@@ -55,12 +55,29 @@ export type GenerateSessionInput = z.infer<typeof generateSessionSchema>;
  * coerced. Defaults are applied so the route handler can rely on
  * fully-populated input regardless of what the client sends.
  */
+/**
+ * Query-string-safe boolean parser.
+ *
+ * `z.coerce.boolean()` is dangerous for query-string inputs: it
+ * uses `Boolean(input)` under the hood, so the literal string
+ * `"false"` becomes `true` (any non-empty string is truthy in JS).
+ *
+ * This helper accepts the literals `"true"` / `"false"` (case-
+ * insensitive) and the booleans `true` / `false` themselves, and
+ * rejects anything else. The result is always a real boolean.
+ */
+const queryBool = (defaultValue: boolean) =>
+  z
+    .union([z.boolean(), z.enum(['true', 'false', 'TRUE', 'FALSE', 'True', 'False'])])
+    .default(defaultValue)
+    .transform((v) => (typeof v === 'string' ? v.toLowerCase() === 'true' : v));
+
 export const listSessionsQuerySchema = z.object({
   category: z.enum(LIST_CATEGORIES).default('all'),
   search: z.string().max(100).optional(),
   sort: z.enum(LIST_SORTS).default('newest'),
-  favoritesOnly: z.coerce.boolean().default(false),
-  includeTemplates: z.coerce.boolean().default(true),
+  favoritesOnly: queryBool(false),
+  includeTemplates: queryBool(true),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
