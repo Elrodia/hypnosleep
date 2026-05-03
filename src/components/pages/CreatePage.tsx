@@ -1,10 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { Fragment, useState, useEffect, useRef } from 'react'
 import { useQueryClient, useQuery } from '@tanstack/react-query'
-import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
-import { Sparkle, Play, Drop, Waves, Tree, Wind, SpeakerSlash, CaretDown, Moon, Sun, Prohibit, BookOpen, LockKeyOpen, Eye, AppleLogo, FirstAid } from '@phosphor-icons/react'
+import { CaretDown, Lock } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GenerationLoadingOverlay } from '@/components/GenerationLoadingOverlay'
@@ -34,58 +32,48 @@ import { formatCategory } from '@/lib/session-ui'
 // `useKV('library-sessions')` state is no longer used here.
 
 const PLACEHOLDER_EXAMPLES = [
-  'Help me fall asleep in 10 minutes',
-  'Boost my confidence for a job interview',
-  'Release my fear of public speaking',
-]
+  "i can't fall asleep, my mind is racing",
+  'i want to feel calm before my interview tomorrow',
+  'help me let go of the day',
+  'i want to stop checking my phone at night',
+] as const
 
 const MAX_CHARS = 500
+const MIN_CHARS = 10 // backend requires >= 10
 
-interface QuickTemplate {
-  id: string
-  label: string
-  icon: React.ComponentType<any>
-  prompt: string
-  voice: string
-  duration: number
-  category: string
-}
+/** Lengths visible to the user. Free plan only sees 5; pro sees both. */
+const LENGTH_OPTIONS = [5, 10] as const
 
-const QUICK_TEMPLATES: QuickTemplate[] = [
-  { id: 'sleep-10', label: 'Sleep in 10 min', icon: Moon, prompt: 'Help me fall asleep quickly with deep relaxation in 10 minutes', voice: 'en-US-AriaNeural', duration: 10, category: 'sleep' },
-  { id: 'morning-confidence', label: 'Morning Confidence', icon: Sun, prompt: 'Boost my confidence and energy for a successful day ahead', voice: 'en-US-AnaNeural', duration: 10, category: 'confidence' },
-  { id: 'quit-smoking', label: 'Quit Smoking', icon: Prohibit, prompt: 'Strengthen my resolve to quit smoking and overcome cravings', voice: 'en-US-GuyNeural', duration: 15, category: 'habits' },
-  { id: 'exam-calm', label: 'Exam Calm', icon: BookOpen, prompt: 'Release test anxiety and boost focus for my upcoming exam', voice: 'en-US-AnaNeural', duration: 15, category: 'focus' },
-  { id: 'fear-release', label: 'Fear Release', icon: LockKeyOpen, prompt: 'Let go of my fears and embrace courage and confidence', voice: 'en-GB-SoniaNeural', duration: 20, category: 'fears' },
-  { id: 'deep-focus', label: 'Deep Focus', icon: Eye, prompt: 'Enter a state of deep focus and concentration for important work', voice: 'en-US-GuyNeural', duration: 15, category: 'focus' },
-  { id: 'weight-control', label: 'Weight Control', icon: AppleLogo, prompt: 'Develop healthy eating habits and positive body image', voice: 'en-US-AnaNeural', duration: 20, category: 'habits' },
-  { id: 'pain-relief', label: 'Pain Relief', icon: FirstAid, prompt: 'Reduce physical discomfort and promote natural healing', voice: 'en-US-AriaNeural', duration: 15, category: 'custom' },
-]
+/** Templates collapsed to a single discreet suggestion line. */
+const TEMPLATE_SUGGESTIONS = [
+  { label: 'better sleep', prompt: "i can't fall asleep, my mind keeps spinning. help me let go." },
+  { label: 'calm anxiety', prompt: 'i feel anxious and on edge. guide me back to calm.' },
+  { label: 'deep focus', prompt: 'i need to enter deep focus for important work.' },
+  { label: 'release fear', prompt: 'i want to let go of a fear that keeps holding me back.' },
+] as const
 
-// Voice IDs match the backend `VOICES` registry (Azure TTS names); the
-// user-facing label is the only part we render.
 const VOICE_OPTIONS = [
-  { id: 'en-US-AnaNeural', label: 'Calm Female', pro: false },
-  { id: 'en-US-GuyNeural', label: 'Deep Male', pro: false },
-  { id: 'en-US-AriaNeural', label: 'Soft Whisper', pro: true },
-  { id: 'en-GB-SoniaNeural', label: 'Gentle British', pro: true },
-  { id: 'en-AU-NatashaNeural', label: 'Warm Australian', pro: true },
-  { id: 'en-US-DavisNeural', label: 'Steady Guide', pro: true },
-]
+  { id: 'en-US-AnaNeural', label: 'calm female', pro: false },
+  { id: 'en-US-GuyNeural', label: 'deep male', pro: false },
+  { id: 'en-US-AriaNeural', label: 'soft whisper', pro: true },
+  { id: 'en-GB-SoniaNeural', label: 'gentle british', pro: true },
+  { id: 'en-AU-NatashaNeural', label: 'warm australian', pro: true },
+  { id: 'en-US-DavisNeural', label: 'steady guide', pro: true },
+] as const
 
 const BACKGROUND_SOUNDS = [
-  { id: 'rain', label: 'Rain', icon: Drop },
-  { id: 'ocean', label: 'Ocean', icon: Waves },
-  { id: 'forest', label: 'Forest', icon: Tree },
-  { id: 'wind', label: 'Wind', icon: Wind },
-  { id: 'silence', label: 'Silence', icon: SpeakerSlash },
-]
+  { id: 'silence', label: 'silence' },
+  { id: 'rain', label: 'rain' },
+  { id: 'ocean', label: 'ocean' },
+  { id: 'forest', label: 'forest' },
+  { id: 'wind', label: 'wind' },
+] as const
 
 const INDUCTION_STYLES = [
-  { id: 'progressive', label: 'Progressive Relaxation' },
-  { id: 'countdown', label: 'Countdown' },
-  { id: 'body-scan', label: 'Body Scan' },
-]
+  { id: 'progressive', label: 'progressive' },
+  { id: 'countdown', label: 'countdown' },
+  { id: 'body-scan', label: 'body scan' },
+] as const
 
 type DepthLevel = 'light' | 'medium' | 'deep'
 
@@ -122,10 +110,11 @@ export function CreatePage() {
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
   const [isGenerating, setIsGenerating] = useState(false)
   const [selectedVoice, setSelectedVoice] = useState(() => defaultVoiceKV ?? 'en-US-AnaNeural')
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [sessionLength, setSessionLength] = useState<number[]>(() => [
-    Number.parseInt(defaultLengthKV ?? '15', 10) || 15,
-  ])
+  const [selectedCategory, _setSelectedCategory] = useState<string | null>(null)
+  const [sessionLength, setSessionLength] = useState<number>(() => {
+    const stored = Number(defaultLengthKV ?? '5')
+    return LENGTH_OPTIONS.includes(stored as 5 | 10) ? stored : 5
+  })
   const [backgroundSound, setBackgroundSound] = useState(() => defaultBackgroundKV ?? 'rain')
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
   const [inductionStyle, setInductionStyle] = useState('progressive')
@@ -276,7 +265,7 @@ export function CreatePage() {
       const category = selectedCategory ?? inferCategory(inputValue)
       const { sessionId } = await generateSession({
         userPrompt: inputValue.trim(),
-        durationMin: sessionLength[0],
+        durationMin: sessionLength,
         voiceId: selectedVoice,
         inductionStyle,
         depthLevel,
@@ -423,14 +412,6 @@ export function CreatePage() {
     setGeneratedSession(null)
   }
 
-  const handleTemplateSelect = (template: QuickTemplate) => {
-    setInputValue(template.prompt)
-    setSelectedVoice(template.voice)
-    setSessionLength([template.duration])
-    setSelectedCategory(template.category)
-    toast.success(`"${template.label}" template applied!`)
-  }
-
   const handleVoiceSelect = (voiceId: string) => {
     const voice = VOICE_OPTIONS.find((v) => v.id === voiceId)
     if (voice?.pro && !isPro) {
@@ -504,6 +485,7 @@ export function CreatePage() {
   const charCount = inputValue.length
   const isOverLimit = charCount > MAX_CHARS
   const isEmpty = inputValue.trim().length === 0
+  const isTooShort = inputValue.trim().length > 0 && inputValue.trim().length < MIN_CHARS
 
   const previewScript = generatedSession?.scriptText ?? ''
   const previewCategory = generatedSession ? formatCategory(generatedSession.category) : 'Custom'
@@ -513,305 +495,312 @@ export function CreatePage() {
 
   return (
     <>
-      <div className="space-y-6">
-        <div className="min-h-[calc(100vh-14rem)] flex items-center justify-center p-6">
-          <div className="w-full max-w-2xl space-y-6">
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-foreground">Quick Templates</h3>
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
-              {QUICK_TEMPLATES.map((template) => {
-                const Icon = template.icon
+      <div className="ls-create min-h-screen bg-[var(--ls-bg)] text-[var(--ls-text)]">
+        <div className="mx-auto max-w-xl px-6 pt-12 pb-24 space-y-10">
+
+          {/* === HEADER === */}
+          <header className="space-y-2">
+            <h1 className="font-fraunces italic lowercase text-4xl text-[var(--ls-text)]">
+              what do you need tonight?
+            </h1>
+            <p className="text-sm text-[var(--ls-text-muted)]">
+              describe it in your own words. one paragraph, no rules.
+            </p>
+          </header>
+
+          {/* === PROMPT === */}
+          <section className="space-y-2">
+            <div className="relative">
+              <Textarea
+                id="session-description"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                maxLength={MAX_CHARS}
+                className="min-h-[180px] w-full resize-none bg-transparent border-0 border-b border-[var(--ls-border-strong)] rounded-none px-0 py-3 text-base leading-relaxed text-[var(--ls-text)] placeholder:text-[var(--ls-text-subtle)] focus-visible:ring-0 focus-visible:border-[var(--ls-sand)] transition-colors"
+                placeholder=""
+              />
+              {isEmpty && (
+                <div className="absolute top-3 left-0 pointer-events-none text-[var(--ls-text-subtle)]">
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={placeholderIndex}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.4 }}
+                      className="text-base italic"
+                    >
+                      {PLACEHOLDER_EXAMPLES[placeholderIndex]}
+                    </motion.span>
+                  </AnimatePresence>
+                </div>
+              )}
+            </div>
+
+            {/* Char counter — only when typing, sand for warning, never alarmist */}
+            <div className="flex justify-between items-center text-xs">
+              <div className="text-[var(--ls-text-subtle)]">
+                {isTooShort && !isEmpty && <span>a little more, please</span>}
+              </div>
+              <div
+                className={
+                  isOverLimit
+                    ? 'text-[var(--ls-sand)]'
+                    : 'text-[var(--ls-text-subtle)]'
+                }
+              >
+                {charCount}/{MAX_CHARS}
+              </div>
+            </div>
+
+            {/* Inline template suggestions, discreet */}
+            <div className="pt-1 text-sm text-[var(--ls-text-subtle)]">
+              <span>try:&nbsp;</span>
+              {TEMPLATE_SUGGESTIONS.map((t, i) => (
+                <Fragment key={t.label}>
+                  {i > 0 && <span className="text-[var(--ls-text-subtle)]">&nbsp;·&nbsp;</span>}
+                  <button
+                    type="button"
+                    onClick={() => setInputValue(t.prompt)}
+                    className="text-[var(--ls-text-muted)] hover:text-[var(--ls-sand)] transition-colors underline-offset-4 hover:underline"
+                  >
+                    {t.label}
+                  </button>
+                </Fragment>
+              ))}
+            </div>
+          </section>
+
+          {/* === LENGTH (2 buttons, free user sees 10 locked) === */}
+          <section className="space-y-3">
+            <h2 className="font-fraunces italic lowercase text-lg text-[var(--ls-text)]">
+              length
+            </h2>
+            <div className="flex gap-3">
+              {LENGTH_OPTIONS.map((min) => {
+                const isLocked = !isPro && min === 10
+                const isActive = sessionLength === min
                 return (
                   <button
-                    key={template.id}
-                    onClick={() => handleTemplateSelect(template)}
-                    className="flex flex-col items-center gap-2 px-4 py-3 rounded-xl bg-card/50 border border-border hover:bg-card hover:border-primary/50 transition-all shrink-0 min-w-[100px] active:scale-95"
+                    key={min}
+                    type="button"
+                    onClick={() => {
+                      if (isLocked) {
+                        setPaywallTrigger('session-limit')
+                        setShowPaywall(true)
+                        return
+                      }
+                      setSessionLength(min)
+                    }}
+                    className={[
+                      'relative flex-1 h-14 rounded-md border transition-colors flex items-center justify-center gap-2',
+                      isActive
+                        ? 'border-[var(--ls-sand)] bg-[var(--ls-sand)]/8 text-[var(--ls-text)]'
+                        : 'border-[var(--ls-border-strong)] text-[var(--ls-text-muted)] hover:border-[var(--ls-sand-dim)] hover:text-[var(--ls-text)]',
+                    ].join(' ')}
                   >
-                    <Icon size={24} weight="duotone" className="text-primary" />
-                    <span className="text-xs font-medium text-foreground text-center whitespace-nowrap">
-                      {template.label}
+                    <span className="font-fraunces italic text-xl lowercase">
+                      {min} min
                     </span>
+                    {isLocked && (
+                      <Lock
+                        size={14}
+                        weight="regular"
+                        className="text-[var(--ls-sand-dim)] ml-1"
+                      />
+                    )}
                   </button>
                 )
               })}
             </div>
-          </div>
-
-          <div className="relative">
-            <Textarea
-              id="session-description"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              className="min-h-[240px] text-base resize-none bg-card/50 backdrop-blur-sm border-2 focus-visible:ring-2 focus-visible:ring-primary/50"
-              maxLength={MAX_CHARS}
-            />
-            
-            {isEmpty && (
-              <div className="absolute top-3 left-3 pointer-events-none">
-                <div className="text-muted-foreground/60">
-                  <div className="mb-1">Describe what you want to work on...</div>
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={placeholderIndex}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.3 }}
-                      className="text-sm italic text-primary/40"
-                    >
-                      {PLACEHOLDER_EXAMPLES[placeholderIndex]}
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-              </div>
+            {!isPro && (
+              <p className="text-xs text-[var(--ls-text-subtle)]">
+                longer sessions on pro
+              </p>
             )}
+          </section>
 
-            <div
-              className={`absolute bottom-3 right-3 text-xs font-medium transition-colors ${
-                isOverLimit
-                  ? 'text-destructive'
-                  : charCount > MAX_CHARS * 0.9
-                  ? 'text-yellow-500'
-                  : 'text-muted-foreground'
-              }`}
-            >
-              {charCount}/{MAX_CHARS}
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-foreground">Voice</h3>
-              <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
-                {VOICE_OPTIONS.map((voice) => {
-                  const isPremium = voice.pro
-                  return (
-                    <button
-                      key={voice.id}
-                      onClick={() => handleVoiceSelect(voice.id)}
-                      className={`flex items-center gap-2 px-4 py-2.5 rounded-full whitespace-nowrap transition-all shrink-0 relative ${
-                        selectedVoice === voice.id
-                          ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
-                          : 'bg-card/50 text-foreground hover:bg-card border border-border'
-                      }`}
-                    >
-                      <span className="text-sm font-medium">{voice.label}</span>
-                      {isPremium && !isPro && (
-                        <LockKeyOpen
-                          weight="bold"
-                          size={14}
-                          className="text-primary"
-                        />
-                      )}
-                      <Play
-                        weight="fill"
-                        size={14}
-                        className={selectedVoice === voice.id ? 'opacity-100' : 'opacity-50'}
-                      />
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-foreground">Session Length</h3>
-              <div className="relative pt-8 pb-2">
-                <Slider
-                  value={sessionLength}
-                  onValueChange={setSessionLength}
-                  min={5}
-                  max={30}
-                  step={5}
-                  className="[&_[data-slot=slider-track]]:h-2 [&_[data-slot=slider-thumb]]:size-7 [&_[data-slot=slider-thumb]]:border-4"
-                />
-                <div
-                  className="absolute -top-1 text-2xl font-bold text-primary transition-all duration-200 pointer-events-none"
-                  style={{
-                    left: `calc(${((sessionLength[0] - 5) / (30 - 5)) * 100}% - 20px)`,
-                  }}
-                >
-                  {sessionLength[0]} min
-                </div>
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground px-1">
-                <span>5 min</span>
-                <span>30 min</span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-foreground">Background Sound</h3>
-              <div className="flex gap-3 justify-between">
-                {BACKGROUND_SOUNDS.map((sound) => {
-                  const Icon = sound.icon
-                  return (
-                    <button
-                      key={sound.id}
-                      onClick={() => setBackgroundSound(sound.id)}
-                      className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl transition-all aspect-square flex-1 ${
-                        backgroundSound === sound.id
-                          ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
-                          : 'bg-card/50 text-foreground hover:bg-card border border-border'
-                      }`}
-                      title={sound.label}
-                    >
-                      <Icon
-                        weight={backgroundSound === sound.id ? 'fill' : 'regular'}
-                        size={24}
-                      />
-                      <span className="text-xs font-medium">{sound.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="border-t border-border pt-4">
-              <button
-                onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-                className="flex items-center justify-between w-full text-left group"
-              >
-                <h3 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
-                  Advanced Settings
-                </h3>
-                <CaretDown
-                  size={18}
-                  weight="bold"
-                  className={`text-muted-foreground group-hover:text-primary transition-all duration-300 ${
-                    isAdvancedOpen ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-
-              <AnimatePresence initial={false}>
-                {isAdvancedOpen && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3, ease: 'easeInOut' }}
-                    className="overflow-hidden"
+          {/* === VOICE === */}
+          <section className="space-y-3">
+            <h2 className="font-fraunces italic lowercase text-lg text-[var(--ls-text)]">
+              voice
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {VOICE_OPTIONS.map((voice) => {
+                const isLocked = voice.pro && !isPro
+                const isActive = selectedVoice === voice.id
+                return (
+                  <button
+                    key={voice.id}
+                    type="button"
+                    onClick={() => handleVoiceSelect(voice.id)}
+                    className={[
+                      'inline-flex items-center gap-1.5 px-3.5 h-9 rounded-full border text-sm transition-colors',
+                      isActive
+                        ? 'border-[var(--ls-sand)] bg-[var(--ls-sand)]/8 text-[var(--ls-text)]'
+                        : 'border-[var(--ls-border-strong)] text-[var(--ls-text-muted)] hover:border-[var(--ls-sand-dim)] hover:text-[var(--ls-text)]',
+                    ].join(' ')}
                   >
-                    <div className="pt-4 space-y-5">
-                      <div className="space-y-3">
-                        <h4 className="text-sm font-medium text-foreground">Induction Style</h4>
-                        <div className="flex gap-2">
-                          {INDUCTION_STYLES.map((style) => (
+                    <span>{voice.label}</span>
+                    {isLocked && (
+                      <Lock
+                        size={12}
+                        weight="regular"
+                        className="text-[var(--ls-sand-dim)]"
+                      />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+
+          {/* === ADVANCED DISCLOSURE === */}
+          <section>
+            <button
+              type="button"
+              onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+              className="flex items-center gap-2 text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+            >
+              <CaretDown
+                size={14}
+                weight="regular"
+                className={`transition-transform duration-300 ${
+                  isAdvancedOpen ? 'rotate-180' : ''
+                }`}
+              />
+              <span>{isAdvancedOpen ? 'hide options' : 'more options'}</span>
+            </button>
+
+            <AnimatePresence initial={false}>
+              {isAdvancedOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  className="overflow-hidden"
+                >
+                  <div className="pt-6 space-y-6">
+
+                    {/* Background sound — text-only chips */}
+                    <div className="space-y-2">
+                      <h3 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
+                        background
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        {BACKGROUND_SOUNDS.map((s) => {
+                          const isActive = backgroundSound === s.id
+                          return (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => setBackgroundSound(s.id)}
+                              className={[
+                                'px-3 h-8 rounded-full border text-sm transition-colors',
+                                isActive
+                                  ? 'border-[var(--ls-sand)] text-[var(--ls-text)]'
+                                  : 'border-[var(--ls-border-strong)] text-[var(--ls-text-muted)] hover:text-[var(--ls-text)]',
+                              ].join(' ')}
+                            >
+                              {s.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Induction style */}
+                    <div className="space-y-2">
+                      <h3 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
+                        induction
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        {INDUCTION_STYLES.map((style) => {
+                          const isActive = inductionStyle === style.id
+                          return (
                             <button
                               key={style.id}
+                              type="button"
                               onClick={() => setInductionStyle(style.id)}
-                              className={`flex-1 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
-                                inductionStyle === style.id
-                                  ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-                                  : 'bg-card/50 text-foreground hover:bg-card border border-border'
-                              }`}
+                              className={[
+                                'px-3 h-8 rounded-full border text-sm transition-colors',
+                                isActive
+                                  ? 'border-[var(--ls-sand)] text-[var(--ls-text)]'
+                                  : 'border-[var(--ls-border-strong)] text-[var(--ls-text-muted)] hover:text-[var(--ls-text)]',
+                              ].join(' ')}
                             >
                               {style.label}
                             </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        <h4 className="text-sm font-medium text-foreground">Depth Level</h4>
-                        <div className="flex gap-4 justify-center items-center py-2">
-                          <button
-                            onClick={() => setDepthLevel('light')}
-                            className="flex flex-col items-center gap-2 group"
-                          >
-                            <div
-                              className={`w-12 h-12 rounded-full border-2 transition-all ${
-                                depthLevel === 'light'
-                                  ? 'border-primary bg-primary/10 scale-110'
-                                  : 'border-border hover:border-primary/50'
-                              }`}
-                            />
-                            <span
-                              className={`text-xs font-medium transition-colors ${
-                                depthLevel === 'light' ? 'text-primary' : 'text-muted-foreground'
-                              }`}
-                            >
-                              Light
-                            </span>
-                          </button>
-
-                          <button
-                            onClick={() => setDepthLevel('medium')}
-                            className="flex flex-col items-center gap-2 group"
-                          >
-                            <div
-                              className={`w-12 h-12 rounded-full border-2 relative overflow-hidden transition-all ${
-                                depthLevel === 'medium'
-                                  ? 'border-primary scale-110'
-                                  : 'border-border hover:border-primary/50'
-                              }`}
-                            >
-                              <div
-                                className={`absolute inset-0 transition-colors ${
-                                  depthLevel === 'medium' ? 'bg-primary' : 'bg-border'
-                                }`}
-                                style={{
-                                  clipPath: 'polygon(0 50%, 100% 50%, 100% 100%, 0 100%)',
-                                }}
-                              />
-                            </div>
-                            <span
-                              className={`text-xs font-medium transition-colors ${
-                                depthLevel === 'medium' ? 'text-primary' : 'text-muted-foreground'
-                              }`}
-                            >
-                              Medium
-                            </span>
-                          </button>
-
-                          <button
-                            onClick={() => setDepthLevel('deep')}
-                            className="flex flex-col items-center gap-2 group"
-                          >
-                            <div
-                              className={`w-12 h-12 rounded-full border-2 transition-all ${
-                                depthLevel === 'deep'
-                                  ? 'border-primary bg-primary scale-110'
-                                  : 'border-border bg-border hover:border-primary/50'
-                              }`}
-                            />
-                            <span
-                              className={`text-xs font-medium transition-colors ${
-                                depthLevel === 'deep' ? 'text-primary' : 'text-muted-foreground'
-                              }`}
-                            >
-                              Deep
-                            </span>
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between py-2">
-                        <div className="flex-1">
-                          <h4 className="text-sm font-medium text-foreground">Wake-Up Ending</h4>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Gently bring me back at the end
-                          </p>
-                        </div>
-                        <Switch checked={wakeUpEnding} onCheckedChange={setWakeUpEnding} />
+                          )
+                        })}
                       </div>
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
 
-          <Button
-            size="lg"
+                    {/* Depth level */}
+                    <div className="space-y-2">
+                      <h3 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
+                        depth
+                      </h3>
+                      <div className="flex gap-2">
+                        {(['light', 'medium', 'deep'] as const).map((d) => {
+                          const isActive = depthLevel === d
+                          return (
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={() => setDepthLevel(d)}
+                              className={[
+                                'flex-1 h-9 rounded-md border text-sm transition-colors lowercase',
+                                isActive
+                                  ? 'border-[var(--ls-sand)] text-[var(--ls-text)]'
+                                  : 'border-[var(--ls-border-strong)] text-[var(--ls-text-muted)] hover:text-[var(--ls-text)]',
+                              ].join(' ')}
+                            >
+                              {d}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Wake-up ending */}
+                    <div className="flex items-center justify-between pt-2 border-t border-[var(--ls-border)]">
+                      <div>
+                        <h3 className="text-sm text-[var(--ls-text)]">
+                          wake-up ending
+                        </h3>
+                        <p className="text-xs text-[var(--ls-text-subtle)] mt-0.5">
+                          bring me back gently at the end
+                        </p>
+                      </div>
+                      <Switch
+                        checked={wakeUpEnding}
+                        onCheckedChange={setWakeUpEnding}
+                        className="data-[state=checked]:bg-[var(--ls-sand)]"
+                      />
+                    </div>
+
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
+
+          {/* === GENERATE === */}
+          <button
+            type="button"
             onClick={handleGenerate}
-            disabled={isEmpty || isOverLimit || isGenerating}
-            className="w-full gap-2 text-base font-medium h-12"
+            disabled={isEmpty || isOverLimit || isTooShort || isGenerating}
+            className={[
+              'w-full h-14 rounded-md font-fraunces italic lowercase text-lg transition-colors',
+              'bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90',
+              'disabled:bg-[var(--ls-border-strong)] disabled:text-[var(--ls-text-subtle)] disabled:cursor-not-allowed',
+            ].join(' ')}
           >
-            <Sparkle weight="fill" size={20} />
-            {isGenerating ? 'Generating...' : 'Generate Session'}
-          </Button>
+            {isGenerating ? 'generating…' : 'create session'}
+          </button>
+
         </div>
       </div>
 
@@ -821,7 +810,6 @@ export function CreatePage() {
         onRegenerate={handleRegenerateAudio}
         onDelete={handleDeleteSession}
       />
-    </div>
 
       <GenerationLoadingOverlay
         isOpen={isGenerating}
