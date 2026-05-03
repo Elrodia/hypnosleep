@@ -14,6 +14,7 @@ import { Button } from './components/shared/Button'
 import { useExitIntent } from './hooks/useExitIntent'
 import { useScrollDepth } from './hooks/useScrollDepth'
 import { posthog } from './lib/posthog'
+import { PRICING } from '@/config/pricing'
 import './styles/landing.css'
 
 interface LandingPageProps {
@@ -65,8 +66,8 @@ export function LandingPage({ onStartTrial, onLogin }: LandingPageProps) {
       operatingSystem: 'Web, iOS, Android',
       applicationCategory: 'HealthApplication',
       offers: [
-        { '@type': 'Offer', price: '0', priceCurrency: 'USD', name: 'Free' },
-        { '@type': 'Offer', price: '119.99', priceCurrency: 'USD', name: 'Pro Yearly' },
+        { '@type': 'Offer', price: String(PRICING.freePrice), priceCurrency: 'USD', name: 'Free' },
+        { '@type': 'Offer', price: PRICING.yearlyPrice.toFixed(2), priceCurrency: 'USD', name: 'Pro Yearly' },
       ],
       aggregateRating: {
         '@type': 'AggregateRating',

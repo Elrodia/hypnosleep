@@ -33,3 +33,8 @@ pids
 .devcontainer/
 
 .spark-workbench-id
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/

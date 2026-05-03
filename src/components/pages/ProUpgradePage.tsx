@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { createCheckoutSession } from '@/lib/api-endpoints'
+import { PRICING, yearlySavingsPercent } from '@/config/pricing'
 
 interface ProUpgradePageProps {
   onBack: () => void
@@ -47,9 +48,9 @@ export function ProUpgradePage({ onBack }: ProUpgradePageProps) {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('yearly')
   const [isLoading, setIsLoading] = useState(false)
 
-  const monthlyPrice = 19.99
-  const yearlyPrice = 119.99
-  const yearlySavings = Math.round(((monthlyPrice * 12 - yearlyPrice) / (monthlyPrice * 12)) * 100)
+  const monthlyPrice = PRICING.monthlyPrice
+  const yearlyPrice = PRICING.yearlyPrice
+  const yearlySavings = yearlySavingsPercent
 
   /**
    * Kick off a Stripe Checkout session on the backend and redirect
@@ -179,7 +180,10 @@ export function ProUpgradePage({ onBack }: ProUpgradePageProps) {
           <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/30 p-6">
             <div className="text-center space-y-2">
               <div className="flex items-baseline justify-center gap-2">
-                <span className="text-5xl font-bold text-foreground">
+                <span
+                  className="text-5xl font-bold text-foreground"
+                  data-testid="upgrade-pro-price"
+                >
                   ${billingCycle === 'monthly' ? monthlyPrice.toFixed(2) : yearlyPrice.toFixed(2)}
                 </span>
                 <span className="text-xl text-muted-foreground">
@@ -211,7 +215,7 @@ export function ProUpgradePage({ onBack }: ProUpgradePageProps) {
             ) : (
               <Sparkle size={24} weight="fill" className="mr-2" />
             )}
-            {isLoading ? 'Redirecting…' : 'Start Free 7-Day Trial'}
+            {isLoading ? 'Redirecting…' : `Start Free ${PRICING.trialDays}-Day Trial`}
           </Button>
           <p className="text-center text-sm text-muted-foreground px-4 leading-relaxed">
             Cancel anytime. No charge until trial ends.

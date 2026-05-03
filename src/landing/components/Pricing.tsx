@@ -3,19 +3,22 @@ import { Check } from 'lucide-react'
 import { Button } from './shared/Button'
 import { Badge } from './shared/Badge'
 import { GlassCard } from './shared/GlassCard'
+import {
+  PRICING,
+  yearlyEquivalentOfMonthly,
+  yearlySavings as YEARLY_SAVINGS,
+  yearlySavingsPercent as YEARLY_SAVINGS_PCT,
+} from '@/config/pricing'
 
 interface PricingProps {
   onCtaClick: (location: string, plan?: 'free' | 'pro') => void
 }
 
-// Mandatory pattern per spec.
-const MONTHLY = 19.99
-const YEARLY = 119.99
-const YEARLY_VS_MONTHLY = MONTHLY * 12 // 239.88
-const YEARLY_SAVINGS = YEARLY_VS_MONTHLY - YEARLY // 119.88
-// Derive the toggle badge from the same constants as the price so the two
-// never drift out of sync (e.g. if pricing is tweaked in the future).
-const YEARLY_SAVINGS_PCT = Math.round((YEARLY_SAVINGS / YEARLY_VS_MONTHLY) * 100)
+// Pricing values come from the centralized config so the landing page,
+// paywall modal and upgrade page can never drift out of sync.
+const MONTHLY = PRICING.monthlyPrice
+const YEARLY = PRICING.yearlyPrice
+const YEARLY_VS_MONTHLY = yearlyEquivalentOfMonthly
 
 const freeBullets = [
   '3 AI sessions / month',
@@ -118,10 +121,10 @@ export function Pricing({ onCtaClick }: PricingProps) {
             </div>
 
             <div className="mb-6">
-              <span className="ls-display text-4xl">
+              <span className="ls-display text-4xl" data-testid="landing-pro-price">
                 ${proPrice.toFixed(2)}
               </span>
-              <span className="text-[color:var(--ls-text-secondary)] text-sm">{proPriceLabel}</span>
+              <span className="text-[color:var(--ls-text-secondary)] text-sm" data-testid="landing-pro-period">{proPriceLabel}</span>
               {billingPeriod === 'yearly' && (
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                   <span className="text-[color:var(--ls-text-secondary)] line-through">
