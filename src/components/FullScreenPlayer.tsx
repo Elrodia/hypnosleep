@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Play, Pause, CaretDown, DotsThree, ArrowCounterClockwise, ArrowClockwise, Clock, Waves, Repeat, TrendDown, Speedometer, Check, Stop, Heart, ShareNetwork, Flag } from '@phosphor-icons/react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -118,6 +118,33 @@ export function FullScreenPlayer({
     }
   }, [localProgress, duration, timerMinutes])
 
+  const [chromeOpacity, setChromeOpacity] = useState(1)
+  const dimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const wakeChrome = useCallback(() => {
+    setChromeOpacity(1)
+    if (dimTimerRef.current) {
+      clearTimeout(dimTimerRef.current)
+    }
+    dimTimerRef.current = setTimeout(() => {
+      setChromeOpacity(0.1)
+    }, 3000)
+  }, [])
+
+  // Initialize: when the player opens, start at full opacity then dim
+  // after 3s. When it closes, clear the timer.
+  useEffect(() => {
+    if (!isOpen) {
+      if (dimTimerRef.current) clearTimeout(dimTimerRef.current)
+      setChromeOpacity(1)
+      return
+    }
+    wakeChrome()
+    return () => {
+      if (dimTimerRef.current) clearTimeout(dimTimerRef.current)
+    }
+  }, [isOpen, wakeChrome])
+
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newProgress = parseFloat(e.target.value)
     setLocalProgress(newProgress)
@@ -132,14 +159,12 @@ export function FullScreenPlayer({
     const newProgress = Math.max(0, localProgress - (15 / duration) * 100)
     setLocalProgress(newProgress)
     onSeek(newProgress)
-    toast.info('Rewound 15 seconds')
   }
 
   const handleForward = () => {
     const newProgress = Math.min(100, localProgress + (15 / duration) * 100)
     setLocalProgress(newProgress)
     onSeek(newProgress)
-    toast.info('Skipped 15 seconds')
   }
 
   const formatTime = (seconds: number) => {
@@ -156,17 +181,14 @@ export function FullScreenPlayer({
     if (minutes === -1) {
       const remaining = duration - (localProgress / 100) * duration
       setRemainingSeconds(Math.floor(remaining))
-      toast.success('Timer set to end of session')
     } else {
       setRemainingSeconds(minutes * 60)
-      toast.success(`Timer set for ${minutes} minutes`)
     }
   }
 
   const handleCancelTimer = () => {
     setTimerMinutes(null)
     setRemainingSeconds(null)
-    toast.info('Timer cancelled')
   }
 
   const formatCountdown = (seconds: number) => {
@@ -179,24 +201,15 @@ export function FullScreenPlayer({
   }
 
   const handleToggleLoop = () => {
-    setLoopEnabled((current) => {
-      const newValue = !current
-      toast.success(newValue ? 'Loop enabled' : 'Loop disabled')
-      return newValue
-    })
+    setLoopEnabled((current) => !current)
   }
 
   const handleToggleFadeOut = () => {
-    setFadeOutEnabled((current) => {
-      const newValue = !current
-      toast.success(newValue ? 'Fade out enabled' : 'Fade out disabled')
-      return newValue
-    })
+    setFadeOutEnabled((current) => !current)
   }
 
   const handleSetPlaybackSpeed = (speed: number) => {
     setPlaybackSpeed(speed)
-    toast.success(`Playback speed set to ${speed}x`)
   }
 
   return (
@@ -207,112 +220,128 @@ export function FullScreenPlayer({
           animate={{ y: 0 }}
           exit={{ y: '100%' }}
           transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-          className="fixed inset-0 z-50 bg-background"
+          className="fixed inset-0 z-50 bg-[var(--ls-bg)]"
         >
-          <MorphingGradientBackground />
+          <BreathingBackground />
 
-          <div className="relative z-10 h-full flex flex-col">
+          <motion.div
+            className="ls-player relative z-10 h-full flex flex-col"
+            animate={{ opacity: chromeOpacity }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            onPointerMove={wakeChrome}
+            onPointerDown={wakeChrome}
+            onTouchStart={wakeChrome}
+            onKeyDown={wakeChrome}
+          >
             <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <button
+                type="button"
                 onClick={onClose}
-                className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+                className="w-10 h-10 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+                aria-label="close player"
               >
-                <CaretDown weight="bold" className="w-6 h-6 text-white" />
+                <CaretDown weight="regular" className="w-5 h-5" />
               </button>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
                 <button
+                  type="button"
                   onClick={() => setShowSoundsModal(true)}
-                  className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+                  className="w-10 h-10 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+                  aria-label="background sound"
                 >
-                  <Waves weight="bold" className="w-6 h-6 text-white" />
+                  <Waves weight="regular" className="w-5 h-5" />
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => setShowTimerModal(true)}
-                  className="relative w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+                  className="relative w-10 h-10 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+                  aria-label="sleep timer"
                 >
-                  <Clock weight="bold" className="w-6 h-6 text-white" />
+                  <Clock weight="regular" className="w-5 h-5" />
                   {timerMinutes !== null && remainingSeconds !== null && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      exit={{ scale: 0 }}
-                      className="absolute -top-1 -right-1 min-w-[24px] h-6 px-1.5 flex items-center justify-center rounded-full bg-primary text-white text-xs font-bold shadow-lg"
-                    >
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[var(--ls-sand)] text-[var(--ls-bg)] text-[10px] font-medium">
                       {formatCountdown(remainingSeconds)}
-                    </motion.div>
+                    </span>
                   )}
                 </button>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm active:scale-95 transition-transform">
-                      <DotsThree weight="bold" className="w-6 h-6 text-white" />
+                    <button
+                      type="button"
+                      className="w-10 h-10 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+                      aria-label="more options"
+                    >
+                      <DotsThree weight="regular" className="w-5 h-5" />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-52 bg-[var(--ls-bg-elevated)] border-[var(--ls-border-strong)] text-[var(--ls-text)]"
+                  >
                     <DropdownMenuItem onClick={handleToggleLoop} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Repeat weight="bold" className="w-4 h-4" />
+                        <Repeat weight="regular" className="w-4 h-4" />
                         <span>Loop Session</span>
                       </div>
-                      {loopEnabled && <Check weight="bold" className="w-4 h-4 text-primary" />}
+                      {loopEnabled && <Check weight="regular" className="w-4 h-4 text-[var(--ls-sand)]" />}
                     </DropdownMenuItem>
-                    
+
                     <DropdownMenuItem onClick={handleToggleFadeOut} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <TrendDown weight="bold" className="w-4 h-4" />
+                        <TrendDown weight="regular" className="w-4 h-4" />
                         <span>Fade Out</span>
                       </div>
-                      {fadeOutEnabled && <Check weight="bold" className="w-4 h-4 text-primary" />}
+                      {fadeOutEnabled && <Check weight="regular" className="w-4 h-4 text-[var(--ls-sand)]" />}
                     </DropdownMenuItem>
 
                     <DropdownMenuSub>
                       <DropdownMenuSubTrigger>
                         <div className="flex items-center gap-2">
-                          <Speedometer weight="bold" className="w-4 h-4" />
+                          <Speedometer weight="regular" className="w-4 h-4" />
                           <span>Playback Speed</span>
                         </div>
                       </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
-                        <DropdownMenuItem 
+                      <DropdownMenuSubContent className="bg-[var(--ls-bg-elevated)] border-[var(--ls-border-strong)] text-[var(--ls-text)]">
+                        <DropdownMenuItem
                           onClick={() => handleSetPlaybackSpeed(0.75)}
                           className="flex items-center justify-between"
                         >
                           <span>0.75x</span>
-                          {playbackSpeed === 0.75 && <Check weight="bold" className="w-4 h-4 text-primary" />}
+                          {playbackSpeed === 0.75 && <Check weight="regular" className="w-4 h-4 text-[var(--ls-sand)]" />}
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => handleSetPlaybackSpeed(1)}
                           className="flex items-center justify-between"
                         >
                           <span>1x (Normal)</span>
-                          {playbackSpeed === 1 && <Check weight="bold" className="w-4 h-4 text-primary" />}
+                          {playbackSpeed === 1 && <Check weight="regular" className="w-4 h-4 text-[var(--ls-sand)]" />}
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => handleSetPlaybackSpeed(1.25)}
                           className="flex items-center justify-between"
                         >
                           <span>1.25x</span>
-                          {playbackSpeed === 1.25 && <Check weight="bold" className="w-4 h-4 text-primary" />}
+                          {playbackSpeed === 1.25 && <Check weight="regular" className="w-4 h-4 text-[var(--ls-sand)]" />}
                         </DropdownMenuItem>
                       </DropdownMenuSubContent>
                     </DropdownMenuSub>
 
                     <DropdownMenuSeparator />
-                    
-                    <DropdownMenuItem 
+
+                    <DropdownMenuItem
                       onClick={() => {
                         if (onStop) {
                           onStop()
                           onClose()
                         }
                       }}
-                      className="text-destructive"
+                      className="text-[var(--ls-text)]"
                     >
                       <div className="flex items-center gap-2">
-                        <Stop weight="bold" className="w-4 h-4" />
+                        <Stop weight="regular" className="w-4 h-4" />
                         <span>Stop Session</span>
                       </div>
                     </DropdownMenuItem>
@@ -338,7 +367,7 @@ export function FullScreenPlayer({
                       }}
                     >
                       <div className="flex items-center gap-2">
-                        <ShareNetwork weight="bold" className="w-4 h-4" />
+                        <ShareNetwork weight="regular" className="w-4 h-4" />
                         <span>Share</span>
                       </div>
                     </DropdownMenuItem>
@@ -362,7 +391,10 @@ export function FullScreenPlayer({
                       }}
                     >
                       <div className="flex items-center gap-2">
-                        <Heart weight={favorited ? 'fill' : 'bold'} className={`w-4 h-4 ${favorited ? 'text-primary' : ''}`} />
+                        <Heart
+                          weight={favorited ? 'fill' : 'regular'}
+                          className={`w-4 h-4 ${favorited ? 'text-[var(--ls-sand)]' : ''}`}
+                        />
                         <span>{favorited ? 'Unfavorite' : 'Favorite'}</span>
                       </div>
                     </DropdownMenuItem>
@@ -371,7 +403,7 @@ export function FullScreenPlayer({
                       disabled={!sessionId}
                     >
                       <div className="flex items-center gap-2">
-                        <Flag weight="bold" className="w-4 h-4" />
+                        <Flag weight="regular" className="w-4 h-4" />
                         <span>Report</span>
                       </div>
                     </DropdownMenuItem>
@@ -381,77 +413,71 @@ export function FullScreenPlayer({
             </div>
 
             <div className="flex-1 flex flex-col items-center justify-center px-8">
-              <motion.h1
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="text-4xl font-semibold text-white text-center mb-4 leading-tight"
-              >
-                {sessionTitle}
-              </motion.h1>
-
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="flex items-center gap-2"
-              >
-                <div className="px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-sm">
-                  <span className="text-sm font-medium text-white/90">{category}</span>
-                </div>
+              <h1 className="font-fraunces italic lowercase text-3xl text-[var(--ls-text)] text-center leading-tight max-w-md">
+                {sessionTitle.toLowerCase()}
+              </h1>
+              <div className="mt-3 flex items-center gap-3">
+                <span className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
+                  {category}
+                </span>
                 {fadeOutEnabled && (
-                  <motion.div
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0, opacity: 0 }}
-                    transition={{ type: 'spring', damping: 15, stiffness: 300 }}
-                    className="px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/30 to-indigo-500/30 backdrop-blur-sm border border-purple-400/30"
-                  >
-                    <span className="text-xs font-medium text-purple-200">fade</span>
-                  </motion.div>
+                  <>
+                    <span className="text-[var(--ls-text-subtle)]">·</span>
+                    <span className="text-xs lowercase text-[var(--ls-sand-dim)]">
+                      fade
+                    </span>
+                  </>
                 )}
-              </motion.div>
+                {favorited && (
+                  <>
+                    <span className="text-[var(--ls-text-subtle)]">·</span>
+                    <Heart
+                      weight="fill"
+                      className="w-3.5 h-3.5 text-[var(--ls-sand)]"
+                    />
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className="px-8 pb-12">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="flex items-center justify-center gap-8 mb-8"
-              >
+            <div className="px-8 pb-8 flex flex-col items-center gap-6">
+              <div className="flex items-center justify-center gap-10">
                 <button
+                  type="button"
                   onClick={handleRewind}
-                  className="w-14 h-14 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+                  className="w-12 h-12 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+                  aria-label="rewind 15 seconds"
                 >
-                  <ArrowCounterClockwise weight="bold" className="w-7 h-7 text-white" />
+                  <ArrowCounterClockwise weight="regular" className="w-6 h-6" />
                 </button>
 
-                <button
-                  onClick={onPlayPause}
-                  className="w-20 h-20 flex items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/30 active:scale-95 transition-transform"
-                >
-                  {isPlaying ? (
-                    <Pause weight="fill" className="w-10 h-10 text-white" />
-                  ) : (
-                    <Play weight="fill" className="w-10 h-10 text-white ml-1" />
-                  )}
-                </button>
+                <div className="relative w-24 h-24">
+                  <ProgressRing progress={localProgress} />
+                  <button
+                    type="button"
+                    onClick={onPlayPause}
+                    className="absolute inset-2 flex items-center justify-center rounded-full border border-[var(--ls-sand)] bg-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/8 transition-colors"
+                    aria-label={isPlaying ? 'pause' : 'play'}
+                  >
+                    {isPlaying ? (
+                      <Pause weight="regular" className="w-8 h-8 text-[var(--ls-sand)]" />
+                    ) : (
+                      <Play weight="regular" className="w-8 h-8 text-[var(--ls-sand)] ml-0.5" />
+                    )}
+                  </button>
+                </div>
 
                 <button
+                  type="button"
                   onClick={handleForward}
-                  className="w-14 h-14 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+                  className="w-12 h-12 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+                  aria-label="forward 15 seconds"
                 >
-                  <ArrowClockwise weight="bold" className="w-7 h-7 text-white" />
+                  <ArrowClockwise weight="regular" className="w-6 h-6" />
                 </button>
-              </motion.div>
+              </div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="space-y-2"
-              >
+              <div className="w-full max-w-md space-y-2">
                 <div className="relative">
                   <input
                     type="range"
@@ -464,34 +490,32 @@ export function FullScreenPlayer({
                     onMouseUp={handleSeekEnd}
                     onTouchStart={() => setIsDragging(true)}
                     onTouchEnd={handleSeekEnd}
-                    className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer
+                    className="w-full h-[2px] bg-[var(--ls-border-strong)] rounded-full appearance-none cursor-pointer
                       [&::-webkit-slider-thumb]:appearance-none
-                      [&::-webkit-slider-thumb]:w-4
-                      [&::-webkit-slider-thumb]:h-4
+                      [&::-webkit-slider-thumb]:w-3
+                      [&::-webkit-slider-thumb]:h-3
                       [&::-webkit-slider-thumb]:rounded-full
-                      [&::-webkit-slider-thumb]:bg-white
-                      [&::-webkit-slider-thumb]:shadow-lg
+                      [&::-webkit-slider-thumb]:bg-[var(--ls-sand)]
                       [&::-webkit-slider-thumb]:cursor-pointer
-                      [&::-moz-range-thumb]:w-4
-                      [&::-moz-range-thumb]:h-4
+                      [&::-moz-range-thumb]:w-3
+                      [&::-moz-range-thumb]:h-3
                       [&::-moz-range-thumb]:rounded-full
-                      [&::-moz-range-thumb]:bg-white
+                      [&::-moz-range-thumb]:bg-[var(--ls-sand)]
                       [&::-moz-range-thumb]:border-0
-                      [&::-moz-range-thumb]:shadow-lg
                       [&::-moz-range-thumb]:cursor-pointer"
                     style={{
-                      background: `linear-gradient(to right, rgb(255 255 255 / 0.9) 0%, rgb(255 255 255 / 0.9) ${localProgress}%, rgb(255 255 255 / 0.2) ${localProgress}%, rgb(255 255 255 / 0.2) 100%)`,
+                      background: `linear-gradient(to right, var(--ls-sand) 0%, var(--ls-sand) ${localProgress}%, var(--ls-border-strong) ${localProgress}%, var(--ls-border-strong) 100%)`,
                     }}
                   />
                 </div>
 
-                <div className="flex items-center justify-between text-sm text-white/70">
+                <div className="flex items-center justify-between text-xs text-[var(--ls-text-subtle)] font-mono tabular-nums">
                   <span>{formatTime(elapsedSeconds)}</span>
                   <span>-{formatTime(remainingPlaybackSeconds)}</span>
                 </div>
-              </motion.div>
+              </div>
             </div>
-          </div>
+          </motion.div>
 
           <SleepTimerModal
             isOpen={showTimerModal}
@@ -527,89 +551,91 @@ export function FullScreenPlayer({
   )
 }
 
-function MorphingGradientBackground() {
+function BreathingBackground() {
   return (
-    <div className="absolute inset-0 overflow-hidden">
+    <div
+      className="absolute inset-0 overflow-hidden"
+      style={{ background: 'var(--ls-bg)' }}
+      aria-hidden="true"
+    >
+      {/* A single soft radial that pulses 4s in / 4s out.
+          No rotation, no color cycling, no blobs. */}
       <motion.div
-        className="absolute inset-0"
-        animate={{
-          background: [
-            'radial-gradient(circle at 20% 50%, #5b21b6 0%, #312e81 25%, #1e1b4b 50%, #0f172a 100%)',
-            'radial-gradient(circle at 80% 30%, #6d28d9 0%, #4c1d95 25%, #1e1b4b 50%, #0f172a 100%)',
-            'radial-gradient(circle at 50% 80%, #4c1d95 0%, #312e81 25%, #1e3a8a 50%, #0f172a 100%)',
-            'radial-gradient(circle at 30% 20%, #5b21b6 0%, #3730a3 25%, #1e3a8a 50%, #0f172a 100%)',
-            'radial-gradient(circle at 70% 70%, #6d28d9 0%, #312e81 25%, #1e1b4b 50%, #0f172a 100%)',
-            'radial-gradient(circle at 20% 50%, #5b21b6 0%, #312e81 25%, #1e1b4b 50%, #0f172a 100%)',
-          ],
-        }}
-        transition={{
-          duration: 20,
-          repeat: Infinity,
-          ease: 'linear',
-        }}
-      />
-
-      <motion.div
-        className="absolute w-[600px] h-[600px] rounded-full blur-3xl opacity-40"
-        animate={{
-          x: ['0%', '50%', '0%', '-30%', '0%'],
-          y: ['0%', '30%', '60%', '20%', '0%'],
-          scale: [1, 1.2, 0.9, 1.1, 1],
-        }}
-        transition={{
-          duration: 25,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
+        className="absolute"
         style={{
-          background: 'radial-gradient(circle, #7c3aed 0%, transparent 70%)',
-          top: '-20%',
-          left: '-20%',
-        }}
-      />
-
-      <motion.div
-        className="absolute w-[500px] h-[500px] rounded-full blur-3xl opacity-30"
-        animate={{
-          x: ['0%', '-40%', '20%', '10%', '0%'],
-          y: ['0%', '40%', '10%', '-20%', '0%'],
-          scale: [1, 0.9, 1.3, 1, 1],
-        }}
-        transition={{
-          duration: 22,
-          repeat: Infinity,
-          ease: 'easeInOut',
-          delay: 2,
-        }}
-        style={{
-          background: 'radial-gradient(circle, #4338ca 0%, transparent 70%)',
-          bottom: '-15%',
-          right: '-15%',
-        }}
-      />
-
-      <motion.div
-        className="absolute w-[450px] h-[450px] rounded-full blur-3xl opacity-25"
-        animate={{
-          x: ['0%', '30%', '-20%', '40%', '0%'],
-          y: ['0%', '-30%', '40%', '10%', '0%'],
-          scale: [1, 1.1, 1, 1.2, 1],
-        }}
-        transition={{
-          duration: 28,
-          repeat: Infinity,
-          ease: 'easeInOut',
-          delay: 4,
-        }}
-        style={{
-          background: 'radial-gradient(circle, #1e40af 0%, transparent 70%)',
-          top: '40%',
+          width: '90vmin',
+          height: '90vmin',
           left: '50%',
-          transform: 'translate(-50%, -50%)',
+          top: '50%',
+          translateX: '-50%',
+          translateY: '-50%',
+          background:
+            'radial-gradient(circle, rgba(201, 182, 163, 0.08) 0%, rgba(201, 182, 163, 0.03) 35%, transparent 70%)',
+          filter: 'blur(40px)',
+        }}
+        animate={{
+          scale: [1, 1.08, 1],
+          opacity: [0.6, 1, 0.6],
+        }}
+        transition={{
+          duration: 8,
+          repeat: Infinity,
+          ease: 'easeInOut',
         }}
       />
-
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/20" />
+      {/* Subtle grain to avoid banding on dark backgrounds — same
+          texture used on HomePage. Static, no animation. */}
+      <div
+        className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='0.4'/></svg>\")",
+        }}
+      />
     </div>
+  )
+}
+
+function ProgressRing({ progress }: { progress: number }) {
+  // SVG ring inscribed in a 96×96 box (the play button parent is w-24
+  // h-24 = 96px). Stroke 1.5px, sand. Track is hairline border.
+  const size = 96
+  const strokeWidth = 1.5
+  const radius = (size - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+  const offset = circumference * (1 - progress / 100)
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      className="absolute inset-0"
+      aria-hidden="true"
+    >
+      {/* Track */}
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="var(--ls-border-strong)"
+        strokeWidth={strokeWidth}
+      />
+      {/* Progress — starts at top (12 o'clock), grows clockwise */}
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="var(--ls-sand)"
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        style={{ transition: 'stroke-dashoffset 200ms linear' }}
+      />
+    </svg>
   )
 }
