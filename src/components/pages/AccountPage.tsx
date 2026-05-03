@@ -1,8 +1,6 @@
 import { useState } from 'react'
-import { CaretLeft, CrownSimple, DownloadSimple, Trash, SignOut } from '@phosphor-icons/react'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { useQuery } from '@tanstack/react-query'
+import { CaretLeft, CaretRight } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
 import {
@@ -11,20 +9,66 @@ import {
   cancelSubscription,
   exportProfile,
   deleteProfile,
+  getSubscriptionStatus,
 } from '@/lib/api-endpoints'
 
 interface AccountPageProps {
   onBack: () => void
 }
 
+const STYLES = `
+.ls-account {
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.ls-account .font-fraunces {
+  font-family: 'Fraunces', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+`
+
 export function AccountPage({ onBack }: AccountPageProps) {
   const { user, refresh, logout } = useAuth()
-  const isPro = user?.plan === 'pro'
 
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const { data: subStatus } = useQuery({
+    queryKey: ['subscription', 'status'],
+    queryFn: getSubscriptionStatus,
+    staleTime: 60_000,
+  })
+
+  const planLabel = subStatus?.plan ?? user?.plan ?? 'free'
+  const isPro = planLabel === 'pro'
+  // Stripe-sourced subs return a non-null `status` field. DB-flipped
+  // pros (manually promoted in MySQL with no row in `subscriptions`)
+  // return `status === null/undefined` from the prompt-14 fallback.
+  // Distinguish the two so we don't try to open a billing portal
+  // for a customer Stripe doesn't know about.
+  const hasStripeSub = Boolean(subStatus?.status)
+
+  const planDescription = (() => {
+    if (!isPro) return 'free plan · upgrade for unlimited generations'
+    if (!hasStripeSub) return 'pro plan · provisioned outside stripe'
+    if (subStatus?.status === 'trialing') return 'pro plan · in trial'
+    if (subStatus?.status === 'active') return 'pro plan · active'
+    if (subStatus?.cancelAtPeriodEnd)
+      return 'pro plan · cancelled, ends at period end'
+    return 'pro plan'
+  })()
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
-  const [busy, setBusy] = useState<null | 'subscription' | 'cancel' | 'export' | 'delete'>(null)
+  const [busy, setBusy] = useState<
+    null | 'subscription' | 'cancel' | 'export' | 'delete'
+  >(null)
 
   const handleExportData = async () => {
     setBusy('export')
@@ -93,219 +137,193 @@ export function AccountPage({ onBack }: AccountPageProps) {
     }
   }
 
-  const handleLogout = async () => {
-    await logout()
-    toast.success('Signed out')
-  }
-
   return (
-    <div className="min-h-screen">
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="flex items-center gap-3 p-4">
+    <div className="ls-account min-h-screen bg-[var(--ls-bg)] text-[var(--ls-text)]">
+      <style>{STYLES}</style>
+
+      <header className="sticky top-0 z-10 bg-[var(--ls-bg)] border-b border-[var(--ls-border)]">
+        <div className="flex items-center gap-3 h-14 px-6">
           <button
+            type="button"
             onClick={onBack}
-            className="w-9 h-9 rounded-full hover:bg-accent flex items-center justify-center transition-colors active:scale-95"
-            aria-label="Go back"
+            className="w-9 h-9 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+            aria-label="back"
           >
-            <CaretLeft className="w-6 h-6" weight="bold" />
+            <CaretLeft className="w-5 h-5" weight="regular" />
           </button>
-          <h1 className="text-xl font-semibold tracking-tight">Account</h1>
+          <h1 className="font-fraunces italic lowercase text-xl text-[var(--ls-text)]">
+            account
+          </h1>
         </div>
-      </div>
+      </header>
 
-      <div className="p-6 space-y-6">
-        {user && (
-          <div className="bg-card border border-border rounded-xl p-4">
-            <p className="font-medium">{user.name ?? 'Your account'}</p>
-            <p className="text-sm text-muted-foreground">{user.email}</p>
-          </div>
-        )}
+      <div className="mx-auto max-w-xl px-6 pt-8 pb-24 space-y-8">
+        <div className="space-y-10">
+          {/* Identity block */}
+          <section>
+            <p className="text-sm text-[var(--ls-text)] lowercase">
+              {user?.name?.toLowerCase() ?? 'your account'}
+            </p>
+            <p className="text-xs text-[var(--ls-text-muted)] mt-1">
+              {user?.email}
+            </p>
+          </section>
 
-        <div className="bg-card border border-border rounded-xl overflow-hidden divide-y divide-border">
-          <div className="flex items-center justify-between p-4 gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <CrownSimple className="w-5 h-5 text-primary" weight="fill" />
+          {/* Subscription block */}
+          <section className="space-y-1">
+            <h2 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)] mb-3">
+              subscription
+            </h2>
+
+            <div className="flex items-center justify-between py-4 border-b border-[var(--ls-border)] gap-4">
+              <div className="space-y-1 min-w-0">
+                <p className="text-base text-[var(--ls-text)] lowercase">manage</p>
+                <p className="text-xs text-[var(--ls-text-subtle)]">
+                  {planDescription}
+                </p>
               </div>
-              <div className="text-left min-w-0">
-                <p className="font-medium">Manage Subscription</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge
-                    variant={isPro ? 'default' : 'secondary'}
-                    className={isPro ? 'bg-primary text-primary-foreground' : ''}
+              {!isPro && (
+                <button
+                  type="button"
+                  onClick={handleManageSubscription}
+                  disabled={busy === 'subscription'}
+                  className="px-4 h-9 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 transition-colors text-sm lowercase disabled:opacity-50"
+                >
+                  {busy === 'subscription' ? '…' : 'upgrade'}
+                </button>
+              )}
+              {isPro && hasStripeSub && (
+                <button
+                  type="button"
+                  onClick={handleManageSubscription}
+                  disabled={busy === 'subscription'}
+                  className="px-4 h-9 rounded-md border border-[var(--ls-border-strong)] hover:border-[var(--ls-sand-dim)] text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors lowercase disabled:opacity-50"
+                >
+                  {busy === 'subscription' ? '…' : 'manage'}
+                </button>
+              )}
+              {isPro && !hasStripeSub && (
+                <span className="text-xs text-[var(--ls-text-subtle)] lowercase whitespace-nowrap">
+                  managed externally
+                </span>
+              )}
+            </div>
+
+            {isPro && hasStripeSub && (
+              <button
+                type="button"
+                onClick={() => setShowCancelConfirm(true)}
+                className="w-full flex items-center justify-between py-4 border-b border-[var(--ls-border)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors text-left"
+              >
+                <div className="space-y-1">
+                  <p className="text-base text-[var(--ls-text)] lowercase">cancel</p>
+                  <p className="text-xs text-[var(--ls-text-subtle)]">
+                    stop recurring billing at the end of the period
+                  </p>
+                </div>
+                <CaretRight
+                  className="w-4 h-4 text-[var(--ls-text-muted)]"
+                  weight="regular"
+                />
+              </button>
+            )}
+
+            {showCancelConfirm && (
+              <div className="space-y-3 py-3">
+                <p className="text-sm text-[var(--ls-text)] lowercase">
+                  cancel subscription?
+                </p>
+                <p className="text-xs text-[var(--ls-text-muted)]">
+                  you'll keep pro access until the end of the current billing period.
+                </p>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelConfirm(false)}
+                    className="flex-1 h-10 rounded-md border border-[var(--ls-border-strong)] text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-sand-dim)] transition-colors lowercase"
                   >
-                    {isPro ? 'Pro' : 'Free'}
-                  </Badge>
+                    keep pro
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelSubscription}
+                    disabled={busy === 'cancel'}
+                    className="flex-1 h-10 rounded-md border border-[var(--ls-border-strong)] text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-text-muted)] transition-colors lowercase disabled:opacity-50"
+                  >
+                    {busy === 'cancel' ? 'cancelling…' : 'cancel'}
+                  </button>
                 </div>
               </div>
-            </div>
-            <Button
-              size="sm"
-              variant={isPro ? 'outline' : 'default'}
-              onClick={handleManageSubscription}
-              disabled={busy === 'subscription'}
-              className="text-xs"
-            >
-              {busy === 'subscription' ? '…' : isPro ? 'Manage' : 'Upgrade'}
-            </Button>
-          </div>
+            )}
+          </section>
 
-          {isPro && (
+          {/* Data block */}
+          <section className="space-y-1">
+            <h2 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)] mb-3">
+              data
+            </h2>
+
             <button
-              onClick={() => setShowCancelConfirm(true)}
-              className="w-full flex items-center justify-between p-4 hover:bg-accent/50 transition-colors active:scale-[0.99]"
+              type="button"
+              onClick={handleExportData}
+              disabled={busy === 'export'}
+              className="w-full flex items-center justify-between py-4 border-b border-[var(--ls-border)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors text-left disabled:opacity-60"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                  <CrownSimple className="w-5 h-5 text-muted-foreground" weight="bold" />
-                </div>
-                <div className="text-left">
-                  <p className="font-medium">Cancel Subscription</p>
-                  <p className="text-xs text-muted-foreground">Stop recurring billing at the end of the period</p>
-                </div>
+              <div className="space-y-1">
+                <p className="text-base text-[var(--ls-text)] lowercase">
+                  {busy === 'export' ? 'preparing…' : 'export my data'}
+                </p>
+                <p className="text-xs text-[var(--ls-text-subtle)]">
+                  download your account data as json
+                </p>
               </div>
+              <CaretRight
+                className="w-4 h-4 text-[var(--ls-text-muted)]"
+                weight="regular"
+              />
             </button>
-          )}
+          </section>
 
-          <button
-            onClick={handleExportData}
-            disabled={busy === 'export'}
-            className="w-full flex items-center justify-between p-4 hover:bg-accent/50 transition-colors active:scale-[0.99] disabled:opacity-60"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <DownloadSimple className="w-5 h-5 text-primary" weight="bold" />
+          {/* Danger zone */}
+          <section className="space-y-1 pt-4">
+            {!showDeleteConfirm ? (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-full text-left py-3 text-sm text-[var(--ls-text-subtle)] hover:text-[var(--ls-text-muted)] underline-offset-4 hover:underline transition-colors lowercase"
+              >
+                delete account
+              </button>
+            ) : (
+              <div className="space-y-3 py-3">
+                <p className="text-sm text-[var(--ls-text)] lowercase">
+                  delete your account permanently?
+                </p>
+                <p className="text-xs text-[var(--ls-text-muted)]">
+                  all sessions, favorites, progress, and the account itself will be removed. this cannot be undone.
+                </p>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="flex-1 h-10 rounded-md border border-[var(--ls-border-strong)] text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-sand-dim)] transition-colors lowercase"
+                  >
+                    keep account
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleFinalDelete}
+                    disabled={busy === 'delete'}
+                    className="flex-1 h-10 rounded-md border border-[var(--ls-border-strong)] text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-text-muted)] transition-colors lowercase disabled:opacity-50"
+                  >
+                    {busy === 'delete' ? 'deleting…' : 'yes, delete'}
+                  </button>
+                </div>
               </div>
-              <div className="text-left">
-                <p className="font-medium">Export My Data</p>
-                <p className="text-xs text-muted-foreground">Download all your account data as JSON</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-between p-4 hover:bg-accent/50 transition-colors active:scale-[0.99]"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                <SignOut className="w-5 h-5" weight="bold" />
-              </div>
-              <div className="text-left">
-                <p className="font-medium">Sign out</p>
-                <p className="text-xs text-muted-foreground">End your session on this device</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setShowDeleteModal(true)}
-            className="w-full flex items-center justify-between p-4 hover:bg-destructive/10 transition-colors active:scale-[0.99]"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-                <Trash className="w-5 h-5 text-destructive" weight="bold" />
-              </div>
-              <div className="text-left">
-                <p className="font-medium text-destructive">Delete Account</p>
-                <p className="text-xs text-muted-foreground">Permanently delete your account and data</p>
-              </div>
-            </div>
-          </button>
+            )}
+          </section>
         </div>
       </div>
-
-      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-destructive">Delete Account</DialogTitle>
-            <DialogDescription>
-              This action cannot be undone. All your data will be permanently deleted.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-              <p className="text-sm text-destructive font-medium">Warning: This will permanently delete:</p>
-              <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
-                <li>All your sessions and favorites</li>
-                <li>Your progress and statistics</li>
-                <li>All personal preferences</li>
-                <li>Your account and profile</li>
-              </ul>
-            </div>
-          </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setShowDeleteModal(false)} className="w-full sm:w-auto">
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                setShowDeleteModal(false)
-                setShowDeleteConfirm(true)
-              }}
-              className="w-full sm:w-auto"
-            >
-              Continue
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-destructive">Are you absolutely sure?</DialogTitle>
-            <DialogDescription>
-              This is your final confirmation. Your account will be deleted immediately and cannot be recovered.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-              <p className="text-sm text-center font-semibold text-destructive">
-                This action is permanent and irreversible
-              </p>
-            </div>
-          </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} className="w-full sm:w-auto">
-              No, Keep My Account
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleFinalDelete}
-              disabled={busy === 'delete'}
-              className="w-full sm:w-auto"
-            >
-              {busy === 'delete' ? 'Deleting…' : 'Yes, Delete Forever'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Cancel subscription?</DialogTitle>
-            <DialogDescription>
-              You'll keep Pro access until the end of your current billing period.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setShowCancelConfirm(false)} className="w-full sm:w-auto">
-              Keep Pro
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleCancelSubscription}
-              disabled={busy === 'cancel'}
-              className="w-full sm:w-auto"
-            >
-              {busy === 'cancel' ? 'Cancelling…' : 'Cancel subscription'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

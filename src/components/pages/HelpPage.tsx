@@ -1,4 +1,4 @@
-import { CaretLeft, EnvelopeSimple, Question } from '@phosphor-icons/react'
+import { CaretLeft } from '@phosphor-icons/react'
 
 interface HelpPageProps {
   onBack: () => void
@@ -15,7 +15,7 @@ const FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: 'How many sessions can I create?',
-    a: 'Free accounts can generate a limited number of sessions per month. Pro removes the cap, unlocks all premium voices, and lets you save sessions to your library indefinitely.',
+    a: 'Free accounts get a small monthly allowance to try the app. Pro removes the cap, unlocks all premium voices, and lets you generate longer sessions.',
   },
   {
     q: 'Can I edit a generated script?',
@@ -31,63 +31,83 @@ const FAQ: Array<{ q: string; a: string }> = [
   },
 ]
 
+const STYLES = `
+.ls-help {
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.ls-help .font-fraunces {
+  font-family: 'Fraunces', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+`
+
 export function HelpPage({ onBack }: HelpPageProps) {
   return (
-    <div className="min-h-screen pb-12">
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border">
-        <div className="flex items-center gap-3 px-4 h-14">
-          <button
-            onClick={onBack}
-            className="w-9 h-9 rounded-full hover:bg-accent/50 flex items-center justify-center transition-colors active:scale-95"
-            aria-label="Go back"
-          >
-            <CaretLeft className="w-6 h-6 text-foreground" weight="bold" />
-          </button>
-          <h1 className="text-lg font-semibold">Help & Support</h1>
-        </div>
-      </div>
+    <div className="ls-help min-h-screen bg-[var(--ls-bg)] text-[var(--ls-text)]">
+      <style>{STYLES}</style>
 
-      <div className="p-6 space-y-6">
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Question size={20} weight="duotone" className="text-primary" />
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Frequently asked
-            </h2>
-          </div>
-          <div className="bg-card border border-border rounded-xl divide-y divide-border">
-            {FAQ.map((item) => (
-              <details key={item.q} className="group">
-                <summary className="flex items-center justify-between cursor-pointer p-4 list-none select-none">
-                  <span className="text-sm font-medium pr-4">{item.q}</span>
-                  <span className="text-muted-foreground text-lg leading-none transition-transform group-open:rotate-45">
-                    +
-                  </span>
-                </summary>
-                <p className="px-4 pb-4 text-sm text-muted-foreground leading-relaxed">{item.a}</p>
-              </details>
-            ))}
-          </div>
+      <header className="sticky top-0 z-10 bg-[var(--ls-bg)] border-b border-[var(--ls-border)]">
+        <div className="flex items-center gap-3 h-14 px-6">
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-9 h-9 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+            aria-label="back"
+          >
+            <CaretLeft className="w-5 h-5" weight="regular" />
+          </button>
+          <h1 className="font-fraunces italic lowercase text-xl text-[var(--ls-text)]">
+            help
+          </h1>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-xl px-6 pt-8 pb-24 space-y-8">
+        <section className="space-y-1">
+          <h2 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)] mb-3">
+            questions
+          </h2>
+          {FAQ.map((item) => (
+            <details
+              key={item.q}
+              className="group border-b border-[var(--ls-border)] py-4"
+            >
+              <summary className="flex items-center justify-between cursor-pointer list-none select-none text-base text-[var(--ls-text)] lowercase">
+                <span className="pr-4">{item.q.toLowerCase()}</span>
+                <span className="text-[var(--ls-text-muted)] text-lg leading-none transition-transform group-open:rotate-45">
+                  +
+                </span>
+              </summary>
+              <p className="pt-3 text-sm text-[var(--ls-text-muted)] leading-relaxed">
+                {item.a}
+              </p>
+            </details>
+          ))}
         </section>
 
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <EnvelopeSimple size={20} weight="duotone" className="text-primary" />
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Contact us
-            </h2>
-          </div>
-          <div className="bg-card border border-border rounded-xl p-4">
-            <p className="text-sm text-muted-foreground mb-3">
-              Still stuck? Email us and a human will get back to you within one business day.
-            </p>
-            <a
-              href="mailto:support@hypnosleep.app?subject=HypnoSleep%20support"
-              className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
-            >
-              support@hypnosleep.app
-            </a>
-          </div>
+        <section className="space-y-3 pt-2">
+          <h2 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)] mb-3">
+            contact
+          </h2>
+          <p className="text-sm text-[var(--ls-text-muted)] leading-relaxed">
+            still stuck? email us and a human will reply within one business day.
+          </p>
+          <a
+            href="mailto:support@hypnosleep.app?subject=HypnoSleep%20support"
+            className="inline-block text-sm text-[var(--ls-sand)] underline-offset-4 hover:underline lowercase"
+          >
+            support@hypnosleep.app
+          </a>
         </section>
       </div>
     </div>
