@@ -1,412 +1,155 @@
-import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
-import { useKV } from '@/hooks/use-kv'
-import { useAuth } from '@/lib/auth-context'
-import { Play, Leaf, Star, Cloud, Eye, Heart, CaretRight, TrendUp, Headphones } from '@phosphor-icons/react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { toast } from 'sonner'
-import { StreakWidget } from '@/components/StreakWidget'
-import { DailyAffirmation } from '@/components/DailyAffirmation'
-import { ContinueListening } from '@/components/ContinueListening'
-import { getTrendingSessions, type SessionSummary } from '@/lib/api-endpoints'
-import { formatCategory } from '@/lib/session-ui'
+import { Bell, Play, Sparkle } from '@phosphor-icons/react'
+import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
+import { useAuth } from '@/lib/auth-context'
 
-function getTimeOfDay(): string {
+interface RecentSession {
+  id?: string
+  title: string
+  durationSec: number
+  category?: string
+  playedAt: number
+}
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
+const LAST_SESSION_KEY = 'hypnosleep:lastSession'
+
+function getTimeOfDayPhrase(): string {
   const hour = new Date().getHours()
-  if (hour < 12) return 'morning'
-  if (hour < 18) return 'afternoon'
-  return 'evening'
+  if (hour < 12) return 'this morning'
+  if (hour < 18) return 'this afternoon'
+  return 'tonight'
 }
 
-interface QuickSession {
-  id: string
-  title: string
-  duration: string
-  category: string
-  icon: typeof Leaf
-  gradient: string
+function readRecentSession(): RecentSession | null {
+  try {
+    const raw = localStorage.getItem(LAST_SESSION_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<RecentSession>
+    if (
+      !parsed ||
+      typeof parsed.title !== 'string' ||
+      typeof parsed.durationSec !== 'number' ||
+      typeof parsed.playedAt !== 'number'
+    ) return null
+    if (Date.now() - parsed.playedAt > SEVEN_DAYS_MS) return null
+    return parsed as RecentSession
+  } catch {
+    return null
+  }
 }
 
-const quickSessions: QuickSession[] = [
-  {
-    id: 'calm',
-    title: '5-min Calm',
-    duration: '5 min',
-    category: 'Calm',
-    icon: Leaf,
-    gradient: 'from-purple-600 via-purple-500 to-purple-600',
-  },
-  {
-    id: 'confidence',
-    title: '10-min Confidence',
-    duration: '10 min',
-    category: 'Confidence',
-    icon: Star,
-    gradient: 'from-blue-600 via-blue-500 to-blue-600',
-  },
-  {
-    id: 'sleep',
-    title: '10-min Sleep',
-    duration: '10 min',
-    category: 'Sleep',
-    icon: Cloud,
-    gradient: 'from-teal-600 via-teal-500 to-teal-600',
-  },
-  {
-    id: 'focus',
-    title: '15-min Focus',
-    duration: '15 min',
-    category: 'Focus',
-    icon: Eye,
-    gradient: 'from-indigo-600 via-indigo-500 to-indigo-600',
-  },
-  {
-    id: 'anxiety',
-    title: '5-min Anxiety Relief',
-    duration: '5 min',
-    category: 'Anxiety',
-    icon: Heart,
-    gradient: 'from-violet-600 via-violet-500 to-violet-600',
-  },
-]
+const formatMinutes = (s: number) => `${Math.max(1, Math.round(s / 60))} min`
 
-interface PopularSession {
-  id: string
-  title: string
-  category: string
-  playCount: string
-  duration: string
-  gradient: string
-}
-
-const popularSessions: PopularSession[] = [
-  {
-    id: 'confidence-boost',
-    title: 'Ultimate Confidence Boost',
-    category: 'Self-Improvement',
-    playCount: '12.4K',
-    duration: '20 min',
-    gradient: 'from-amber-500 via-orange-500 to-rose-500',
-  },
-  {
-    id: 'deep-sleep',
-    title: 'Deep Sleep Hypnosis',
-    category: 'Sleep & Relaxation',
-    playCount: '18.2K',
-    duration: '30 min',
-    gradient: 'from-indigo-600 via-purple-600 to-pink-600',
-  },
-  {
-    id: 'anxiety-relief',
-    title: 'Instant Anxiety Relief',
-    category: 'Mental Health',
-    playCount: '9.8K',
-    duration: '15 min',
-    gradient: 'from-emerald-500 via-teal-500 to-cyan-500',
-  },
-]
-
-interface UnfinishedSession {
-  sessionTitle: string
-  category: string
-  categoryColor: string
-  progress: number
-  durationRemaining: string
-}
-
-const CATEGORY_COLORS: Record<string, string> = {
-  'Sleep & Relaxation': '#7c5cfc',
-  'Self-Improvement': '#f59e0b',
-  'Mental Health': '#10b981',
-  'Focus': '#3b82f6',
-  'Anxiety Relief': '#8b5cf6',
-}
+const STYLES = `
+.ls-home{--ls-bg-base:#0a0a0f;--ls-bg-deep:#050507;--ls-fg-primary:#e8e6e1;--ls-fg-muted:#6b6a6f;--ls-fg-faint:#2a2a30;--ls-accent:#c9b6a3;--ls-glow:rgba(201,182,163,0.08);background:var(--ls-bg-base);color:var(--ls-fg-primary);font-family:'Inter',system-ui,sans-serif;min-height:100vh;position:relative;overflow:hidden;}
+.ls-home__ambient{position:fixed;inset:-25%;background:radial-gradient(circle at 30% 20%,rgba(201,182,163,0.06),transparent 55%),radial-gradient(circle at 70% 80%,rgba(80,90,120,0.08),transparent 60%),radial-gradient(circle at 50% 50%,rgba(40,30,50,0.05),transparent 70%);animation:ls-ambient 240s linear infinite;pointer-events:none;z-index:0;}
+.ls-home__grain{position:fixed;inset:0;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.6'/></svg>");opacity:0.03;mix-blend-mode:overlay;pointer-events:none;z-index:1;}
+.ls-home__vignette{position:fixed;inset:0;box-shadow:inset 0 0 200px var(--ls-bg-deep);pointer-events:none;z-index:2;}
+.ls-home__content{position:relative;z-index:3;}
+.ls-home__question{font-family:'Fraunces','Cormorant Garamond',serif;font-style:italic;font-weight:300;font-size:clamp(2.25rem,6vw,4rem);letter-spacing:-0.02em;line-height:1.1;text-transform:lowercase;}
+.ls-home__brand{font-weight:400;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--ls-fg-primary);}
+.ls-home__create{width:88px;height:88px;border-radius:9999px;border:1px solid var(--ls-accent);background:transparent;color:var(--ls-accent);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:box-shadow 400ms ease,transform 200ms ease;}
+.ls-home__create:hover{box-shadow:0 10px 30px var(--ls-glow),0 0 30px var(--ls-glow);}
+.ls-home__create:hover .ls-home__glyph{transform:scale(1.1);}
+.ls-home__create:active{transform:scale(0.96);}
+.ls-home__glyph{transition:transform 250ms ease;display:flex;}
+.ls-home__create-label{font-weight:400;font-size:0.875rem;letter-spacing:0.1em;text-transform:lowercase;color:var(--ls-fg-muted);}
+.ls-home__divider{border-top:1px solid var(--ls-fg-faint);}
+.ls-home__recently-label{font-weight:400;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--ls-fg-muted);}
+.ls-home__recently-title{font-weight:400;font-size:0.875rem;letter-spacing:0.05em;text-transform:lowercase;color:var(--ls-fg-primary);}
+.ls-home__play-btn{background:transparent;border:none;cursor:pointer;color:var(--ls-accent);display:flex;align-items:center;justify-content:center;padding:8px;transition:transform 200ms ease;}
+.ls-home__play-btn:hover{transform:scale(1.1);}
+@media (min-width:768px){.ls-home__create{width:104px;height:104px;}}
+@keyframes ls-ambient{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion:reduce){.ls-home__ambient{animation:none;}}
+`
 
 export function HomePage() {
   const { play } = useAudioPlayer()
   const { user } = useAuth()
-  const userName = user?.name?.split(' ')[0] ?? 'Friend'
-  const [timeOfDay, setTimeOfDay] = useState(getTimeOfDay())
-  const [unfinishedSession, setUnfinishedSession] = useKV<UnfinishedSession | null>(
-    'unfinished-session',
-    null,
-  )
-
-  const { data: trending } = useQuery({
-    queryKey: ['sessions', 'trending'],
-    queryFn: getTrendingSessions,
-    staleTime: 5 * 60 * 1000,
-  })
+  const firstName = user?.name?.split(' ')[0] || 'friend'
+  const phrase = useMemo(() => getTimeOfDayPhrase(), [])
+  const [recent, setRecent] = useState<RecentSession | null>(null)
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTimeOfDay(getTimeOfDay())
-    }, 60000)
-
-    return () => clearInterval(interval)
+    setRecent(readRecentSession())
   }, [])
 
-  const featuredSession = trending?.find((session) => session.status === 'ready') ?? null
-
-  const handlePlaySession = () => {
-    if (!featuredSession) {
-      toast.info('Your featured session is still being prepared. Try a Quick Session below.')
-      return
-    }
-
-    play({
-      sessionId: featuredSession.id,
-      title: featuredSession.title,
-      category: formatCategory(featuredSession.category),
-      duration: featuredSession.durationSec,
-    })
+  const handleCreate = () => {
+    window.dispatchEvent(new CustomEvent('navigate-to-tab', { detail: 'create' }))
   }
 
-  const handleQuickSession = (session: QuickSession) => {
-    play(`${session.title} Session`, session.category, 300)
-  }
-
-  const handleTrendingSession = (session: SessionSummary) => {
-    play({
-      sessionId: session.status === 'ready' ? session.id : undefined,
-      title: session.title,
-      category: formatCategory(session.category),
-      duration: session.durationSec,
-    })
-  }
-
-  const handleResumeSession = () => {
-    if (unfinishedSession) {
-      play(unfinishedSession.sessionTitle, unfinishedSession.category, 600)
-    }
-  }
-
-  const handleDismissSession = () => {
-    setUnfinishedSession(null)
+  const handleResume = () => {
+    if (!recent) return
+    play(recent.title, recent.category ?? 'Sleep', recent.durationSec)
   }
 
   return (
-    <div className="px-5 py-6">
-      <h1 className="text-2xl font-medium tracking-tight mb-8">
-        Good {timeOfDay}, {userName}
-      </h1>
+    <div className="ls-home">
+      <style>{STYLES}</style>
+      <div className="ls-home__ambient" aria-hidden="true" />
+      <div className="ls-home__grain" aria-hidden="true" />
+      <div className="ls-home__vignette" aria-hidden="true" />
 
-      {unfinishedSession && (
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">Continue Listening</h2>
-          <ContinueListening
-            sessionTitle={unfinishedSession.sessionTitle}
-            category={unfinishedSession.category}
-            categoryColor={unfinishedSession.categoryColor}
-            progress={unfinishedSession.progress}
-            durationRemaining={unfinishedSession.durationRemaining}
-            onResume={handleResumeSession}
-            onDismiss={handleDismissSession}
-          />
-        </div>
-      )}
+      <div className="ls-home__content flex flex-col min-h-screen">
+        <motion.header
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6 }}
+          className="flex items-center justify-between px-6 h-14"
+        >
+          <span className="ls-home__brand">hypnosleep</span>
+          <Bell size={18} weight="thin" style={{ color: 'var(--ls-fg-muted)' }} />
+        </motion.header>
 
-      <div className="mb-8">
-        <DailyAffirmation />
-      </div>
+        <main className="flex-1 flex flex-col items-center justify-center px-6 py-12 gap-12 md:gap-16">
+          <motion.h1
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="ls-home__question text-center max-w-2xl"
+            style={{ color: 'var(--ls-fg-primary)' }}
+          >
+            what do you need {phrase}, {firstName}?
+          </motion.h1>
 
-      <div className="relative overflow-hidden rounded-3xl shadow-2xl shadow-primary/20 mb-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#5b21b6] via-[#4c1d95] to-[#1e3a8a]" />
-        
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-0 right-0 w-72 h-72 bg-primary/40 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600/40 rounded-full blur-3xl" />
-        </div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.7, delay: 0.6 }}
+            className="flex flex-col items-center gap-5"
+          >
+            <button type="button" onClick={handleCreate} aria-label="create a new session" className="ls-home__create">
+              <span className="ls-home__glyph"><Sparkle size={28} weight="thin" /></span>
+            </button>
+            <span className="ls-home__create-label">create</span>
+          </motion.div>
+        </main>
 
-        <div className="relative p-8 flex flex-col items-center text-center min-h-[400px] justify-between">
-          <div className="w-full">
-            <div className="inline-block mb-4">
-              <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/20 backdrop-blur-sm text-white border border-white/30">
-                Sleep & Relaxation
-              </span>
-            </div>
-            
-            <h2 className="text-3xl font-serif font-semibold text-white mb-3">
-              Tonight's Session
-            </h2>
-            
-            <p className="text-white/90 text-lg mb-2">
-              {featuredSession?.title ?? 'Deep Sleep Journey'}
-            </p>
-            
-            <p className="text-white/70 text-sm">
-              {featuredSession
-                ? `${Math.max(1, Math.round(featuredSession.durationSec / 60))} minutes`
-                : '20 minutes'}
-            </p>
-          </div>
-
-          <div className="flex items-center justify-center">
-            <div className="relative">
-              <motion.div
-                className="absolute inset-0 rounded-full bg-white/30"
-                animate={{
-                  scale: [1, 1.3, 1],
-                  opacity: [0.5, 0, 0.5],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: 'easeOut',
-                }}
-              />
-              <motion.div
-                className="absolute inset-0 rounded-full bg-white/30"
-                animate={{
-                  scale: [1, 1.3, 1],
-                  opacity: [0.5, 0, 0.5],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: 'easeOut',
-                  delay: 0.5,
-                }}
-              />
-              
-              <button
-                onClick={handlePlaySession}
-                className="relative w-20 h-20 rounded-full bg-white text-primary flex items-center justify-center shadow-lg shadow-black/20 hover:scale-105 active:scale-95 transition-transform"
-              >
-                <Play weight="fill" size={32} />
+        {recent && (
+          <motion.section
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 1.0 }}
+            className="px-6 pb-10"
+          >
+            <div className="ls-home__divider mb-5" />
+            <p className="ls-home__recently-label mb-2">recently</p>
+            <div className="flex items-center justify-between gap-4">
+              <p className="ls-home__recently-title truncate">
+                {recent.title.toLowerCase()} · {formatMinutes(recent.durationSec)}
+              </p>
+              <button type="button" onClick={handleResume} aria-label="resume recent session" className="ls-home__play-btn">
+                <Play size={20} weight="fill" />
               </button>
             </div>
-          </div>
-
-          <div className="h-4" />
-        </div>
-      </div>
-
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Quick Sessions</h2>
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent('navigate-to-tab', { detail: 'library' }))}
-            className="flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors font-medium"
-          >
-            See All
-            <CaretRight weight="bold" size={16} />
-          </button>
-        </div>
-
-        <div className="overflow-x-auto -mx-5 px-5 pb-2 snap-x snap-mandatory scrollbar-hide">
-          <div className="flex gap-3 w-max">
-            {quickSessions.map((session) => {
-              const Icon = session.icon
-              return (
-                <motion.button
-                  key={session.id}
-                  onClick={() => handleQuickSession(session)}
-                  className={`snap-start flex-shrink-0 w-36 p-4 rounded-2xl bg-gradient-to-br ${session.gradient} text-white shadow-lg hover:scale-105 active:scale-95 transition-transform`}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <div className="flex flex-col items-center text-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                      <Icon weight="fill" size={24} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold mb-1.5">{session.title}</p>
-                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-white/20 backdrop-blur-sm border border-white/30">
-                        {session.duration}
-                      </span>
-                    </div>
-                  </div>
-                </motion.button>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Your Streak</h2>
-        <StreakWidget />
-      </div>
-
-      <div className="mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-xl font-semibold">Popular This Week</h2>
-          <TrendUp weight="bold" size={20} className="text-primary" />
-        </div>
-
-        <div className="overflow-x-auto -mx-5 px-5 pb-2 snap-x snap-mandatory scrollbar-hide">
-          <div className="flex gap-4 w-max">
-            {(trending ?? popularSessions).map((session) => {
-              // Normalise summary / mock shape into one card model.
-              const isRemote = 'id' in session && 'durationSec' in session
-              const key = session.id
-              const title = session.title
-              const category = isRemote
-                ? formatCategory((session as SessionSummary).category)
-                : (session as PopularSession).category
-              const playCount = isRemote
-                ? String((session as SessionSummary).playCount ?? 0)
-                : (session as PopularSession).playCount
-              const duration = isRemote
-                ? `${Math.max(1, Math.round((session as SessionSummary).durationSec / 60))} min`
-                : (session as PopularSession).duration
-              const gradient = isRemote
-                ? 'from-indigo-600 via-purple-600 to-pink-600'
-                : (session as PopularSession).gradient
-
-              return (
-                <motion.button
-                  key={key}
-                  onClick={() =>
-                    isRemote
-                      ? handleTrendingSession(session as SessionSummary)
-                      : play((session as PopularSession).title, (session as PopularSession).category, 600)
-                  }
-                  className="snap-start flex-shrink-0 w-44 rounded-2xl overflow-hidden bg-card shadow-lg hover:shadow-xl transition-shadow"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                >
-                  <div className="relative">
-                    <div className={`h-56 bg-gradient-to-br ${gradient} relative overflow-hidden`}>
-                      <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_50%_120%,_rgba(255,255,255,0.8),_transparent_70%)]" />
-
-                      <div className="absolute top-3 left-3">
-                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-black/30 backdrop-blur-sm text-white border border-white/20">
-                          {category}
-                        </span>
-                      </div>
-
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-16 h-16 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-xl">
-                          <Play weight="fill" size={24} className="text-primary ml-1" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-4 text-left">
-                      <h3 className="font-semibold text-sm mb-3 line-clamp-2 leading-snug">
-                        {title}
-                      </h3>
-
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1.5">
-                          <Headphones weight="fill" size={14} />
-                          <span className="font-medium">{playCount}</span>
-                        </div>
-                        <span className="px-2 py-0.5 rounded-full bg-muted text-foreground font-medium">
-                          {duration}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </motion.button>
-              )
-            })}
-          </div>
-        </div>
+          </motion.section>
+        )}
       </div>
     </div>
   )
 }
+
+export default HomePage
