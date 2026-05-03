@@ -5,7 +5,7 @@ import { Header } from './components/Header'
 import { HomePage } from './components/pages/HomePage'
 import { LibraryPage } from './components/pages/LibraryPage'
 import { CreatePage } from './components/pages/CreatePage'
-import { ProgressPage } from './components/pages/ProgressPage'
+import { TonightPage } from './components/pages/TonightPage'
 import { ProfilePage } from './components/pages/ProfilePage'
 import { LoginPage } from './components/pages/LoginPage'
 import { AuthCallbackPage } from './components/pages/AuthCallbackPage'
@@ -289,7 +289,7 @@ function AppContent() {
       case 'home': return <HomePage />
       case 'library': return <LibraryPage />
       case 'create': return <CreatePage />
-      case 'progress': return <ProgressPage />
+      case 'tonight': return <TonightPage />
       case 'profile': return <ProfilePage />
       default: return <HomePage />
     }

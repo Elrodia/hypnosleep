@@ -1,0 +1,256 @@
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Play, ArrowRight } from '@phosphor-icons/react'
+import { listSessions, type SessionSummary } from '@/lib/api-endpoints'
+import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
+import { useAuth } from '@/lib/auth-context'
+
+/**
+ * Tonight — the app's primary decision surface.
+ *
+ * Replaces the legacy Progress tab. Answers exactly one question:
+ * what should the user play right now? The recommendation is
+ * computed entirely client-side from local time + the most recent
+ * sessions returned by `GET /api/sessions?sort=newest`.
+ *
+ * The resume branch from the design spec is intentionally dropped
+ * here: `useKV` in this codebase persists to the backend, not to
+ * `localStorage`, and the player does not currently write a
+ * `player-last-session-id` / `session-progress-*` signal. Adding
+ * that persistence is out of scope for this page, so we fall back
+ * to the time-of-day branch.
+ */
+
+type Recommendation =
+  | {
+      kind: 'time-based'
+      title: string
+      subtitle: string
+      sessionId: string
+      ctaLabel: string
+    }
+  | {
+      kind: 'create'
+      title: string
+      subtitle: string
+      sessionId: null
+      ctaLabel: string
+    }
+
+export function TonightPage() {
+  const { user } = useAuth()
+  const { play } = useAudioPlayer()
+
+  const { data: recentEnvelope } = useQuery({
+    queryKey: ['sessions', 'recent', 5],
+    queryFn: () => listSessions({ limit: 5, sort: 'newest' }),
+  })
+
+  // Use a stable "now" frozen at first render so the recommendation
+  // doesn't flicker if React re-renders during a tab switch.
+  const recommendation = useMemo<Recommendation>(() => {
+    const now = new Date()
+    const recent = recentEnvelope?.data ?? []
+    return pickRecommendation({ now, recentSessions: recent })
+  }, [recentEnvelope])
+
+  const playAgain = useMemo<SessionSummary[]>(() => {
+    const items = recentEnvelope?.data ?? []
+    // Filter out the one we're recommending (avoid duplicate),
+    // keep the next three.
+    return items.filter((s) => s.id !== recommendation.sessionId).slice(0, 3)
+  }, [recentEnvelope, recommendation])
+
+  const isFirstNight = (recentEnvelope?.data ?? []).length === 0
+
+  const greeting = useMemo(() => greetingByHour(new Date().getHours()), [])
+
+  const handlePrimary = () => {
+    if (recommendation.kind === 'create') {
+      window.dispatchEvent(new CustomEvent('navigate-to-tab', { detail: 'create' }))
+      return
+    }
+    if (recommendation.sessionId) {
+      const session = (recentEnvelope?.data ?? []).find(
+        (s) => s.id === recommendation.sessionId,
+      )
+      if (session) {
+        play({
+          sessionId: session.id,
+          title: session.title,
+          category: session.category,
+          duration: session.durationSec,
+        })
+      }
+    }
+  }
+
+  return (
+    <div className="ls-tonight min-h-screen bg-[var(--ls-bg)] text-[var(--ls-text)]">
+      <div className="mx-auto max-w-xl px-6 pt-12 pb-24 space-y-12">
+
+        {/* === GREETING === */}
+        <header className="space-y-2">
+          <p className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
+            tonight
+          </p>
+          <h1 className="font-fraunces italic lowercase text-4xl text-[var(--ls-text)]">
+            {greeting}
+            {user?.name ? `, ${user.name.split(' ')[0].toLowerCase()}` : ''}
+          </h1>
+        </header>
+
+        {/* === HERO RECOMMENDATION === */}
+        {!isFirstNight && (
+          <section className="space-y-4">
+            <div className="space-y-1">
+              <p className="text-sm text-[var(--ls-text-muted)] lowercase">
+                {recommendation.title}
+              </p>
+              <p className="font-fraunces italic text-2xl text-[var(--ls-text)] lowercase leading-tight">
+                {recommendation.subtitle}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handlePrimary}
+              className="w-full h-14 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 transition-colors font-fraunces italic lowercase text-lg flex items-center justify-center gap-3"
+            >
+              {recommendation.kind === 'create' ? (
+                <>
+                  <ArrowRight weight="regular" className="w-5 h-5" />
+                  {recommendation.ctaLabel}
+                </>
+              ) : (
+                <>
+                  <Play weight="fill" className="w-5 h-5" />
+                  {recommendation.ctaLabel}
+                </>
+              )}
+            </button>
+          </section>
+        )}
+
+        {/* === FIRST-NIGHT EMPTY STATE === */}
+        {isFirstNight && (
+          <section className="space-y-6 py-8">
+            <div className="space-y-2">
+              <p className="font-fraunces italic text-2xl text-[var(--ls-text)] lowercase leading-snug">
+                your first session is one tap away.
+              </p>
+              <p className="text-sm text-[var(--ls-text-muted)]">
+                describe what you need. a session will be ready in 30 seconds.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent('navigate-to-tab', { detail: 'create' }),
+                )
+              }
+              className="w-full h-14 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 transition-colors font-fraunces italic lowercase text-lg flex items-center justify-center gap-3"
+            >
+              <ArrowRight weight="regular" className="w-5 h-5" />
+              create your first session
+            </button>
+          </section>
+        )}
+
+        {/* === PLAY AGAIN === */}
+        {playAgain.length > 0 && (
+          <section className="space-y-4 pt-4 border-t border-[var(--ls-border)]">
+            <h2 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
+              again
+            </h2>
+            <div className="space-y-px">
+              {playAgain.map((session) => (
+                <button
+                  key={session.id}
+                  type="button"
+                  onClick={() =>
+                    play({
+                      sessionId: session.id,
+                      title: session.title,
+                      category: session.category,
+                      duration: session.durationSec,
+                    })
+                  }
+                  className="w-full flex items-center justify-between py-4 border-b border-[var(--ls-border)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors group text-left"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base text-[var(--ls-text)] lowercase truncate">
+                      {session.title.toLowerCase()}
+                    </p>
+                    <p className="text-xs text-[var(--ls-text-subtle)] uppercase tracking-widest mt-0.5">
+                      {session.category} · {Math.round(session.durationSec / 60)} min
+                    </p>
+                  </div>
+                  <div className="w-9 h-9 rounded-full border border-[var(--ls-border-strong)] group-hover:border-[var(--ls-sand-dim)] flex items-center justify-center text-[var(--ls-text-muted)] group-hover:text-[var(--ls-sand)] transition-colors flex-shrink-0">
+                    <Play weight="fill" className="w-3.5 h-3.5" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+      </div>
+    </div>
+  )
+}
+
+// ───── helpers ─────
+
+function greetingByHour(hour: number): string {
+  if (hour >= 5 && hour < 12) return 'good morning'
+  if (hour >= 12 && hour < 18) return 'good afternoon'
+  if (hour >= 18 && hour < 22) return 'good evening'
+  return 'good night'
+}
+
+function pickTimeContext(
+  hour: number,
+): 'wind-down' | 'fall-asleep' | 'back-to-sleep' {
+  if (hour >= 2 && hour < 5) return 'back-to-sleep'
+  if (hour >= 21 || hour < 2) return 'fall-asleep'
+  return 'wind-down'
+}
+
+function titleByContext(
+  ctx: 'wind-down' | 'fall-asleep' | 'back-to-sleep',
+): string {
+  if (ctx === 'fall-asleep') return 'time to fall asleep'
+  if (ctx === 'back-to-sleep') return 'back to sleep'
+  return 'wind down'
+}
+
+function pickRecommendation(opts: {
+  now: Date
+  recentSessions: SessionSummary[]
+}): Recommendation {
+  const hour = opts.now.getHours()
+  const ctx = pickTimeContext(hour)
+  const wantedCats: readonly string[] =
+    ctx === 'wind-down' ? ['confidence', 'fears', 'focus'] : ['sleep']
+  const match = opts.recentSessions.find((s) => wantedCats.includes(s.category))
+
+  if (match) {
+    return {
+      kind: 'time-based',
+      title: titleByContext(ctx),
+      subtitle: match.title.toLowerCase(),
+      sessionId: match.id,
+      ctaLabel: 'play',
+    }
+  }
+
+  return {
+    kind: 'create',
+    title: titleByContext(ctx),
+    subtitle: 'create one for tonight',
+    sessionId: null,
+    ctaLabel: 'create',
+  }
+}

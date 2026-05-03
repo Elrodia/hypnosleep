@@ -1,7 +1,7 @@
-import { Moon, BookOpen, PlusCircle, ChartBar, User } from '@phosphor-icons/react'
+import { Moon, BookOpen, PlusCircle, Star, User } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 
-export type TabId = 'home' | 'library' | 'create' | 'progress' | 'profile'
+export type TabId = 'home' | 'library' | 'create' | 'tonight' | 'profile'
 
 interface TabBarProps {
   activeTab: TabId
@@ -19,13 +19,13 @@ const tabs: TabConfig[] = [
   { id: 'home', label: 'Home', icon: Moon },
   { id: 'library', label: 'Library', icon: BookOpen },
   { id: 'create', label: 'Create', icon: PlusCircle, isCenter: true },
-  { id: 'progress', label: 'Progress', icon: ChartBar },
+  { id: 'tonight', label: 'Tonight', icon: Star },
   { id: 'profile', label: 'Profile', icon: User },
 ]
 
 export function TabBar({ activeTab, onTabChange }: TabBarProps) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-card/80 backdrop-blur-lg z-50">
+    <div className="fixed bottom-0 left-0 right-0 border-t border-[var(--ls-border)] bg-[var(--ls-bg)] z-50">
       <div className="flex items-end justify-around px-2 pb-safe">
         {tabs.map((tab) => {
           const Icon = tab.icon
@@ -49,20 +49,13 @@ export function TabBar({ activeTab, onTabChange }: TabBarProps) {
                   size={isCenter ? 32 : 24}
                   weight={isActive ? 'fill' : 'regular'}
                   className={`transition-colors duration-200 ${
-                    isActive ? 'text-[var(--hypno-accent)] tab-glow' : 'text-[var(--hypno-text-muted)]'
+                    isActive ? 'text-[var(--ls-sand)]' : 'text-[var(--ls-text-muted)]'
                   }`}
                 />
-                {isActive && (
-                  <motion.div
-                    layoutId="activeTab"
-                    className="absolute -inset-2 bg-[var(--hypno-accent)]/20 rounded-full -z-10 blur-md"
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                  />
-                )}
               </motion.div>
               <span
                 className={`text-[11px] font-medium tracking-wide transition-colors duration-200 ${
-                  isActive ? 'text-[var(--hypno-accent)]' : 'text-[var(--hypno-text-muted)]'
+                  isActive ? 'text-[var(--ls-sand)]' : 'text-[var(--ls-text-muted)]'
                 }`}
               >
                 {tab.label}
