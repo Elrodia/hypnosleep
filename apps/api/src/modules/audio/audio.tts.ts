@@ -1,5 +1,4 @@
-import { execa } from 'execa';
-import { mkdir, unlink } from 'node:fs/promises';
+import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -7,72 +6,153 @@ import { AppError } from '../../utils/errors.js';
 import { logger } from '../../utils/logger.js';
 
 /**
- * Absolute path to the Python Edge-TTS subprocess script. Resolved from
- * the API working directory so it works in both `tsx` (development) and
- * the built/runtime container (where the `scripts/` directory is copied
- * alongside `dist/` — see `apps/api/Dockerfile`).
+ * Static mapping from the Edge-TTS voice identifiers used throughout
+ * the application (DB schema, Zod validators, Gemini prompts, and
+ * `src/config/constants.ts`) to their ElevenLabs counterparts. The
+ * upstream identifier format is preserved so the rest of the codebase
+ * does not need to change; the translation happens entirely here.
  */
-const TTS_SCRIPT = join(process.cwd(), 'scripts', 'tts.py');
+const EDGE_TO_ELEVENLABS_VOICE: Record<string, string> = {
+  // Sarah — calm female
+  'en-US-AnaNeural': 'EXAVITQu4vr4xnSDxMaL',
+  // Adam — deep male
+  'en-US-GuyNeural': 'pNInz6obpgDQGcFmaJgB',
+  // Charlotte — British
+  'en-GB-SoniaNeural': 'XB0fDUnXU5powFXDhCwa',
+  // Matilda — Australian
+  'en-AU-NatashaNeural': 'XrExE9yKIg1WjnnlVkGX',
+  // Rachel — versatile
+  'en-US-AriaNeural': '21m00Tcm4TlvDq8ikWAM',
+  // Liam — steady
+  'en-US-DavisNeural': 'TX3LPaxmHKxFdv7VOQHJ',
+};
 
 /** Options for {@link synthesizeVoice}. */
 export interface TtsOptions {
-  /** Edge-TTS voice identifier, e.g. `en-US-AnaNeural`. */
+  /**
+   * Edge-TTS voice identifier, e.g. `en-US-AnaNeural`. Mapped internally
+   * to an ElevenLabs voice id via {@link EDGE_TO_ELEVENLABS_VOICE}.
+   */
   voiceId: string;
-  /** Plain text or SSML to synthesize. Sent over stdin to avoid argv limits. */
+  /** Plain text or SSML to synthesize. */
   text: string;
-  /** Speech rate, e.g. `-15%` for the slower hypnosis cadence. */
+  /**
+   * Speech rate, e.g. `-15%` for the slower hypnosis cadence.
+   *
+   * @deprecated Silently ignored by the ElevenLabs implementation —
+   * ElevenLabs exposes different controls (stability/similarity/style).
+   * Kept for source-level compatibility with callers and the DB schema.
+   */
   rate?: string;
-  /** Pitch adjustment, e.g. `-2Hz` for a calmer tone. */
+  /**
+   * Pitch adjustment, e.g. `-2Hz` for a calmer tone.
+   *
+   * @deprecated Silently ignored by the ElevenLabs implementation —
+   * ElevenLabs exposes different controls (stability/similarity/style).
+   * Kept for source-level compatibility with callers and the DB schema.
+   */
   pitch?: string;
 }
 
 /**
- * Generates a voice MP3 using Microsoft Edge TTS via the bundled Python
- * subprocess (`scripts/tts.py`). The text is streamed to the subprocess
- * over stdin so it is not subject to OS argv length limits.
+ * Generates a voice MP3 by calling the ElevenLabs text-to-speech HTTP
+ * API directly (no subprocess). The Edge-TTS-format `voiceId` on
+ * {@link TtsOptions} is mapped to an ElevenLabs voice id via
+ * {@link EDGE_TO_ELEVENLABS_VOICE}; unknown ids fail fast rather than
+ * silently falling back to a default.
  *
  * The caller owns the returned file and must `unlink` it when finished.
  *
  * @returns Absolute path to the generated MP3.
- * @throws {AppError} `GENERATION_FAILED` if the subprocess exits non-zero
- *   or otherwise fails. Any partially-written output file is cleaned up.
+ * @throws {AppError} `GENERATION_FAILED` if the API key is missing, the
+ *   voice id is unknown, the HTTP call fails or times out, or the file
+ *   write fails. Any partially-written output file is cleaned up.
  */
 export async function synthesizeVoice(opts: TtsOptions): Promise<string> {
   const tmpDir = join(tmpdir(), 'hypnosleep-tts');
   await mkdir(tmpDir, { recursive: true });
   const outPath = join(tmpDir, `${randomUUID()}.mp3`);
 
-  try {
-    const { stderr, exitCode } = await execa(
-      'python3',
-      [
-        TTS_SCRIPT,
-        '--voice', opts.voiceId,
-        '--output', outPath,
-        // Use `--name=value` form (single argv token) for rate/pitch.
-        // Their values commonly start with `-` (e.g. `-15%`, `-2Hz`),
-        // and Python's argparse rejects them when passed as two tokens
-        // because it interprets a leading `-` as another option.
-        `--rate=${opts.rate ?? '-15%'}`,
-        `--pitch=${opts.pitch ?? '-2Hz'}`,
-      ],
-      {
-        input: opts.text,
-        timeout: 120_000, // 2 minutes max
-        encoding: 'utf8',
-        reject: false,
-      },
-    );
+  // Read ElevenLabs config directly from process.env: the env validator
+  // (`apps/api/src/config/env.ts`) does not yet declare these vars. They
+  // will be added in a follow-up step; until then, narrow here.
+  const apiKey: string | undefined = process.env.ELEVENLABS_API_KEY;
+  const modelId: string =
+    process.env.ELEVENLABS_MODEL && process.env.ELEVENLABS_MODEL.length > 0
+      ? process.env.ELEVENLABS_MODEL
+      : 'eleven_multilingual_v2';
 
-    if (exitCode !== 0) {
+  if (!apiKey || apiKey.length === 0) {
+    throw new AppError(
+      'GENERATION_FAILED',
+      'ElevenLabs API key not configured',
+      500,
+    );
+  }
+
+  const elevenLabsVoiceId = EDGE_TO_ELEVENLABS_VOICE[opts.voiceId];
+  if (!elevenLabsVoiceId) {
+    throw new AppError(
+      'GENERATION_FAILED',
+      `Unknown voice: ${opts.voiceId}`,
+      500,
+    );
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 120_000); // 2 minutes max
+
+  try {
+    const url =
+      `https://api.elevenlabs.io/v1/text-to-speech/${elevenLabsVoiceId}` +
+      `?output_format=mp3_44100_128`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+        Accept: 'audio/mpeg',
+      },
+      body: JSON.stringify({
+        text: opts.text,
+        model_id: modelId,
+        voice_settings: {
+          stability: 0.55,
+          similarity_boost: 0.75,
+          style: 0.0,
+          use_speaker_boost: true,
+        },
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      let body = '';
+      try {
+        body = await response.text();
+      } catch {
+        // Best-effort body decode — ignore failures.
+      }
       throw new AppError(
         'GENERATION_FAILED',
-        `TTS subprocess failed: ${(stderr ?? '').toString().slice(0, 500)}`,
+        `ElevenLabs failed: ${response.status} ${body.slice(0, 500)}`,
         500,
       );
     }
 
-    logger.debug({ outPath, voiceId: opts.voiceId }, 'TTS synthesis complete');
+    const buf = Buffer.from(await response.arrayBuffer());
+    await writeFile(outPath, buf);
+
+    logger.debug(
+      {
+        outPath,
+        voiceId: opts.voiceId,
+        elevenLabsVoiceId,
+        bytes: buf.length,
+      },
+      'TTS synthesis complete',
+    );
     return outPath;
   } catch (err) {
     // Cleanup partial file on error
@@ -83,6 +163,8 @@ export async function synthesizeVoice(opts: TtsOptions): Promise<string> {
       `TTS failed: ${(err as Error).message}`,
       500,
     );
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
