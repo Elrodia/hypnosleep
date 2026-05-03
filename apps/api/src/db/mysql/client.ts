@@ -17,5 +17,10 @@ const pool = mysql.createPool({
   enableKeepAlive: true,
 });
 
-export const mysqlDb = drizzle(pool, { schema, mode: 'default' });
+// TEMPORARY: `logger: true` prints every Drizzle-generated SQL
+// statement to stdout (visible in Railway deploy logs). Enabled to
+// diagnose a Library-list bug where the API returns 0 rows for a
+// query whose hand-written equivalent returns the expected row.
+// REMOVE this option once the bug is identified and fixed.
+export const mysqlDb = drizzle(pool, { schema, mode: 'default', logger: true });
 export type MySQLDb = typeof mysqlDb;
