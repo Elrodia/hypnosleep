@@ -1,4 +1,4 @@
-import { CaretLeft, Heart } from '@phosphor-icons/react'
+import { CaretLeft } from '@phosphor-icons/react'
 
 interface AboutPageProps {
   onBack: () => void
@@ -6,87 +6,108 @@ interface AboutPageProps {
 
 const VERSION = '1.0.0'
 
+const STYLES = `
+.ls-about {
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.ls-about .font-fraunces {
+  font-family: 'Fraunces', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+`
+
 export function AboutPage({ onBack }: AboutPageProps) {
   return (
-    <div className="min-h-screen pb-12">
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border">
-        <div className="flex items-center gap-3 px-4 h-14">
+    <div className="ls-about min-h-screen bg-[var(--ls-bg)] text-[var(--ls-text)]">
+      <style>{STYLES}</style>
+
+      <header className="sticky top-0 z-10 bg-[var(--ls-bg)] border-b border-[var(--ls-border)]">
+        <div className="flex items-center gap-3 h-14 px-6">
           <button
+            type="button"
             onClick={onBack}
-            className="w-9 h-9 rounded-full hover:bg-accent/50 flex items-center justify-center transition-colors active:scale-95"
-            aria-label="Go back"
+            className="w-9 h-9 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+            aria-label="back"
           >
-            <CaretLeft className="w-6 h-6 text-foreground" weight="bold" />
+            <CaretLeft className="w-5 h-5" weight="regular" />
           </button>
-          <h1 className="text-lg font-semibold">About</h1>
+          <h1 className="font-fraunces italic lowercase text-xl text-[var(--ls-text)]">
+            about
+          </h1>
         </div>
-      </div>
+      </header>
 
-      <div className="p-6 space-y-6">
-        <section className="text-center pt-2">
-          <h2 className="text-2xl font-serif tracking-wide">HypnoSleep</h2>
-          <p className="text-xs text-muted-foreground mt-1">Version {VERSION}</p>
-        </section>
+      <div className="mx-auto max-w-xl px-6 pt-8 pb-24 space-y-8">
+        <div className="space-y-10">
+          <section className="text-center space-y-2 pt-4">
+            <h2 className="font-fraunces italic lowercase text-3xl text-[var(--ls-text)]">
+              hypnosleep
+            </h2>
+            <p className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
+              version {VERSION}
+            </p>
+          </section>
 
-        <section className="bg-card border border-border rounded-xl p-5 space-y-3">
-          <p className="text-sm text-foreground leading-relaxed">
-            HypnoSleep generates personalised hypnosis sessions on demand — write what
-            you want help with, pick a voice and a length, and we synthesise a guided
-            recording you can listen to that same night.
-          </p>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Built with care by a small team that uses the app every day. Made with{' '}
-            <Heart weight="fill" className="inline w-3.5 h-3.5 text-red-500 align-text-bottom" />{' '}
-            for restful sleep, sharper focus, and gentler self-talk.
-          </p>
-        </section>
+          <section className="space-y-4">
+            <p className="text-sm text-[var(--ls-text)] leading-relaxed">
+              hypnosleep generates personalised hypnosis sessions on demand.
+              describe what you want help with, pick a voice and a length, and we
+              synthesise a guided recording you can listen to that same night.
+            </p>
+            <p className="text-sm text-[var(--ls-text-muted)] leading-relaxed">
+              built with care by a small team that uses the app every day.
+            </p>
+          </section>
 
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Legal
-          </h3>
-          <div className="bg-card border border-border rounded-xl divide-y divide-border">
+          <section className="space-y-1">
+            <h3 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)] mb-3">
+              legal
+            </h3>
             <a
               href="/legal/privacy"
-              className="flex items-center justify-between p-4 hover:bg-accent/30 transition-colors"
+              className="block py-4 border-b border-[var(--ls-border)] text-base text-[var(--ls-text)] hover:text-[var(--ls-sand)] transition-colors lowercase"
             >
-              <span className="text-sm font-medium">Privacy Policy</span>
-              <span className="text-muted-foreground text-sm">→</span>
+              privacy policy
             </a>
             <a
               href="/legal/terms"
-              className="flex items-center justify-between p-4 hover:bg-accent/30 transition-colors"
+              className="block py-4 border-b border-[var(--ls-border)] text-base text-[var(--ls-text)] hover:text-[var(--ls-sand)] transition-colors lowercase"
             >
-              <span className="text-sm font-medium">Terms of Service</span>
-              <span className="text-muted-foreground text-sm">→</span>
+              terms of service
             </a>
             <a
               href="mailto:support@hypnosleep.app"
-              className="flex items-center justify-between p-4 hover:bg-accent/30 transition-colors"
+              className="block py-4 border-b border-[var(--ls-border)] text-base text-[var(--ls-text)] hover:text-[var(--ls-sand)] transition-colors lowercase"
             >
-              <span className="text-sm font-medium">Contact</span>
-              <span className="text-muted-foreground text-sm">→</span>
+              contact
             </a>
-          </div>
-        </section>
+          </section>
 
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Acknowledgements
-          </h3>
-          <div className="bg-card border border-border rounded-xl p-4">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Voices powered by Microsoft Azure Cognitive Services. Background sounds
-              are royalty-free field recordings. The script generator runs on
-              large-language-model technology guided by safety filters tuned for
-              hypnosis content.
+          <section className="space-y-3 pt-2">
+            <h3 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)] mb-3">
+              acknowledgements
+            </h3>
+            <p className="text-xs text-[var(--ls-text-muted)] leading-relaxed">
+              voices powered by elevenlabs. background sounds are royalty-free
+              field recordings. session scripts are generated by large language
+              models with safety filters tuned for hypnosis content.
             </p>
-          </div>
-        </section>
+          </section>
 
-        <p className="text-center text-xs text-muted-foreground/70 pt-4">
-          © {new Date().getFullYear()} HypnoSleep. All rights reserved.
-        </p>
+          <p className="text-center text-xs text-[var(--ls-text-subtle)] pt-4">
+            © {new Date().getFullYear()} hypnosleep
+          </p>
+        </div>
       </div>
     </div>
   )
