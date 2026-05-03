@@ -12,6 +12,7 @@ import { SessionPreviewScreen } from '@/components/SessionPreviewScreen'
 import { ScriptEditorModal } from '@/components/ScriptEditorModal'
 import { RecentCreations } from '@/components/RecentCreations'
 import { PaywallModal } from '@/components/PaywallModal'
+import { requestUpgradePage } from '@/lib/upgrade-intent'
 import { useAuth } from '@/lib/auth-context'
 import {
   generateSession,
@@ -442,10 +443,8 @@ export function CreatePage() {
 
   const handleUpgrade = () => {
     setShowPaywall(false)
+    requestUpgradePage()
     window.dispatchEvent(new CustomEvent('navigate-to-tab', { detail: 'profile' }))
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('show-subscription'))
-    }, 100)
   }
 
   const handleClosePaywall = () => setShowPaywall(false)

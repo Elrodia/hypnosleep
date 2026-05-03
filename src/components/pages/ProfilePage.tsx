@@ -10,6 +10,7 @@ import { ReferralCard } from '../ReferralCard'
 import { ProfileEditDialog } from '../ProfileEditDialog'
 import { useAuth } from '@/lib/auth-context'
 import { getProgressStats, getStreak } from '@/lib/api-endpoints'
+import { consumeUpgradeRequest } from '@/lib/upgrade-intent'
 
 export function ProfilePage() {
   const { user } = useAuth()
@@ -51,9 +52,9 @@ export function ProfilePage() {
   }
 
   useEffect(() => {
-    const handleShowSubscription = () => setShowSubscription(true)
-    window.addEventListener('show-subscription', handleShowSubscription as EventListener)
-    return () => window.removeEventListener('show-subscription', handleShowSubscription as EventListener)
+    if (consumeUpgradeRequest()) {
+      setShowSubscription(true)
+    }
   }, [])
 
   const settingsCategories = [
