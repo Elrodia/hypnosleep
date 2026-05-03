@@ -5,6 +5,7 @@ import {
   json,
   mysqlEnum,
   uniqueIndex,
+  int,
 } from 'drizzle-orm/mysql-core';
 import { sql } from 'drizzle-orm';
 
@@ -22,6 +23,7 @@ export const users = mysqlTable(
     name: varchar('name', { length: 255 }).notNull(),
     avatarUrl: varchar('avatar_url', { length: 1024 }),
     plan: mysqlEnum('plan', ['free', 'pro']).notNull().default('free'),
+    sessionsLifetime: int('sessions_lifetime').notNull().default(0),
     stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
     preferences: json('preferences').$type<{
       goals: string[];
