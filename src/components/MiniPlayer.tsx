@@ -23,11 +23,11 @@ export function MiniPlayer({ isPlaying, sessionTitle, progress, onPlayPause, onE
     >
       <div
         onClick={onExpand}
-        className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
+        className="bg-[var(--ls-bg-elevated)] border border-[var(--ls-border-strong)] rounded-2xl overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
       >
         <div className="flex items-center gap-4 px-4 py-3">
           <div className="flex-1 min-w-0 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            <p className="text-sm font-medium text-foreground truncate">
+            <p className="text-sm font-medium text-[var(--ls-text)] truncate">
               {sessionTitle}
             </p>
             {fadeOutEnabled && (
@@ -36,9 +36,9 @@ export function MiniPlayer({ isPlaying, sessionTitle, progress, onPlayPause, onE
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0, opacity: 0 }}
                 transition={{ type: 'spring', damping: 15, stiffness: 300 }}
-                className="flex-shrink-0 px-2 py-0.5 rounded-md bg-gradient-to-r from-purple-500/20 to-indigo-500/20 border border-purple-400/30"
+                className="flex-shrink-0 px-2 py-0.5 rounded-md border border-[var(--ls-border-strong)]"
               >
-                <span className="text-xs font-medium text-purple-300">fade</span>
+                <span className="text-xs font-medium text-[var(--ls-text-muted)]">fade</span>
               </motion.div>
             )}
           </div>
@@ -55,9 +55,9 @@ export function MiniPlayer({ isPlaying, sessionTitle, progress, onPlayPause, onE
             <CircularProgress progress={progress} />
             <div className="absolute inset-0 flex items-center justify-center">
               {isPlaying ? (
-                <Pause weight="fill" className="w-5 h-5 text-primary" />
+                <Pause weight="regular" className="w-5 h-5" style={{ color: 'var(--ls-sand)' }} />
               ) : (
-                <Play weight="fill" className="w-5 h-5 text-primary" />
+                <Play weight="regular" className="w-5 h-5" style={{ color: 'var(--ls-sand)' }} />
               )}
             </div>
           </button>
@@ -73,7 +73,8 @@ function Equalizer({ isPlaying }: { isPlaying: boolean }) {
       {[0, 1, 2].map((i) => (
         <motion.div
           key={i}
-          className="w-1 bg-primary rounded-full"
+          className="w-1 rounded-full"
+          style={{ backgroundColor: 'var(--ls-sand)' }}
           animate={{
             height: isPlaying ? ['40%', '100%', '60%', '80%', '40%'] : '40%',
           }}
@@ -99,19 +100,18 @@ function CircularProgress({ progress }: { progress: number }) {
         cx="20"
         cy="20"
         r="18"
-        stroke="currentColor"
+        stroke="var(--ls-border-strong)"
         strokeWidth="2"
         fill="none"
-        className="text-border"
       />
       <circle
         cx="20"
         cy="20"
         r="18"
-        stroke="currentColor"
+        stroke="var(--ls-sand)"
         strokeWidth="2"
         fill="none"
-        className="text-primary transition-all duration-300"
+        className="transition-all duration-300"
         strokeDasharray={circumference}
         strokeDashoffset={offset}
         strokeLinecap="round"

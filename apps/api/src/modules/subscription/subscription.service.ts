@@ -262,15 +262,31 @@ export interface SubscriptionStatus {
 export async function getStatus(userId: string): Promise<SubscriptionStatus> {
   const sub = await getCurrentSubscription(userId);
 
-  if (!sub) return { plan: 'free' };
+  // Stripe is the source of truth when a subscription row exists
+  // (i.e. the user has gone through real checkout and the webhook
+  // has flipped their plan).
+  if (sub) {
+    const isPro = sub.status === 'active' || sub.status === 'trialing';
+    return {
+      plan: isPro ? 'pro' : 'free',
+      status: sub.status,
+      billingPeriod: sub.plan,
+      currentPeriodEnd: sub.currentPeriodEnd,
+      trialEndsAt: sub.trialEndsAt,
+      canceledAt: sub.canceledAt,
+    };
+  }
 
-  const isPro = sub.status === 'active' || sub.status === 'trialing';
-  return {
-    plan: isPro ? 'pro' : 'free',
-    status: sub.status,
-    billingPeriod: sub.plan,
-    currentPeriodEnd: sub.currentPeriodEnd,
-    trialEndsAt: sub.trialEndsAt,
-    canceledAt: sub.canceledAt,
-  };
+  // No Stripe subscription — fall back to the users.plan column.
+  // This path covers: (a) dev/test scenarios where plan is flipped
+  // by hand in MySQL, (b) future admin-grant flows that don't go
+  // through Stripe, (c) lifetime-comp accounts.
+  const userRows = await mysqlDb
+    .select({ plan: users.plan })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const plan = userRows[0]?.plan ?? 'free';
+
+  return { plan };
 }
