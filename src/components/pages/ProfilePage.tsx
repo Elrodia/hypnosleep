@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { PencilSimple, CaretRight } from '@phosphor-icons/react'
+import { PencilSimple, CaretRight, SignOut } from '@phosphor-icons/react'
 import { PreferencesPage } from './PreferencesPage'
 import { AccountPage } from './AccountPage'
 import { ProUpgradePage } from './ProUpgradePage'
@@ -12,7 +12,7 @@ import { getProgressStats, getStreak, getSubscriptionStatus } from '@/lib/api-en
 import { consumeUpgradeRequest } from '@/lib/upgrade-intent'
 
 export function ProfilePage() {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const [showPreferences, setShowPreferences] = useState(false)
   const [showAccount, setShowAccount] = useState(false)
   const [showSubscription, setShowSubscription] = useState(false)
@@ -203,6 +203,27 @@ export function ProfilePage() {
             )
           })}
         </nav>
+
+        {/* === LOGOUT === */}
+        <section className="pt-2">
+          <button
+            type="button"
+            onClick={async () => {
+              await logout()
+              // The auth context listener in App.tsx will route us back to
+              // the landing page when status flips to 'unauthenticated'.
+            }}
+            className="w-full flex items-center justify-between py-4 border-b border-[var(--ls-border)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors group"
+          >
+            <span className="text-base text-[var(--ls-text-muted)] group-hover:text-[var(--ls-text)] lowercase transition-colors">
+              sign out
+            </span>
+            <SignOut
+              className="w-4 h-4 text-[var(--ls-text-muted)] group-hover:text-[var(--ls-text)] transition-colors"
+              weight="regular"
+            />
+          </button>
+        </section>
 
         {/* === FOOTER: discreet referral link === */}
         <footer className="pt-8 flex flex-col items-center gap-1 text-xs">

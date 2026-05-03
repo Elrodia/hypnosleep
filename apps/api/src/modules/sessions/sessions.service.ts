@@ -469,6 +469,7 @@ export interface ListedSession {
   title: string;
   category: DbSession['category'];
   durationSec: number;
+  status: DbSession['status'];
   voiceId: string;
   backgroundSound: string | null;
   audioUrl: string | null;
@@ -542,6 +543,7 @@ export async function listSessions(
     title: sessions.title,
     category: sessions.category,
     durationSec: sessions.durationSec,
+    status: sessions.status,
     voiceId: sessions.voiceId,
     backgroundSound: sessions.backgroundSound,
     audioUrl: sessions.audioUrl,

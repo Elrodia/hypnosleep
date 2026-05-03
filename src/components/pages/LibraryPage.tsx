@@ -173,7 +173,7 @@ export function LibraryPage() {
 
   const handlePlaySession = (s: SessionSummary) => {
     play({
-      sessionId: s.status === 'ready' ? s.id : undefined,
+      sessionId: s.id,
       title: s.title,
       category: s.category,
       duration: s.durationSec || 600,
