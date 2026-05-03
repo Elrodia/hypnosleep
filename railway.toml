@@ -79,7 +79,36 @@ dockerfilePath = "Dockerfile"
 # directly; the backgrounded seeder is reparented and exits on its
 # own once it has finished or hit a rate-limit.
 preDeployCommand = "/bin/sh -c \"node --import tsx scripts/bootstrap-migrations.ts && npm run db:migrate\""
-startCommand = "/bin/sh -c \"(node --import tsx scripts/seed-templates.ts || echo 'startup: seed failed, continuing') & exec node dist/server.js\""
+# Boot-time template seeding is intentionally DISABLED.
+#
+# History: `seed-templates.ts` was previously backgrounded from
+# `startCommand` so the 12 home-page templates would auto-populate
+# after a fresh deploy. In practice, on the free Gemini tier
+# (10 rpm on gemini-2.5-flash, 15 rpm on gemini-2.5-flash-lite) the
+# seeder reliably exceeded the quota — each generation makes
+# 2–3 Gemini calls (script + safety checks), so 12 templates ≈ 30
+# requests in the first minute. The retry loop then multiplied the
+# 429 storm and produced the cascade of "Gemini call failed,
+# retrying" / "Script generation failed (permanent)" log entries
+# that drowned real user-triggered failures in the same logs.
+#
+# The Redis-based replica lock in `acquireSeedLock()` already
+# prevents the burst from being multiplied across all 6 replicas,
+# so the problem is the seeder's per-deploy footprint itself, not
+# its concurrency.
+#
+# Pre-baked templates are not on the critical path for HypnoSleep's
+# MVP (per-user personalized sessions are the actual product). If
+# they are needed again later, run the seeder MANUALLY from a
+# controlled environment that can throttle to <10 rpm:
+#
+#   railway run -s <api-service> npm --prefix apps/api run seed:templates
+#
+# (or equivalent: `npx tsx scripts/seed-templates.ts` against the
+# production env vars). Do not re-enable boot-time seeding without
+# first adding per-template throttling and either a paid Gemini
+# tier or a model that comfortably absorbs the burst.
+startCommand = "/bin/sh -c \"exec node dist/server.js\""
 # `/health` is registered before the rate limiter and before the Sentry
 # error handler, so Railway's probes never get 429'd or accidentally
 # captured as synthetic errors. The richer `/api/health` endpoint is
