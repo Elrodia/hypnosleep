@@ -8,13 +8,19 @@ export interface LandingButtonProps extends ButtonHTMLAttributes<HTMLButtonEleme
   size?: Size
   leadingIcon?: ReactNode
   trailingIcon?: ReactNode
+  /**
+   * Retained for API compatibility with older call sites. The Liminal
+   * Space migration drops the loud pulse animation; the prop is accepted
+   * but no longer alters the visual.
+   */
   pulse?: boolean
 }
 
 /**
  * Single CTA primitive for the landing page. We roll our own (rather than
  * reusing the in-app `Button`) so the landing page can ship with the smallest
- * possible style surface and a distinct "marketing" look (gradient, glow).
+ * possible style surface — Liminal Space hairline / sand fill instead of the
+ * legacy violet gradient.
  */
 export const Button = forwardRef<HTMLButtonElement, LandingButtonProps>(function Button(
   {
@@ -22,16 +28,19 @@ export const Button = forwardRef<HTMLButtonElement, LandingButtonProps>(function
     size = 'md',
     leadingIcon,
     trailingIcon,
-    pulse,
+    pulse: _pulse,
     className = '',
     children,
     ...rest
   },
   ref,
 ) {
+  // `pulse` is intentionally consumed and ignored — see prop docs above.
+  void _pulse
+
   const base =
     'inline-flex items-center justify-center gap-2 rounded-full font-medium transition ' +
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ls-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--ls-bg)] ' +
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ls-bg)] ' +
     'disabled:opacity-60 disabled:cursor-not-allowed select-none whitespace-nowrap'
 
   const sizes: Record<Size, string> = {
@@ -41,23 +50,22 @@ export const Button = forwardRef<HTMLButtonElement, LandingButtonProps>(function
 
   const variants: Record<Variant, string> = {
     primary:
-      'text-white shadow-[0_10px_40px_-10px_rgba(124,92,252,0.65)] ' +
-      'bg-[linear-gradient(135deg,#8a6bff_0%,#7c5cfc_45%,#5b8def_100%)] ' +
-      'hover:brightness-110 active:brightness-95',
+      'text-[var(--ls-bg)] bg-[var(--ls-sand)] ' +
+      'hover:bg-[var(--ls-sand)]/90 active:brightness-95',
     secondary:
-      'text-[color:var(--ls-text)] bg-white/5 border border-white/10 backdrop-blur ' +
-      'hover:bg-white/10',
+      'text-[var(--ls-text)] bg-[var(--ls-bg-elevated)] border border-[var(--ls-border)] ' +
+      'hover:border-[var(--ls-border-strong)]',
     ghost:
-      'text-[color:var(--ls-text)] bg-transparent hover:bg-white/5',
+      'text-[var(--ls-text)] bg-transparent hover:bg-[var(--ls-bg-elevated)]',
     outline:
-      'text-[color:var(--ls-text)] border border-[color:var(--ls-primary)]/60 ' +
-      'hover:bg-[color:var(--ls-primary)]/10',
+      'text-[var(--ls-text-muted)] border border-[var(--ls-sand-dim)] ' +
+      'hover:text-[var(--ls-text)] hover:border-[var(--ls-sand)]',
   }
 
   return (
     <button
       ref={ref}
-      className={`${base} ${sizes[size]} ${variants[variant]} ${pulse ? 'ls-pulse' : ''} ${className}`}
+      className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}
       {...rest}
     >
       {leadingIcon}

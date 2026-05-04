@@ -6,15 +6,25 @@
  * @media (prefers-reduced-motion), or html-level backgrounds.
  */
 
+/* Ensure the italic Fraunces axis used by `.ls-display` is loaded even if
+   the global index.html pre-load only includes the roman axis. The global
+   <link> covers the cached cases; this @import is the defense-in-depth so
+   the landing always has an italic 600 to render. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@1,400;1,600&display=swap');
+
 .ls-scope {
-  --ls-bg: #0a0a1a;
-  --ls-surface: #12122a;
-  --ls-surface-elevated: #1a1a3a;
-  --ls-primary: #7c5cfc;
-  --ls-secondary: #5b8def;
-  --ls-gold: #f0c674;
-  --ls-text: #e8e8ff;
-  --ls-text-secondary: #9c9cb8;
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-text-secondary: #8a8580; /* legacy alias = muted */
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+  --ls-primary: #c9b6a3; /* legacy alias = sand */
+  --ls-gold: #c9b6a3;    /* legacy alias = sand */
 
   background: var(--ls-bg);
   color: var(--ls-text);
@@ -28,9 +38,11 @@
 }
 
 .ls-scope .ls-display {
-  font-family: 'Fraunces', 'Cormorant Garamond', 'Crimson Pro', Georgia, serif;
-  font-weight: 500;
-  letter-spacing: -0.02em;
+  font-family: 'Fraunces', Georgia, serif;
+  font-style: italic;
+  text-transform: lowercase;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 /* Subtle film-grain to combat flat digital gradients. 0.03 opacity is enough
@@ -46,45 +58,12 @@
   mix-blend-mode: overlay;
 }
 
-/* Soft radial gradient mesh at the very top of the page — gives the hero an
-   aurora feel without needing an image request. */
-.ls-scope .ls-aurora {
-  position: absolute;
-  inset: -20% -10% auto -10%;
-  height: 90vh;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    radial-gradient(60% 50% at 20% 30%, rgba(124, 92, 252, 0.28), transparent 70%),
-    radial-gradient(55% 45% at 80% 20%, rgba(91, 141, 239, 0.22), transparent 70%),
-    radial-gradient(50% 60% at 60% 80%, rgba(240, 198, 116, 0.08), transparent 70%);
-  filter: blur(30px);
-}
-
-/* Starfield — a single-layer fixed-position element. Uses radial-gradients
-   stacked at random-ish offsets so we don't ship any image assets. */
-.ls-scope .ls-stars {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background-image:
-    radial-gradient(1px 1px at 10% 15%, rgba(232, 232, 255, 0.6), transparent 50%),
-    radial-gradient(1px 1px at 25% 45%, rgba(232, 232, 255, 0.4), transparent 50%),
-    radial-gradient(1.5px 1.5px at 40% 20%, rgba(232, 232, 255, 0.7), transparent 50%),
-    radial-gradient(1px 1px at 65% 70%, rgba(232, 232, 255, 0.35), transparent 50%),
-    radial-gradient(1px 1px at 80% 30%, rgba(232, 232, 255, 0.5), transparent 50%),
-    radial-gradient(1px 1px at 90% 85%, rgba(232, 232, 255, 0.45), transparent 50%),
-    radial-gradient(1.5px 1.5px at 55% 10%, rgba(232, 232, 255, 0.7), transparent 50%);
-  opacity: 0.8;
-}
-
 /* Gentle pulse on the primary CTA. Keeps user's eye on the action without a
    loud "click me now" vibe. Amplitude tuned so it does not trigger motion
    sensitivity complaints — reduced fully for prefers-reduced-motion. */
 @keyframes ls-pulse-kf {
-  0%, 100% { box-shadow: 0 10px 40px -10px rgba(124, 92, 252, 0.65), 0 0 0 0 rgba(124, 92, 252, 0.35); }
-  50%     { box-shadow: 0 10px 40px -10px rgba(124, 92, 252, 0.75), 0 0 0 12px rgba(124, 92, 252, 0); }
+  0%, 100% { box-shadow: 0 10px 40px -10px rgba(201, 182, 163, 0.65), 0 0 0 0 rgba(201, 182, 163, 0.35); }
+  50%     { box-shadow: 0 10px 40px -10px rgba(201, 182, 163, 0.75), 0 0 0 12px rgba(201, 182, 163, 0); }
 }
 .ls-scope .ls-pulse { animation: ls-pulse-kf 3s ease-in-out infinite; }
 
@@ -100,6 +79,13 @@
   max-width: 480px;
   aspect-ratio: 1 / 1;
   margin: 0 auto;
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--ls-sand) 0%,
+    var(--ls-sand-dim) 45%,
+    var(--ls-bg-elevated) 100%
+  );
+  border-radius: 9999px;
 }
 .ls-scope .ls-orb-inner,
 .ls-scope .ls-orb-glow {
@@ -108,18 +94,22 @@
   border-radius: 9999px;
 }
 .ls-scope .ls-orb-inner {
-  background:
-    conic-gradient(from 0deg,
-      #7c5cfc 0deg,
-      #5b8def 90deg,
-      #3a2a8c 180deg,
-      #7c5cfc 270deg,
-      #5b8def 360deg);
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(232, 230, 225, 0.4) 0%,
+    transparent 60%
+  );
   animation: ls-orb-rot 24s linear infinite;
   mask: radial-gradient(circle, black 55%, transparent 70%);
 }
 .ls-scope .ls-orb-glow {
-  background: radial-gradient(circle, rgba(124, 92, 252, 0.55), transparent 65%);
+  background: radial-gradient(
+    circle,
+    rgba(201, 182, 163, 0.18) 0%,
+    rgba(201, 182, 163, 0.08) 40%,
+    transparent 70%
+  );
+  filter: blur(40px);
   animation: ls-orb-breathe 6s ease-in-out infinite;
 }
 
@@ -161,10 +151,10 @@ html:has(.ls-scope) { scroll-behavior: smooth; }
   }
 }
 
-/* Focus rings visible and purple everywhere (accessibility req). */
+/* Focus rings visible on a sand accent everywhere (accessibility req). */
 .ls-scope a:focus-visible,
 .ls-scope button:focus-visible {
-  outline: 2px solid var(--ls-primary);
+  outline: 2px solid var(--ls-sand);
   outline-offset: 2px;
   border-radius: 8px;
 }
