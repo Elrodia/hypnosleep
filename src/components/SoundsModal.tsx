@@ -17,31 +17,53 @@ interface SoundLayer {
   defaultVolume: number
 }
 
-/**
- * Per-layer sound mixing (rain / ocean / forest / wind / white noise)
- * is intentionally not exposed in the player UI right now: the audio
- * generation pipeline produces a single pre-mixed MP3, so adjusting
- * the rain slider after the fact wouldn't actually change anything
- * the user can hear. Until we add a multi-track WebAudio engine on
- * top of the player, only the master volume is wired to the live
- * audio element. Voice layer is preserved here as a label-only row
- * for future expansion.
- */
 const soundLayers: SoundLayer[] = [
-  { id: 'voice', label: 'Voice', icon: Microphone, defaultVolume: 80 },
+  { id: 'voice', label: 'voice', icon: Microphone, defaultVolume: 80 },
 ]
 
+const STYLES = `
+.ls-sounds-modal {
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.ls-sounds-modal .font-fraunces {
+  font-family: 'Fraunces', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+`
+
+const sliderClassName =
+  '[&_[data-slot=slider-track]]:bg-[var(--ls-border-strong)] ' +
+  '[&_[data-slot=slider-range]]:bg-[var(--ls-sand)] ' +
+  '[&_[data-slot=slider-thumb]]:border-[var(--ls-sand)] ' +
+  '[&_[data-slot=slider-thumb]]:bg-[var(--ls-bg)] ' +
+  '[&_[data-slot=slider-thumb]]:shadow-none ' +
+  '[&_[data-slot=slider-thumb]]:focus-visible:ring-[var(--ls-sand-dim)] ' +
+  '[&_[data-slot=slider-thumb]]:hover:ring-[var(--ls-sand)]/20'
+
+/**
+ * Per-layer sound mixing is not exposed yet because generated sessions
+ * are currently delivered as one pre-mixed MP3. The live player can
+ * only adjust the master audio element volume. The voice row stays as
+ * future-facing UI state, but it does not imply multitrack mixing.
+ */
 export function SoundsModal({ isOpen, onClose }: SoundsModalProps) {
   const [masterVolume, setMasterVolume] = useKV<number>('sound-master-volume', 100)
   const [voiceVolume, setVoiceVolume] = useKV<number>('sound-voice-volume', 80)
 
   const { setVolume } = useAudioPlayer()
 
-  // Mirror the persisted master volume into the live audio element
-  // whenever it changes (and on first open). The player ref reads
-  // values 0..1, so divide by 100.
   useEffect(() => {
-    setVolume(((masterVolume ?? 100) / 100))
+    setVolume((masterVolume ?? 100) / 100)
   }, [masterVolume, setVolume])
 
   const volumes: Record<string, number | undefined> = {
@@ -72,13 +94,15 @@ export function SoundsModal({ isOpen, onClose }: SoundsModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
+        <div className="ls-sounds-modal">
+          <style>{STYLES}</style>
+
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="fixed inset-0 z-50 bg-[var(--ls-bg)]/88"
             onClick={onClose}
           />
 
@@ -86,87 +110,115 @@ export function SoundsModal({ isOpen, onClose }: SoundsModalProps) {
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed inset-x-0 bottom-0 z-50 bg-card rounded-t-3xl shadow-2xl max-h-[85vh] overflow-hidden"
+            transition={{ type: 'spring', damping: 32, stiffness: 310 }}
+            className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-hidden rounded-t-md border-t border-[var(--ls-border-strong)] bg-[var(--ls-bg-elevated)] text-[var(--ls-text)]"
+            role="dialog"
+            aria-modal="true"
+            aria-label="sound mixer"
           >
-            <div className="w-12 h-1.5 bg-muted-foreground/30 rounded-full mx-auto mt-3 mb-4" />
+            <div className="mx-auto mb-5 mt-3 h-1.5 w-12 rounded-full bg-[var(--ls-border-strong)]" />
 
-            <div className="flex items-center justify-between px-6 pb-4">
-              <h2 className="text-2xl font-semibold text-foreground">Sound Mixer</h2>
-              <button
-                onClick={onClose}
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-muted/50 hover:bg-muted active:scale-95 transition-all"
-              >
-                <X weight="bold" className="w-5 h-5 text-foreground" />
-              </button>
-            </div>
-
-            <div className="px-6 pb-8 overflow-y-auto max-h-[calc(85vh-80px)] scrollbar-hide">
-              <div className="mb-6 p-4 rounded-xl bg-primary/10 border border-primary/20">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-foreground">Master Volume</span>
-                  <span className="text-sm font-bold text-primary">{masterVolume ?? 100}%</span>
+            <div className="max-h-[calc(85vh-2rem)] overflow-y-auto px-6 pb-8">
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <p className="mb-1 text-xs uppercase tracking-[0.22em] text-[var(--ls-text-subtle)]">
+                    player
+                  </p>
+                  <h2 className="font-fraunces text-2xl italic lowercase text-[var(--ls-text)]">
+                    sound mixer
+                  </h2>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="close sound mixer"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--ls-border-strong)] text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-sand-dim)] hover:text-[var(--ls-text)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
+                >
+                  <X className="h-4 w-4" weight="regular" />
+                </button>
+              </div>
+
+              <section className="mb-6 rounded-md border border-[var(--ls-sand-dim)] bg-[var(--ls-sand)]/8 p-4">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <span className="text-sm lowercase text-[var(--ls-text)]">
+                    master volume
+                  </span>
+                  <span className="min-w-[46px] text-right text-sm tabular-nums text-[var(--ls-sand)]">
+                    {masterVolume ?? 100}%
+                  </span>
+                </div>
+
                 <Slider
                   value={[masterVolume ?? 100]}
                   onValueChange={(value) => setMasterVolume(value[0])}
                   max={100}
                   step={1}
-                  className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary"
+                  aria-label="master volume"
+                  className={sliderClassName}
                 />
-              </div>
+              </section>
 
-              <div className="space-y-5">
+              <section className="space-y-5" aria-label="sound layers">
                 {soundLayers.map((layer) => {
                   const IconComponent = layer.icon
                   const volume = volumes[layer.id] ?? layer.defaultVolume
 
                   return (
-                    <div key={layer.id} className="space-y-2">
+                    <div key={layer.id} className="space-y-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 flex items-center justify-center rounded-full bg-muted">
-                          <IconComponent weight="bold" className="w-5 h-5 text-muted-foreground" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--ls-border-strong)] text-[var(--ls-sand)]">
+                          <IconComponent weight="regular" className="h-5 w-5" />
                         </div>
-                        <div className="flex-1 flex items-center justify-between">
-                          <span className="text-sm font-medium text-foreground">{layer.label}</span>
-                          <span className="text-sm font-semibold text-primary min-w-[42px] text-right">
+
+                        <div className="flex flex-1 items-center justify-between gap-3">
+                          <span className="text-sm lowercase text-[var(--ls-text)]">
+                            {layer.label}
+                          </span>
+                          <span className="min-w-[46px] text-right text-sm tabular-nums text-[var(--ls-text-muted)]">
                             {volume}%
                           </span>
                         </div>
                       </div>
+
                       <div className="pl-[52px]">
                         <Slider
                           value={[volume]}
                           onValueChange={(value) => handleVolumeChange(layer.id, value)}
                           max={100}
                           step={1}
-                          className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary"
+                          aria-label={`${layer.label} volume`}
+                          className={sliderClassName}
                         />
                       </div>
                     </div>
                   )
                 })}
-              </div>
+              </section>
 
-              <div className="mt-6 flex items-start gap-2 p-3 rounded-lg bg-muted/40 border border-border">
-                <Info weight="bold" className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Background sounds are baked into each session at generation time.
-                  Choose a different background from the Create screen to change them.
+              <div className="mt-6 flex items-start gap-3 rounded-md border border-[var(--ls-border)] bg-[var(--ls-bg)]/35 p-3">
+                <Info
+                  weight="regular"
+                  className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ls-sand-dim)]"
+                />
+                <p className="text-xs leading-relaxed text-[var(--ls-text-muted)]">
+                  background sounds are baked into each session at generation time.
+                  choose a different background from the create screen to change them.
                 </p>
               </div>
 
-              <div className="mt-8 pt-6 border-t border-border">
+              <div className="mt-8 border-t border-[var(--ls-border)] pt-6">
                 <button
+                  type="button"
                   onClick={handleResetToDefault}
-                  className="text-sm font-medium text-primary hover:text-primary/80 active:scale-95 transition-all"
+                  className="text-sm lowercase text-[var(--ls-sand)] transition-colors hover:text-[var(--ls-text)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
                 >
-                  Reset to Default
+                  reset to default
                 </button>
               </div>
             </div>
           </motion.div>
-        </>
+        </div>
       )}
     </AnimatePresence>
   )
