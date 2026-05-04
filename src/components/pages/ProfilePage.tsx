@@ -150,7 +150,7 @@ export function ProfilePage() {
             <button
               type="button"
               onClick={() => setShowEdit(true)}
-              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[var(--ls-bg-elevated)] border border-[var(--ls-border-strong)] flex items-center justify-center hover:border-[var(--ls-sand-dim)] active:border-[var(--ls-sand)] active:scale-95 transition-all"
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[var(--ls-bg-elevated)] border border-[var(--ls-border-strong)] flex items-center justify-center hover:border-[var(--ls-sand-dim)] active:border-[var(--ls-sand)] active:scale-95 transition-[border-color,transform]"
               aria-label="edit profile"
             >
               <PencilSimple className="w-3.5 h-3.5 text-[var(--ls-text-muted)]" weight="regular" />

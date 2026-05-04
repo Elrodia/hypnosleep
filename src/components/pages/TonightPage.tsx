@@ -143,7 +143,7 @@ export function TonightPage() {
             <button
               type="button"
               onClick={handlePrimary}
-              className="w-full h-14 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 active:bg-[var(--ls-sand)]/80 active:scale-[0.99] transition-all font-fraunces italic lowercase text-lg flex items-center justify-center gap-3"
+              className="w-full h-14 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 active:bg-[var(--ls-sand)]/80 active:scale-[0.99] transition-[background-color,transform] font-fraunces italic lowercase text-lg flex items-center justify-center gap-3"
             >
               {recommendation.kind === 'create' ? (
                 <>
@@ -178,7 +178,7 @@ export function TonightPage() {
                   new CustomEvent('navigate-to-tab', { detail: 'create' }),
                 )
               }
-              className="w-full h-14 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 active:bg-[var(--ls-sand)]/80 active:scale-[0.99] transition-all font-fraunces italic lowercase text-lg flex items-center justify-center gap-3"
+              className="w-full h-14 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 active:bg-[var(--ls-sand)]/80 active:scale-[0.99] transition-[background-color,transform] font-fraunces italic lowercase text-lg flex items-center justify-center gap-3"
             >
               <ArrowRight weight="regular" className="w-5 h-5" />
               create your first session
