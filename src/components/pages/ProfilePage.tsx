@@ -11,6 +11,32 @@ import { useAuth } from '@/lib/auth-context'
 import { getProgressStats, getStreak, getSubscriptionStatus } from '@/lib/api-endpoints'
 import { consumeUpgradeRequest } from '@/lib/upgrade-intent'
 
+// Liminal `--ls-*` tokens are page-local (not on :root), so this component
+// must declare them itself or none of the `var(--ls-*)` colours and the
+// hover/active utilities that rely on them resolve. `active:` mirrors
+// `hover:` so touch (mobile) users see the same press feedback that
+// desktop users get on hover.
+const STYLES = `
+.ls-profile {
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+.ls-profile .font-fraunces {
+  font-family: 'Fraunces', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+`
+
 export function ProfilePage() {
   const { user, logout } = useAuth()
   const [showPreferences, setShowPreferences] = useState(false)
@@ -110,6 +136,7 @@ export function ProfilePage() {
 
   return (
     <div className="ls-profile min-h-screen bg-[var(--ls-bg)] text-[var(--ls-text)]">
+      <style>{STYLES}</style>
       <div className="mx-auto max-w-xl px-6 pt-12 pb-24 space-y-12">
 
         {/* === HEADER: avatar + name + meta === */}
@@ -123,7 +150,7 @@ export function ProfilePage() {
             <button
               type="button"
               onClick={() => setShowEdit(true)}
-              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[var(--ls-bg-elevated)] border border-[var(--ls-border-strong)] flex items-center justify-center hover:border-[var(--ls-sand-dim)] transition-colors"
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[var(--ls-bg-elevated)] border border-[var(--ls-border-strong)] flex items-center justify-center hover:border-[var(--ls-sand-dim)] active:border-[var(--ls-sand)] active:scale-95 transition-[border-color,transform]"
               aria-label="edit profile"
             >
               <PencilSimple className="w-3.5 h-3.5 text-[var(--ls-text-muted)]" weight="regular" />
@@ -180,12 +207,12 @@ export function ProfilePage() {
                 key={category.id}
                 type="button"
                 onClick={() => handleCategoryClick(category.id)}
-                className="w-full flex items-center justify-between py-4 border-b border-[var(--ls-border)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors group"
+                className="w-full flex items-center justify-between py-4 border-b border-[var(--ls-border)] hover:bg-[var(--ls-bg-elevated)]/40 active:bg-[var(--ls-bg-elevated)]/70 transition-colors group"
               >
                 <span className="text-base text-[var(--ls-text)] lowercase">
                   {category.label.toLowerCase()}
                 </span>
-                <div className="flex items-center gap-3 text-[var(--ls-text-muted)] group-hover:text-[var(--ls-text)] transition-colors">
+                <div className="flex items-center gap-3 text-[var(--ls-text-muted)] group-hover:text-[var(--ls-text)] group-active:text-[var(--ls-text)] transition-colors">
                   {isSubscription && (
                     <span
                       className={
@@ -213,13 +240,13 @@ export function ProfilePage() {
               // The auth context listener in App.tsx will route us back to
               // the landing page when status flips to 'unauthenticated'.
             }}
-            className="w-full flex items-center justify-between py-4 border-b border-[var(--ls-border)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors group"
+            className="w-full flex items-center justify-between py-4 border-b border-[var(--ls-border)] hover:bg-[var(--ls-bg-elevated)]/40 active:bg-[var(--ls-bg-elevated)]/70 transition-colors group"
           >
-            <span className="text-base text-[var(--ls-text-muted)] group-hover:text-[var(--ls-text)] lowercase transition-colors">
+            <span className="text-base text-[var(--ls-text-muted)] group-hover:text-[var(--ls-text)] group-active:text-[var(--ls-text)] lowercase transition-colors">
               sign out
             </span>
             <SignOut
-              className="w-4 h-4 text-[var(--ls-text-muted)] group-hover:text-[var(--ls-text)] transition-colors"
+              className="w-4 h-4 text-[var(--ls-text-muted)] group-hover:text-[var(--ls-text)] group-active:text-[var(--ls-text)] transition-colors"
               weight="regular"
             />
           </button>
@@ -236,7 +263,7 @@ export function ProfilePage() {
               // viral-loop UI lives, if/when it justifies its space.
               window.dispatchEvent(new CustomEvent('navigate-to-referral'))
             }}
-            className="text-[var(--ls-text-muted)] hover:text-[var(--ls-sand)] underline-offset-4 hover:underline transition-colors"
+            className="text-[var(--ls-text-muted)] hover:text-[var(--ls-sand)] active:text-[var(--ls-sand)] underline-offset-4 hover:underline active:underline transition-colors"
           >
             share with a friend
           </button>

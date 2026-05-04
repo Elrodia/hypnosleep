@@ -21,6 +21,33 @@ import { useAuth } from '@/lib/auth-context'
  * to the time-of-day branch.
  */
 
+// Liminal `--ls-*` tokens are page-local (not defined on :root), so this
+// component must declare them itself or none of the `var(--ls-*)`
+// utilities — including `hover:bg-[var(--ls-bg-elevated)]/40`, the
+// `group-hover` ring colours, and the Fraunces font — will resolve.
+// `active:` mirrors the hover treatment so mobile (touch) users get the
+// same press feedback desktop users get on hover.
+const STYLES = `
+.ls-tonight {
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+.ls-tonight .font-fraunces {
+  font-family: 'Fraunces', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+`
+
 type Recommendation =
   | {
       kind: 'time-based'
@@ -87,6 +114,7 @@ export function TonightPage() {
 
   return (
     <div className="ls-tonight min-h-screen bg-[var(--ls-bg)] text-[var(--ls-text)]">
+      <style>{STYLES}</style>
       <div className="mx-auto max-w-xl px-6 pt-12 pb-24 space-y-12">
 
         {/* === GREETING === */}
@@ -115,7 +143,7 @@ export function TonightPage() {
             <button
               type="button"
               onClick={handlePrimary}
-              className="w-full h-14 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 transition-colors font-fraunces italic lowercase text-lg flex items-center justify-center gap-3"
+              className="w-full h-14 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 active:bg-[var(--ls-sand)]/80 active:scale-[0.99] transition-[background-color,transform] font-fraunces italic lowercase text-lg flex items-center justify-center gap-3"
             >
               {recommendation.kind === 'create' ? (
                 <>
@@ -150,7 +178,7 @@ export function TonightPage() {
                   new CustomEvent('navigate-to-tab', { detail: 'create' }),
                 )
               }
-              className="w-full h-14 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 transition-colors font-fraunces italic lowercase text-lg flex items-center justify-center gap-3"
+              className="w-full h-14 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 active:bg-[var(--ls-sand)]/80 active:scale-[0.99] transition-[background-color,transform] font-fraunces italic lowercase text-lg flex items-center justify-center gap-3"
             >
               <ArrowRight weight="regular" className="w-5 h-5" />
               create your first session
@@ -177,7 +205,7 @@ export function TonightPage() {
                       duration: session.durationSec,
                     })
                   }
-                  className="w-full flex items-center justify-between py-4 border-b border-[var(--ls-border)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors group text-left"
+                  className="w-full flex items-center justify-between py-4 border-b border-[var(--ls-border)] hover:bg-[var(--ls-bg-elevated)]/40 active:bg-[var(--ls-bg-elevated)]/70 transition-colors group text-left"
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-base text-[var(--ls-text)] lowercase truncate">
@@ -187,7 +215,7 @@ export function TonightPage() {
                       {session.category} · {Math.round(session.durationSec / 60)} min
                     </p>
                   </div>
-                  <div className="w-9 h-9 rounded-full border border-[var(--ls-border-strong)] group-hover:border-[var(--ls-sand-dim)] flex items-center justify-center text-[var(--ls-text-muted)] group-hover:text-[var(--ls-sand)] transition-colors flex-shrink-0">
+                  <div className="w-9 h-9 rounded-full border border-[var(--ls-border-strong)] group-hover:border-[var(--ls-sand-dim)] group-active:border-[var(--ls-sand)] flex items-center justify-center text-[var(--ls-text-muted)] group-hover:text-[var(--ls-sand)] group-active:text-[var(--ls-sand)] transition-colors flex-shrink-0">
                     <Play weight="fill" className="w-3.5 h-3.5" />
                   </div>
                 </button>
