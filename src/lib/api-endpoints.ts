@@ -26,6 +26,9 @@ export interface UserPreferences {
   hasCompletedOnboarding?: boolean
   /** Mirror of the local quiz flag so the quiz isn't shown twice. */
   hasCompletedQuiz?: boolean
+  /** UI language preference (ISO 639-1). When set, overrides
+   *  client-side detection on subsequent loads / new devices. */
+  language?: 'en' | 'fr' | 'pt' | 'es' | 'de' | 'it'
 }
 
 export interface ProfileUser {

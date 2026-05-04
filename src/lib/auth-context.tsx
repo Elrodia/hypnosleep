@@ -32,6 +32,7 @@ import {
 } from './auth'
 import { apiFetch, ApiError } from './api'
 import type { ProfileUser } from './api-endpoints'
+import i18n from '@/i18n/config'
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 
@@ -125,6 +126,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('auth:unauthorized', onUnauthorized)
     }
   }, [])
+
+  // Sync server-stored language preference to i18next when the user
+  // is loaded. This makes the user's choice follow them across
+  // devices: log in on a new browser, and the server-stored value
+  // overrides the fresh-localStorage detection.
+  useEffect(() => {
+    const serverLang = user?.preferences?.language
+    if (serverLang && i18n.resolvedLanguage !== serverLang) {
+      void i18n.changeLanguage(serverLang)
+    }
+  }, [user?.preferences?.language])
 
   const value = useMemo<AuthContextValue>(
     () => ({ user, status, refresh, setUser, logout }),

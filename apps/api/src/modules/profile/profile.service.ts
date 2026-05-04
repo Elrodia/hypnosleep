@@ -33,6 +33,7 @@ type UserPreferences = {
   dailyReminderTime?: string;
   hasCompletedOnboarding?: boolean;
   hasCompletedQuiz?: boolean;
+  language?: 'en' | 'fr' | 'pt' | 'es' | 'de' | 'it';
 };
 
 /**

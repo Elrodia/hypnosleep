@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { GoogleLogo, GithubLogo, MicrosoftOutlookLogo } from '@phosphor-icons/react'
 import { Logo } from '@/components/Logo'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { canUseOAuthBrowserState, startOAuth, type OAuthProvider } from '@/lib/auth'
 import { toast } from 'sonner'
 
@@ -76,6 +77,14 @@ export function LoginPage() {
           <p className="text-xs text-[var(--ls-text-subtle)] lowercase">
             by continuing, you agree to our terms and privacy policy.
           </p>
+        </div>
+
+        {/* ── Language switcher ──
+            Placed below the terms footer so it's available without
+            competing visually with the OAuth buttons (the primary
+            action). */}
+        <div className="flex justify-center pt-4">
+          <LanguageSwitcher variant="compact" />
         </div>
       </motion.div>
     </div>

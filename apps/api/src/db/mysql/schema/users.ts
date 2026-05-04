@@ -33,6 +33,10 @@ export const users = mysqlTable(
       defaultBackground: string;
       theme: 'dark' | 'light';
       dailyReminderTime?: string; // "22:00"
+      // UI language preference (ISO 639-1). Optional — existing rows
+      // without this field fall back to client-side detection
+      // (navigator.language / localStorage).
+      language?: 'en' | 'fr' | 'pt' | 'es' | 'de' | 'it';
     }>(),
     referralCode: varchar('referral_code', { length: 12 }).notNull().unique(),
     referredBy: varchar('referred_by', { length: 36 }), // FK to users.id
