@@ -1,19 +1,18 @@
 import { CSSProperties } from 'react'
 
-export type LogoVariant = 'mark' | 'wordmark' | 'full'
+export type LogoVariant = 'mark' | 'wordmark'
 
 export interface LogoProps {
   /**
    * Which rendering of the brand to show:
    * - `mark`: crescent-moon icon only (square)
    * - `wordmark`: mark + "Hypno Sleep" lockup
-   * - `full`: mark + wordmark + "REWIRE · RELAX · RESTORE" tagline
    */
   variant?: LogoVariant
   /**
    * Size of the logo:
    * - For `mark`: pixel edge of the square (width = height = size)
-   * - For `wordmark` / `full`: pixel *height* of the lockup; width is computed from the
+   * - For `wordmark`: pixel *height* of the lockup; width is computed from the
    *   intrinsic aspect ratio so there is no CLS.
    * Accepts a number (px) or any CSS length string (e.g. `"2rem"`, `"100%"`).
    */
@@ -32,7 +31,6 @@ export interface LogoProps {
 const INTRINSIC: Record<LogoVariant, { src: string; w: number; h: number }> = {
   mark: { src: '/logo-mark.png', w: 1024, h: 1024 },
   wordmark: { src: '/logo-wordmark.png', w: 2048, h: 1024 },
-  full: { src: '/logo-wordmark.svg', w: 320, h: 64 },
 }
 
 /**
