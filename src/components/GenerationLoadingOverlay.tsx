@@ -1,10 +1,11 @@
 import { motion, AnimatePresence } from 'framer-motion'
+import type { ReactNode } from 'react'
 import { X, PenNib, Waveform, MusicNote, Sparkle, Check } from '@phosphor-icons/react'
 
 interface GenerationStep {
   id: number
   label: string
-  icon: React.ReactNode
+  icon: ReactNode
   status: 'pending' | 'active' | 'complete'
 }
 
@@ -24,8 +25,8 @@ interface GenerationLoadingOverlayProps {
 }
 
 // Maps each canonical backend step to the user-facing row it belongs
-// to. `upload` and `done` both drive the "Finalizing session..." row
-// (index 3); `error` is rendered without an explicit active row.
+// to. `upload` and `done` both drive the "finalizing session..." row
+// (index 3). Unknown or error states keep the existing queued fallback.
 const STEP_INDEX: Record<string, number> = {
   queued: 0,
   script: 0,
@@ -35,6 +36,26 @@ const STEP_INDEX: Record<string, number> = {
   done: 3,
 }
 
+const STYLES = `
+.ls-generation-overlay {
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.ls-generation-overlay .font-fraunces {
+  font-family: 'Fraunces', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+`
+
 export function GenerationLoadingOverlay({
   isOpen,
   onCancel,
@@ -43,10 +64,10 @@ export function GenerationLoadingOverlay({
   message,
 }: GenerationLoadingOverlayProps) {
   const baseSteps: Omit<GenerationStep, 'status'>[] = [
-    { id: 1, label: 'Crafting your script...', icon: <PenNib weight="duotone" /> },
-    { id: 2, label: 'Generating audio...', icon: <Waveform weight="duotone" /> },
-    { id: 3, label: 'Adding background sounds...', icon: <MusicNote weight="duotone" /> },
-    { id: 4, label: 'Finalizing session...', icon: <Sparkle weight="duotone" /> },
+    { id: 1, label: 'crafting your script...', icon: <PenNib weight="regular" /> },
+    { id: 2, label: 'generating audio...', icon: <Waveform weight="regular" /> },
+    { id: 3, label: 'adding background sounds...', icon: <MusicNote weight="regular" /> },
+    { id: 4, label: 'finalizing session...', icon: <Sparkle weight="regular" /> },
   ]
 
   const activeIdx = STEP_INDEX[step ?? 'queued'] ?? 0
@@ -72,139 +93,146 @@ export function GenerationLoadingOverlay({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-xl"
+          transition={{ duration: 0.28, ease: 'easeOut' }}
+          className="ls-generation-overlay fixed inset-0 z-50 flex items-center justify-center bg-[var(--ls-bg)] text-[var(--ls-text)]"
         >
-          <div className="flex flex-col items-center justify-center px-6 w-full max-w-md">
+          <style>{STYLES}</style>
+
+          <div className="w-full max-w-md px-6 py-10">
             <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.1, duration: 0.4, ease: 'easeOut' }}
-              className="relative w-64 h-64 mb-12"
+              initial={{ y: 8, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+              className="flex flex-col items-center text-center"
             >
-              <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                className="relative mb-10 flex h-40 w-40 items-center justify-center"
+                aria-hidden="true"
+              >
+                {[0, 1, 2].map((index) => (
+                  <motion.div
+                    key={index}
+                    className="absolute rounded-full border border-[var(--ls-sand)]/30"
+                    initial={{ width: 56, height: 56, opacity: 0.35 }}
+                    animate={{
+                      width: [56, 148, 148],
+                      height: [56, 148, 148],
+                      opacity: [0.35, 0.12, 0],
+                    }}
+                    transition={{
+                      duration: 3.4,
+                      repeat: Infinity,
+                      delay: index * 0.55,
+                      ease: 'easeOut',
+                    }}
+                  />
+                ))}
+
                 <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
-                  className="w-full h-full"
-                  style={{
-                    background: 'conic-gradient(from 0deg, transparent 0%, oklch(0.58 0.18 285) 50%, oklch(0.48 0.22 290) 100%)',
-                    borderRadius: '50%',
-                    filter: 'blur(20px)',
-                  }}
-                />
+                  animate={{ scale: [1, 1.04, 1], opacity: [0.86, 1, 0.86] }}
+                  transition={{ duration: 4.2, repeat: Infinity, ease: 'easeInOut' }}
+                  className="relative flex h-20 w-20 items-center justify-center rounded-full border border-[var(--ls-border-strong)] bg-[var(--ls-bg-elevated)]"
+                >
+                  <Sparkle
+                    size={34}
+                    weight="regular"
+                    className="text-[var(--ls-sand)]"
+                  />
+                </motion.div>
               </div>
 
-              <div className="absolute inset-0 flex items-center justify-center">
-                <motion.div
-                  animate={{ rotate: -360 }}
-                  transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
-                  className="w-4/5 h-4/5"
-                  style={{
-                    background: 'conic-gradient(from 180deg, oklch(0.48 0.22 290) 0%, transparent 50%, oklch(0.58 0.18 285) 100%)',
-                    borderRadius: '50%',
-                    filter: 'blur(15px)',
-                  }}
-                />
-              </div>
+              <h2 className="font-fraunces italic lowercase text-3xl leading-tight text-[var(--ls-text)]">
+                building your session
+              </h2>
 
-              <div className="absolute inset-0 flex items-center justify-center">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
-                  className="w-3/5 h-3/5"
-                  style={{
-                    background: 'conic-gradient(from 90deg, transparent 0%, oklch(0.58 0.18 285) 50%, oklch(0.48 0.22 290) 100%)',
-                    borderRadius: '50%',
-                    filter: 'blur(10px)',
-                  }}
-                />
-              </div>
-
-              <div className="absolute inset-0 flex items-center justify-center">
-                <motion.div
-                  animate={{ 
-                    scale: [1, 1.1, 1],
-                    opacity: [0.6, 0.8, 0.6]
-                  }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                  className="w-2/5 h-2/5 rounded-full bg-primary"
-                  style={{
-                    boxShadow: '0 0 60px 20px oklch(0.58 0.18 285 / 0.5)',
-                  }}
-                />
-              </div>
+              <p className="mt-3 max-w-xs text-sm leading-relaxed text-[var(--ls-text-muted)]">
+                keep this screen open while hypnosleep prepares the audio.
+              </p>
             </motion.div>
 
             <motion.div
-              initial={{ y: 20, opacity: 0 }}
+              initial={{ y: 14, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.2, duration: 0.4 }}
-              className="w-full space-y-4 mb-8"
+              transition={{ delay: 0.12, duration: 0.35, ease: 'easeOut' }}
+              className="mt-10 space-y-2"
             >
-              {steps.map((step, index) => (
+              {steps.map((generationStep, index) => (
                 <motion.div
-                  key={step.id}
-                  initial={{ x: -20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.3 + index * 0.1, duration: 0.3 }}
-                  className="flex items-center gap-4 p-4 rounded-lg bg-card/50 backdrop-blur-sm border border-border/50"
+                  key={generationStep.id}
+                  initial={{ y: 8, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.18 + index * 0.06, duration: 0.28 }}
+                  className={`flex items-center gap-3 rounded-md border px-3.5 py-3 transition-colors duration-300 ${
+                    generationStep.status === 'active'
+                      ? 'border-[var(--ls-sand-dim)] bg-[var(--ls-sand)]/8'
+                      : 'border-[var(--ls-border)] bg-[var(--ls-bg-elevated)]/40'
+                  }`}
                 >
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-secondary/50 text-foreground shrink-0">
-                    {step.status === 'complete' ? (
+                  <div
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors duration-300 ${
+                      generationStep.status === 'complete'
+                        ? 'border-[var(--ls-sand)] text-[var(--ls-sand)]'
+                        : generationStep.status === 'active'
+                        ? 'border-[var(--ls-sand-dim)] text-[var(--ls-sand)]'
+                        : 'border-[var(--ls-border)] text-[var(--ls-text-subtle)]'
+                    }`}
+                  >
+                    {generationStep.status === 'complete' ? (
                       <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                        initial={{ scale: 0.75, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ duration: 0.18, ease: 'easeOut' }}
                       >
-                        <Check size={24} weight="bold" className="text-primary" />
+                        <Check size={18} weight="regular" />
                       </motion.div>
-                    ) : step.status === 'active' ? (
+                    ) : generationStep.status === 'active' ? (
                       <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                        className="text-primary"
+                        animate={{ opacity: [0.65, 1, 0.65] }}
+                        transition={{
+                          duration: 1.6,
+                          repeat: Infinity,
+                          ease: 'easeInOut',
+                        }}
                       >
-                        {step.icon}
+                        {generationStep.icon}
                       </motion.div>
                     ) : (
-                      <div className="text-muted-foreground/50">
-                        {step.icon}
-                      </div>
+                      generationStep.icon
                     )}
                   </div>
 
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium transition-colors duration-300 ${
-                      step.status === 'complete' 
-                        ? 'text-muted-foreground line-through' 
-                        : step.status === 'active' 
-                        ? 'text-foreground' 
-                        : 'text-muted-foreground/50'
-                    }`}>
-                      {step.label}
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={`text-left text-sm transition-colors duration-300 ${
+                        generationStep.status === 'complete'
+                          ? 'text-[var(--ls-text-muted)] line-through decoration-[var(--ls-border-strong)]'
+                          : generationStep.status === 'active'
+                          ? 'text-[var(--ls-text)]'
+                          : 'text-[var(--ls-text-subtle)]'
+                      }`}
+                    >
+                      {generationStep.label}
                     </p>
                   </div>
 
-                  {step.status === 'active' && (
+                  {generationStep.status === 'active' && (
                     <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="flex gap-1"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="flex items-end gap-1"
+                      aria-hidden="true"
                     >
                       {[0, 1, 2].map((i) => (
-                        <motion.div
+                        <motion.span
                           key={i}
-                          animate={{
-                            height: ['4px', '12px', '4px'],
-                          }}
+                          animate={{ height: [4, 11, 4] }}
                           transition={{
-                            duration: 0.8,
+                            duration: 1,
                             repeat: Infinity,
-                            delay: i * 0.15,
+                            delay: i * 0.16,
                             ease: 'easeInOut',
                           }}
-                          className="w-1 bg-primary rounded-full"
+                          className="w-1 rounded-full bg-[var(--ls-sand)]"
                         />
                       ))}
                     </motion.div>
@@ -216,8 +244,8 @@ export function GenerationLoadingOverlay({
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.5, duration: 0.4 }}
-              className="w-full mb-6 space-y-2"
+              transition={{ delay: 0.34, duration: 0.35 }}
+              className="mt-7 space-y-2"
             >
               {/* Live progress bar driven by the backend SSE stream. */}
               <div
@@ -227,15 +255,16 @@ export function GenerationLoadingOverlay({
                 aria-valuenow={clampedPercent}
                 aria-valuetext={`${clampedPercent}% — ${message ?? 'Preparing your session...'}`}
                 aria-label="Session generation progress"
-                className="h-1.5 w-full rounded-full bg-secondary/40 overflow-hidden"
+                className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--ls-border-strong)]"
               >
                 <motion.div
-                  className="h-full bg-primary"
+                  className="h-full rounded-full bg-[var(--ls-sand)]"
                   animate={{ width: `${clampedPercent}%` }}
                   transition={{ duration: 0.4, ease: 'easeOut' }}
                 />
               </div>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
+
+              <div className="flex items-center justify-between gap-3 text-xs text-[var(--ls-text-muted)]">
                 <span
                   className="truncate pr-2"
                   aria-live="polite"
@@ -243,21 +272,23 @@ export function GenerationLoadingOverlay({
                 >
                   {message ?? 'Preparing your session...'}
                 </span>
-                <span className="tabular-nums text-foreground font-medium shrink-0">
+
+                <span className="shrink-0 tabular-nums text-[var(--ls-text)]">
                   {clampedPercent}%
                 </span>
               </div>
             </motion.div>
 
             <motion.button
+              type="button"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.6, duration: 0.4 }}
+              transition={{ delay: 0.44, duration: 0.35 }}
               onClick={onCancel}
-              className="flex items-center gap-2 px-6 py-3 rounded-lg bg-secondary/50 hover:bg-secondary text-foreground transition-colors duration-200"
+              className="mx-auto mt-8 flex h-11 items-center justify-center gap-2 rounded-md border border-[var(--ls-border-strong)] px-5 text-sm lowercase text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-sand-dim)] hover:text-[var(--ls-text)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
             >
-              <X size={18} />
-              <span className="text-sm font-medium">Cancel Generation</span>
+              <X size={16} weight="regular" />
+              <span>cancel generation</span>
             </motion.button>
           </div>
         </motion.div>
