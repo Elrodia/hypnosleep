@@ -19,8 +19,8 @@ export function UseCases({ onCtaClick }: UseCasesProps) {
     <section className="relative py-20 sm:py-28" aria-label="Use cases">
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
         <header className="max-w-2xl mb-10">
-          <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--ls-primary)] mb-3">Use cases</p>
-          <h2 className="ls-display text-3xl sm:text-4xl mb-4">What are you here to change?</h2>
+          <p className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)] mb-3">Use cases</p>
+          <h2 className="font-fraunces italic lowercase text-3xl sm:text-4xl mb-4 text-[var(--ls-text)]">what are you here to change?</h2>
         </header>
 
         {/* Tab strip. Horizontally scrollable on mobile so touch targets stay big. */}
@@ -42,8 +42,8 @@ export function UseCases({ onCtaClick }: UseCasesProps) {
                 className={
                   'shrink-0 rounded-full px-4 py-2 text-sm transition ' +
                   (selected
-                    ? 'bg-[color:var(--ls-primary)] text-white'
-                    : 'bg-white/5 text-[color:var(--ls-text-secondary)] border border-white/10 hover:text-[color:var(--ls-text)]')
+                    ? 'bg-[var(--ls-sand)] text-[var(--ls-bg)]'
+                    : 'border border-[var(--ls-border-strong)] text-[var(--ls-text-muted)] hover:text-[var(--ls-text)]')
                 }
               >
                 {u.label}
@@ -69,9 +69,9 @@ export function UseCases({ onCtaClick }: UseCasesProps) {
                   : 'max-w-2xl'
               }
             >
-              <GlassCard className="p-6 sm:p-7">
+              <GlassCard className="p-6 sm:p-7 bg-[var(--ls-bg-elevated)] border border-[var(--ls-border)] rounded-md">
                 <h3 className="ls-display text-2xl mb-3">{current.label}</h3>
-                <p className="text-[color:var(--ls-text-secondary)] leading-relaxed mb-6">
+                <p className="text-[var(--ls-text-muted)] leading-relaxed mb-6">
                   {current.description}
                 </p>
                 <Button
@@ -87,12 +87,12 @@ export function UseCases({ onCtaClick }: UseCasesProps) {
                 <ul className="grid sm:grid-cols-2 gap-4">
                   {quotes.map((q) => (
                     <li key={q.name}>
-                      <GlassCard className="p-5 h-full">
-                        <p className="text-sm leading-relaxed text-[color:var(--ls-text)] mb-4">
+                      <GlassCard className="p-5 h-full bg-[var(--ls-bg-elevated)] border border-[var(--ls-border)] rounded-md">
+                        <p className="text-sm leading-relaxed text-[var(--ls-text)] mb-4">
                           &ldquo;{q.quote}&rdquo;
                         </p>
-                        <div className="text-xs text-[color:var(--ls-text-secondary)]">
-                          <span className="text-[color:var(--ls-text)]">{q.name}</span> · {q.role}
+                        <div className="text-xs text-[var(--ls-text-muted)]">
+                          <span className="text-[var(--ls-text)]">{q.name}</span> · {q.role}
                         </div>
                       </GlassCard>
                     </li>

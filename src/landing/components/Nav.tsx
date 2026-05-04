@@ -49,8 +49,8 @@ export function Nav({ onCtaClick, onLogin }: NavProps) {
         className={
           'fixed top-0 inset-x-0 z-40 transition-colors ' +
           (scrolled
-            ? 'bg-[color:var(--ls-bg)]/85 backdrop-blur-xl border-b border-white/5'
-            : 'bg-transparent backdrop-blur-md')
+            ? 'bg-[var(--ls-bg)]/95 border-b border-[var(--ls-border)]'
+            : 'bg-transparent')
         }
       >
         <div className="mx-auto max-w-7xl flex items-center justify-between px-5 sm:px-8 h-16">
@@ -59,13 +59,13 @@ export function Nav({ onCtaClick, onLogin }: NavProps) {
             <span className="ls-display text-lg tracking-tight">HypnoSleep</span>
           </a>
 
-          <nav className="hidden md:flex items-center gap-8 text-sm text-[color:var(--ls-text-secondary)]">
+          <nav className="hidden md:flex items-center gap-8 text-sm text-[var(--ls-text-muted)]">
             {navLinks.map((l) => (
               <a
                 key={l.href}
                 href={l.href}
                 onClick={() => go(l.href)}
-                className="hover:text-[color:var(--ls-text)] transition"
+                className="hover:text-[var(--ls-text)] transition"
               >
                 {l.label}
               </a>
@@ -75,7 +75,7 @@ export function Nav({ onCtaClick, onLogin }: NavProps) {
           <div className="hidden md:flex items-center gap-3">
             <button
               onClick={onLogin}
-              className="text-sm text-[color:var(--ls-text-secondary)] hover:text-[color:var(--ls-text)] transition px-3 py-2"
+              className="text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition px-3 py-2"
             >
               Log In
             </button>
@@ -84,7 +84,7 @@ export function Nav({ onCtaClick, onLogin }: NavProps) {
 
           <button
             type="button"
-            className="md:hidden inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/5 border border-white/10"
+            className="md:hidden inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--ls-border-strong)] text-[var(--ls-text)]"
             aria-label="Open menu"
             aria-expanded={drawerOpen}
             onClick={() => setDrawerOpen((o) => !o)}
@@ -97,7 +97,7 @@ export function Nav({ onCtaClick, onLogin }: NavProps) {
       {/* Mobile drawer */}
       {drawerOpen && (
         <div
-          className="fixed inset-0 z-50 md:hidden bg-[color:var(--ls-bg)]/95 backdrop-blur-xl pt-20"
+          className="fixed inset-0 z-50 md:hidden bg-[var(--ls-bg)] pt-20"
           role="dialog"
           aria-modal="true"
           aria-label="Navigation menu"
@@ -108,7 +108,7 @@ export function Nav({ onCtaClick, onLogin }: NavProps) {
                 key={l.href}
                 href={l.href}
                 onClick={() => go(l.href)}
-                className="text-2xl ls-display py-3 border-b border-white/5"
+                className="font-fraunces italic lowercase text-2xl py-3 border-b border-[var(--ls-border)] text-[var(--ls-text)]"
               >
                 {l.label}
               </a>
