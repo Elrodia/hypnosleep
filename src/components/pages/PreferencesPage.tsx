@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { useKV } from '@/hooks/use-kv'
 
 // Voice ids match the backend `VOICES` registry so the value the user
@@ -210,6 +211,17 @@ export function PreferencesPage({ onBack }: PreferencesPageProps) {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* language — between default voice and background, per
+              28a spec. The switcher persists choice to localStorage
+              and (when authenticated) PATCHes /api/profile so the
+              choice follows the user across devices. */}
+          <div className="flex items-center justify-between py-4 border-b border-[var(--ls-border)]">
+            <span className="text-base text-[var(--ls-text)] lowercase">
+              language
+            </span>
+            <LanguageSwitcher variant="default" />
           </div>
 
           {/* background */}

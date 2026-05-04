@@ -25,6 +25,7 @@ export const updateProfileSchema = z.object({
         .optional(),
       hasCompletedOnboarding: z.boolean().optional(),
       hasCompletedQuiz: z.boolean().optional(),
+      language: z.enum(['en', 'fr', 'pt', 'es', 'de', 'it']).optional(),
     })
     .optional(),
 });

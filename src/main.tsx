@@ -7,6 +7,7 @@ import { ErrorFallback } from './ErrorFallback.tsx'
 import { queryClient } from './lib/queryClient'
 import { AuthProvider } from './lib/auth-context'
 
+import './i18n/config'
 import "./main.css"
 
 /**

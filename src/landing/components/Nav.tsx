@@ -3,6 +3,7 @@ import { Menu, X } from 'lucide-react'
 import { Button } from './shared/Button'
 import { posthog } from '../lib/posthog'
 import { Logo } from '../../components/Logo'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 
 interface NavProps {
   onCtaClick: (location: string) => void
@@ -73,6 +74,7 @@ export function Nav({ onCtaClick, onLogin }: NavProps) {
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
+            <LanguageSwitcher variant="compact" />
             <button
               onClick={onLogin}
               className="text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition px-3 py-2"
