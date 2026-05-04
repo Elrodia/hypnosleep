@@ -77,6 +77,31 @@ const INDUCTION_STYLES = [
 
 type DepthLevel = 'light' | 'medium' | 'deep'
 
+// Liminal `--ls-*` tokens are page-local (not defined on :root), so this
+// page must declare them itself. Without this block hover/selected states
+// on the length / voice / background / induction / depth buttons collapse
+// to invisible borders and there is no visible feedback while choosing
+// session options.
+const STYLES = `
+.ls-create {
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.ls-create .font-fraunces {
+  font-family: 'Fraunces', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+`
+
 /**
  * Heuristic mapping from free-text prompts to backend category slugs.
  * Order matters: the first keyword that matches wins. Falls back to
@@ -496,6 +521,7 @@ export function CreatePage() {
   return (
     <>
       <div className="ls-create min-h-screen bg-[var(--ls-bg)] text-[var(--ls-text)]">
+        <style>{STYLES}</style>
         <div className="mx-auto max-w-xl px-6 pt-12 pb-24 space-y-10">
 
           {/* === HEADER === */}
