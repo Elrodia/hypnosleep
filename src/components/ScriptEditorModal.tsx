@@ -1,7 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, type ChangeEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkle } from '@phosphor-icons/react'
-import { Button } from './ui/button'
 import { toast } from 'sonner'
 import { editSessionScript, regenerateSessionAudio } from '@/lib/api-endpoints'
 import { ApiError } from '@/lib/api'
@@ -13,15 +12,39 @@ interface ScriptEditorModalProps {
   /**
    * Optional session id. When provided, the inline AI regeneration
    * button calls `POST /api/sessions/:id/regenerate` to kick off a
-   * full audio regeneration using the current (possibly edited)
-   * script. Without an id, the AI button is disabled with a friendly
-   * explanation.
+   * full audio regeneration using the current edited script.
    */
   sessionId?: string
   onSave: (editedScript: string, modifiedSections: Set<number>) => void
 }
 
-export function ScriptEditorModal({ isOpen, onClose, initialScript, sessionId, onSave }: ScriptEditorModalProps) {
+const STYLES = `
+.ls-script-editor {
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.ls-script-editor .font-fraunces {
+  font-family: 'Fraunces', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+`
+
+export function ScriptEditorModal({
+  isOpen,
+  onClose,
+  initialScript,
+  sessionId,
+  onSave,
+}: ScriptEditorModalProps) {
   const [script, setScript] = useState(initialScript)
   const [modifiedParagraphs, setModifiedParagraphs] = useState<Set<number>>(new Set())
   const [isRegenerating, setIsRegenerating] = useState(false)
@@ -34,25 +57,26 @@ export function ScriptEditorModal({ isOpen, onClose, initialScript, sessionId, o
     }
   }, [isOpen, initialScript])
 
-  const paragraphs = script.split('\n\n').filter(p => p.trim())
-  const wordCount = script.trim().split(/\s+/).filter(word => word.length > 0).length
+  const paragraphs = script.split('\n\n').filter((p) => p.trim())
+  const wordCount = script.trim().split(/\s+/).filter((word) => word.length > 0).length
 
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setScript(e.target.value)
+  const handleTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+    setScript(event.target.value)
   }
 
   const getSelectedParagraphIndex = (): number | null => {
-    if (!textareaRef.current) return null
+    const textarea = textareaRef.current
+    if (!textarea) return null
 
-    const selection = window.getSelection()
-    if (!selection || selection.rangeCount === 0) return null
+    const selectedText = textarea.value
+      .slice(textarea.selectionStart, textarea.selectionEnd)
+      .trim()
 
-    const selectedText = selection.toString().trim()
     if (!selectedText) return null
 
-    for (let i = 0; i < paragraphs.length; i++) {
-      if (paragraphs[i].includes(selectedText)) {
-        return i
+    for (let index = 0; index < paragraphs.length; index++) {
+      if (paragraphs[index].includes(selectedText)) {
+        return index
       }
     }
 
@@ -72,22 +96,23 @@ export function ScriptEditorModal({ isOpen, onClose, initialScript, sessionId, o
     }
 
     setIsRegenerating(true)
+
     try {
-      // Persist the user's edits first so the backend regenerates
-      // against the script currently visible in the editor — not
-      // whatever was last saved. Without this the server would
-      // regenerate the stale version and the user's changes would be
-      // silently ignored.
+      // Persist visible edits first so backend regeneration uses the
+      // current editor state instead of the last saved script.
       if (script !== initialScript) {
         await editSessionScript(sessionId, script)
       }
+
       await regenerateSessionAudio(sessionId)
+
       setModifiedParagraphs((prev) => {
         const next = new Set(prev)
         next.add(paragraphIndex)
         return next
       })
-      toast.success('Regeneration started. We\'ll update the audio when it\'s ready.')
+
+      toast.success("Regeneration started. We'll update the audio when it's ready.")
     } catch (error) {
       if (error instanceof ApiError && error.status === 402) {
         toast.error('AI regeneration is a Pro feature.')
@@ -111,6 +136,7 @@ export function ScriptEditorModal({ isOpen, onClose, initialScript, sessionId, o
       const confirmed = confirm('You have unsaved changes. Are you sure you want to cancel?')
       if (!confirmed) return
     }
+
     onClose()
   }
 
@@ -123,10 +149,12 @@ export function ScriptEditorModal({ isOpen, onClose, initialScript, sessionId, o
       lines.push(
         <div
           key={index}
-          className={`relative ${isModified ? 'pl-3 border-l-4 border-primary/60' : ''}`}
+          className={`relative ${
+            isModified ? 'pl-3 border-l-4 border-[var(--ls-sand)]/70' : ''
+          }`}
         >
           {paragraph}
-        </div>
+        </div>,
       )
 
       if (index < paragraphs.length - 1) {
@@ -140,58 +168,69 @@ export function ScriptEditorModal({ isOpen, onClose, initialScript, sessionId, o
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
+        <div className="ls-script-editor">
+          <style>{STYLES}</style>
+
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="fixed inset-0 z-50 bg-[var(--ls-bg)]/88"
             onClick={handleCancel}
           />
-          
+
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed inset-0 z-50 bg-background flex flex-col"
+            transition={{ type: 'spring', damping: 32, stiffness: 310 }}
+            className="fixed inset-0 z-50 flex flex-col bg-[var(--ls-bg)] text-[var(--ls-text)]"
+            role="dialog"
+            aria-modal="true"
+            aria-label="edit script"
           >
-            <div className="sticky top-0 z-10 bg-card border-b border-border px-4 py-3 flex items-center justify-between">
-              <Button
-                variant="ghost"
-                size="sm"
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--ls-border)] bg-[var(--ls-bg)] px-4 py-3">
+              <button
+                type="button"
                 onClick={handleCancel}
-                className="text-foreground hover:text-primary"
+                className="h-10 rounded-md border border-transparent px-3 text-sm lowercase text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
               >
-                Cancel
-              </Button>
-              
-              <h2 className="font-semibold text-lg">Edit Script</h2>
-              
-              <Button
-                size="sm"
+                cancel
+              </button>
+
+              <div className="text-center">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--ls-text-subtle)]">
+                  pro
+                </p>
+                <h2 className="font-fraunces text-xl italic lowercase text-[var(--ls-text)]">
+                  edit script
+                </h2>
+              </div>
+
+              <button
+                type="button"
                 onClick={handleSave}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                className="h-10 rounded-md bg-[var(--ls-sand)] px-4 text-sm lowercase text-[var(--ls-bg)] transition-colors hover:bg-[var(--ls-sand)]/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
               >
-                Save Changes
-              </Button>
+                save
+              </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-6 relative">
-              <div className="max-w-3xl mx-auto">
+            <div className="relative flex-1 overflow-y-auto px-4 py-6">
+              <div className="mx-auto max-w-3xl">
                 <textarea
                   ref={textareaRef}
                   value={script}
                   onChange={handleTextChange}
-                  className="w-full min-h-[calc(100vh-200px)] bg-transparent text-foreground font-serif resize-none border-none outline-none focus:outline-none focus:ring-0 leading-relaxed"
-                  style={{ fontSize: '18px' }}
+                  className="min-h-[calc(100vh-200px)] w-full resize-none border-none bg-transparent font-fraunces text-lg leading-relaxed text-[var(--ls-text)] outline-none placeholder:text-[var(--ls-text-subtle)] focus:outline-none focus:ring-0"
+                  spellCheck
                 />
-                
+
                 <div className="pointer-events-none absolute inset-0 px-4 py-6">
-                  <div className="max-w-3xl mx-auto">
-                    <div 
-                      className="text-lg leading-relaxed text-transparent font-serif whitespace-pre-wrap"
-                      style={{ fontSize: '18px' }}
+                  <div className="mx-auto max-w-3xl">
+                    <div
+                      className="whitespace-pre-wrap font-fraunces text-lg leading-relaxed text-transparent"
                       aria-hidden="true"
                     >
                       {renderHighlightedParagraphs()}
@@ -201,26 +240,39 @@ export function ScriptEditorModal({ isOpen, onClose, initialScript, sessionId, o
               </div>
             </div>
 
-            <div className="sticky bottom-0 bg-card/95 backdrop-blur-lg border-t border-border px-4 py-3 flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
+            <div className="sticky bottom-0 flex items-center justify-between border-t border-[var(--ls-border)] bg-[var(--ls-bg)] px-4 py-3">
+              <div className="text-sm lowercase tabular-nums text-[var(--ls-text-muted)]">
                 {wordCount.toLocaleString()} words
+              </div>
+
+              <div className="text-xs lowercase text-[var(--ls-text-subtle)]">
+                select text, then regenerate
               </div>
             </div>
 
             <motion.button
+              type="button"
               onClick={handleAISuggest}
               disabled={isRegenerating}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="fixed bottom-20 right-6 z-20 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full p-4 shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              whileHover={{ scale: isRegenerating ? 1 : 1.03 }}
+              whileTap={{ scale: isRegenerating ? 1 : 0.97 }}
+              className="fixed bottom-20 right-6 z-20 flex items-center gap-2 rounded-full border border-[var(--ls-sand-dim)] bg-[var(--ls-sand)] px-4 py-4 text-[var(--ls-bg)] transition-colors hover:bg-[var(--ls-sand)]/90 disabled:cursor-not-allowed disabled:border-[var(--ls-border-strong)] disabled:bg-[var(--ls-bg-elevated)] disabled:text-[var(--ls-text-subtle)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
+              aria-label="regenerate selected script text"
             >
-              <Sparkle size={24} weight="fill" className={isRegenerating ? 'animate-spin' : ''} />
+              <Sparkle
+                size={23}
+                weight="regular"
+                className={isRegenerating ? 'animate-spin' : ''}
+              />
+
               {isRegenerating && (
-                <span className="text-sm font-medium pr-2">Regenerating...</span>
+                <span className="pr-1 text-sm lowercase">
+                  regenerating…
+                </span>
               )}
             </motion.button>
           </motion.div>
-        </>
+        </div>
       )}
     </AnimatePresence>
   )
