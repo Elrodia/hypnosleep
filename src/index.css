@@ -1,81 +1,78 @@
 /*
-  HypnoSleep dark theme — deep space darkness with vibrant purple accents.
-  This is the authoritative source for theme CSS variables.
+  HypnoSleep theme tokens — Liminal Space.
+
+  Authoritative source for all CSS variables consumed by Tailwind
+  utilities (bg-background, text-foreground, bg-primary, etc.) and
+  by shadcn ui/ components. These map to the same palette used
+  via arbitrary values (var(--ls-bg), var(--ls-sand), etc.) on
+  every migrated surface — making the two systems consistent.
+
+  Established in prompts 05–26. The dark theme is the only mode;
+  the light theme variant was removed because:
+  - The product is a sleep app — dark is the only on-brand
+    canvas.
+  - Maintaining a second palette doubles the migration cost when
+    we need to retone.
+  - Zero of our current user-facing surfaces actually toggle
+    the .light class on <html>.
 */
 :root {
-  --hypno-bg: #0a0a1a;
-  --hypno-card: #12122a;
-  --hypno-accent: #7c5cfc;
-  --hypno-text: #f5f5ff;
-  --hypno-text-muted: #8888aa;
-  
-  --background: oklch(0.08 0.02 285);
-  --foreground: oklch(0.97 0.01 285);
-  --card: oklch(0.12 0.03 285);
-  --card-foreground: oklch(0.97 0.01 285);
-  --popover: oklch(0.12 0.03 285);
-  --popover-foreground: oklch(0.97 0.01 285);
-  --primary: oklch(0.58 0.18 285);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.15 0.03 285);
-  --secondary-foreground: oklch(0.97 0.01 285);
-  --muted: oklch(0.12 0.03 285);
-  --muted-foreground: oklch(0.58 0.01 285);
-  --accent: oklch(0.58 0.18 285);
-  --accent-foreground: oklch(1 0 0);
+  /* ── Liminal Space canvas ── */
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+
+  /* ── shadcn token aliases ── */
+  /* These power Tailwind utilities like bg-background, text-primary,
+     border-border, etc. They alias the Liminal Space palette so any
+     unmigrated component renders on-brand without further code
+     changes. */
+  --background: var(--ls-bg);
+  --foreground: var(--ls-text);
+  --card: var(--ls-bg-elevated);
+  --card-foreground: var(--ls-text);
+  --popover: var(--ls-bg-elevated);
+  --popover-foreground: var(--ls-text);
+  --primary: var(--ls-sand);
+  --primary-foreground: var(--ls-bg);
+  --secondary: var(--ls-bg-elevated);
+  --secondary-foreground: var(--ls-text);
+  --muted: var(--ls-bg-elevated);
+  --muted-foreground: var(--ls-text-muted);
+  --accent: var(--ls-sand);
+  --accent-foreground: var(--ls-bg);
   --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.2 0.03 285);
-  --input: oklch(0.2 0.03 285);
-  --ring: oklch(0.58 0.18 285);
+  --destructive-foreground: #ffffff;
+  --border: var(--ls-border);
+  --input: var(--ls-border-strong);
+  --ring: var(--ls-sand-dim);
   --radius: 0.625rem;
-}
-
-/*
-  Light theme variant. Activated by adding a `light` class on
-  <html> (see `applyTheme()` in main.tsx). We keep the same hue so
-  the brand reads as the same product, just inverted.
-*/
-:root.light {
-  --hypno-bg: #f7f7fb;
-  --hypno-card: #ffffff;
-  --hypno-accent: #7c5cfc;
-  --hypno-text: #0e0e1a;
-  --hypno-text-muted: #5a5a72;
-
-  --background: oklch(0.98 0.005 285);
-  --foreground: oklch(0.18 0.02 285);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.02 285);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.02 285);
-  --primary: oklch(0.55 0.2 285);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.94 0.01 285);
-  --secondary-foreground: oklch(0.18 0.02 285);
-  --muted: oklch(0.94 0.01 285);
-  --muted-foreground: oklch(0.45 0.02 285);
-  --accent: oklch(0.55 0.2 285);
-  --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9 0.01 285);
-  --input: oklch(0.9 0.01 285);
-  --ring: oklch(0.55 0.2 285);
 }
 
 @layer base {
   * {
     @apply border-border;
   }
-  
+
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     @apply bg-background text-foreground;
   }
-  
+
+  /* The .font-serif utility is consumed by SessionPreviewScreen's
+     script body and a handful of legacy spots. We point it at
+     Fraunces (the brand serif) so any unmigrated usage still
+     reads on-brand. font-fraunces (used directly via Tailwind
+     arbitrary value or @font-face) takes precedence on migrated
+     surfaces. */
   .font-serif {
-    font-family: 'Crimson Pro', Georgia, serif;
+    font-family: 'Fraunces', Georgia, serif;
   }
 
   @keyframes shimmer {
@@ -86,10 +83,6 @@
       background-position: 200% 0;
     }
   }
-}
-
-.tab-glow {
-  filter: drop-shadow(0 0 8px var(--hypno-accent)) drop-shadow(0 0 16px var(--hypno-accent));
 }
 
 .scrollbar-hide {
