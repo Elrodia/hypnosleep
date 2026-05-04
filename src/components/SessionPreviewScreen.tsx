@@ -1,10 +1,6 @@
-import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Play, PencilSimple, ArrowsClockwise, Check, Sparkle } from '@phosphor-icons/react'
-import { cn } from '@/lib/utils'
+import { Play, PencilSimple, ArrowsClockwise, Check } from '@phosphor-icons/react'
 
 interface SessionPreviewScreenProps {
   isOpen: boolean
@@ -18,8 +14,6 @@ interface SessionPreviewScreenProps {
   onClose: () => void
 }
 
-const SPARKLE_COUNT = 12
-
 export function SessionPreviewScreen({
   isOpen,
   sessionTitle,
@@ -29,31 +23,7 @@ export function SessionPreviewScreen({
   onListenNow,
   onEditScript,
   onRegenerate,
-  onClose,
 }: SessionPreviewScreenProps) {
-  const [showSparkles, setShowSparkles] = useState(false)
-
-  useEffect(() => {
-    if (isOpen) {
-      setShowSparkles(true)
-      const timer = setTimeout(() => {
-        setShowSparkles(false)
-      }, 3000)
-      return () => clearTimeout(timer)
-    }
-  }, [isOpen])
-
-  const sparkles = Array.from({ length: SPARKLE_COUNT }, (_, i) => {
-    const angle = (i / SPARKLE_COUNT) * 360
-    const radius = 80 + Math.random() * 40
-    const x = Math.cos((angle * Math.PI) / 180) * radius
-    const y = Math.sin((angle * Math.PI) / 180) * radius
-    const delay = Math.random() * 0.5
-    const duration = 1 + Math.random() * 0.5
-
-    return { x, y, delay, duration, angle }
-  })
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -61,147 +31,105 @@ export function SessionPreviewScreen({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-background/95 backdrop-blur-lg"
+          transition={{ duration: 0.4 }}
+          className="ls-session-preview fixed inset-0 z-50 bg-[var(--ls-bg)] text-[var(--ls-text)]"
         >
           <div className="h-full overflow-y-auto">
             <div className="min-h-full flex flex-col px-6 py-12">
               <div className="w-full max-w-2xl mx-auto space-y-8 flex-1">
-                <div className="relative text-center pt-8">
-                  <AnimatePresence>
-                    {showSparkles && (
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none">
-                        {sparkles.map((sparkle, i) => (
-                          <motion.div
-                            key={i}
-                            initial={{
-                              x: 0,
-                              y: 0,
-                              scale: 0,
-                              opacity: 0,
-                              rotate: 0,
-                            }}
-                            animate={{
-                              x: sparkle.x,
-                              y: sparkle.y,
-                              scale: [0, 1.2, 1, 0],
-                              opacity: [0, 1, 1, 0],
-                              rotate: sparkle.angle,
-                            }}
-                            transition={{
-                              duration: sparkle.duration,
-                              delay: sparkle.delay,
-                              ease: 'easeOut',
-                            }}
-                            className="absolute"
-                          >
-                            <Sparkle
-                              weight="fill"
-                              size={16 + Math.random() * 12}
-                              className="text-primary"
-                            />
-                          </motion.div>
-                        ))}
-                      </div>
-                    )}
-                  </AnimatePresence>
 
-                  <motion.h1
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="text-3xl font-semibold text-foreground mb-2"
-                  >
-                    Your Session is Ready!
-                  </motion.h1>
-                </div>
-
+                {/* ── Headline ── */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="space-y-4"
+                  transition={{ delay: 0.2, duration: 0.5 }}
+                  className="text-center pt-12"
                 >
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-serif font-medium text-foreground">
-                      {sessionTitle}
-                    </h2>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
-                      {category}
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">{duration}</span>
+                  <p className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)] mb-3">
+                    your session is ready
+                  </p>
+                  <h1 className="font-fraunces italic lowercase text-3xl text-[var(--ls-text)]">
+                    {sessionTitle.toLowerCase()}
+                  </h1>
+                  <div className="flex items-center justify-center gap-2 mt-3 text-sm text-[var(--ls-text-muted)]">
+                    <span className="lowercase">{category.toLowerCase()}</span>
+                    <span className="text-[var(--ls-text-subtle)]">·</span>
+                    <span>{duration}</span>
                   </div>
                 </motion.div>
 
+                {/* ── Script preview card ── */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 }}
-                  className="bg-card border border-border rounded-2xl overflow-hidden"
+                  transition={{ delay: 0.4, duration: 0.5 }}
+                  className="rounded-md border border-[var(--ls-border)] bg-[var(--ls-bg-elevated)] overflow-hidden"
                 >
-                  <div className="p-4 border-b border-border">
-                    <h3 className="text-sm font-medium text-foreground">Script Preview</h3>
+                  <div className="px-5 py-3 border-b border-[var(--ls-border)]">
+                    <h3 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
+                      script preview
+                    </h3>
                   </div>
                   <ScrollArea className="h-[280px] px-6 py-5">
-                    <div className="font-serif text-base leading-relaxed text-foreground/90 whitespace-pre-line">
+                    <div className="font-fraunces text-[15px] leading-loose text-[var(--ls-text)]/90 whitespace-pre-line">
                       {scriptText}
                     </div>
                   </ScrollArea>
                 </motion.div>
 
+                {/* ── Saved-to-library confirmation ── */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.8 }}
-                  className="flex items-center gap-2 text-sm text-muted-foreground bg-card/30 border border-border/50 rounded-lg px-4 py-3"
+                  transition={{ delay: 0.6, duration: 0.5 }}
+                  className="flex items-center justify-center gap-2 text-xs text-[var(--ls-text-muted)] lowercase"
                 >
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 1, type: 'spring', stiffness: 200 }}
-                  >
-                    <Check weight="bold" size={18} className="text-primary" />
-                  </motion.div>
-                  <span>Automatically saved to your library</span>
+                  <Check weight="regular" size={14} className="text-[var(--ls-sand)]" />
+                  <span>saved to your library</span>
                 </motion.div>
 
+                {/* ── Primary action ── */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1 }}
-                  className="space-y-3 pt-2"
+                  transition={{ delay: 0.8, duration: 0.5 }}
+                  className="pt-4"
                 >
-                  <Button
-                    size="lg"
-                    onClick={onListenNow}
-                    className="w-full gap-3 text-lg font-semibold h-14 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
-                  >
-                    <Play weight="fill" size={24} />
-                    Listen Now
-                  </Button>
-
-                  <div className="flex gap-3">
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      onClick={onEditScript}
-                      className="flex-1 gap-2 font-medium h-12 border-2"
-                    >
-                      <PencilSimple size={20} />
-                      Edit Script
-                    </Button>
-                  </div>
-
                   <button
-                    onClick={onRegenerate}
-                    className="flex items-center justify-center gap-2 w-full text-sm font-medium text-primary hover:text-primary/80 transition-colors py-3"
+                    type="button"
+                    onClick={onListenNow}
+                    className="w-full h-14 flex items-center justify-center gap-3 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 transition-colors text-base lowercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
                   >
-                    <ArrowsClockwise size={18} />
-                    Regenerate Session
+                    <Play weight="fill" size={20} />
+                    listen now
                   </button>
                 </motion.div>
+
+                {/* ── Secondary actions ── */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 1, duration: 0.5 }}
+                  className="flex items-center justify-center gap-8 pt-2 pb-8"
+                >
+                  <button
+                    type="button"
+                    onClick={onEditScript}
+                    className="flex items-center gap-2 text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors lowercase focus:outline-none focus-visible:underline"
+                  >
+                    <PencilSimple size={16} weight="regular" />
+                    edit script
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onRegenerate}
+                    className="flex items-center gap-2 text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors lowercase focus:outline-none focus-visible:underline"
+                  >
+                    <ArrowsClockwise size={16} weight="regular" />
+                    regenerate
+                  </button>
+                </motion.div>
+
               </div>
             </div>
           </div>
