@@ -1,8 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import { X } from '@phosphor-icons/react'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
 import { useKV } from '@/hooks/use-kv'
 import { toast } from 'sonner'
 import { logMood } from '@/lib/api-endpoints'
@@ -32,15 +30,43 @@ interface MoodRating {
 }
 
 const feelings = [
-  { id: 'worse', emoji: '😫', label: 'Worse', moodValue: 1 },
-  { id: 'same', emoji: '😐', label: 'Same', moodValue: 2 },
-  { id: 'better', emoji: '🙂', label: 'Better', moodValue: 3 },
-  { id: 'great', emoji: '😊', label: 'Great', moodValue: 4 },
-  { id: 'amazing', emoji: '🤩', label: 'Amazing', moodValue: 5 },
+  { id: 'worse', emoji: '😫', label: 'worse', moodValue: 1 },
+  { id: 'same', emoji: '😐', label: 'same', moodValue: 2 },
+  { id: 'better', emoji: '🙂', label: 'better', moodValue: 3 },
+  { id: 'great', emoji: '😊', label: 'great', moodValue: 4 },
+  { id: 'amazing', emoji: '🤩', label: 'amazing', moodValue: 5 },
 ] as const
 
-export function FeedbackModal({ isOpen, onClose, sessionTitle, sessionDuration, sessionId }: FeedbackModalProps) {
-  const [selectedFeeling, setSelectedFeeling] = useState<typeof feelings[number]['id'] | null>(null)
+type FeelingId = (typeof feelings)[number]['id']
+
+const STYLES = `
+.ls-feedback-modal {
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.ls-feedback-modal .font-fraunces {
+  font-family: 'Fraunces', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+`
+
+export function FeedbackModal({
+  isOpen,
+  onClose,
+  sessionTitle,
+  sessionDuration,
+  sessionId,
+}: FeedbackModalProps) {
+  const [selectedFeeling, setSelectedFeeling] = useState<FeelingId | null>(null)
   const [notes, setNotes] = useState('')
   const [showConfetti, setShowConfetti] = useState(false)
   const [feedbackHistory, setFeedbackHistory] = useKV<FeedbackEntry[]>('feedback-history', [])
@@ -73,7 +99,7 @@ export function FeedbackModal({ isOpen, onClose, sessionTitle, sessionDuration, 
       timestamp,
     }
 
-    const selectedFeelingData = feelings.find(f => f.id === selectedFeeling)
+    const selectedFeelingData = feelings.find((f) => f.id === selectedFeeling)
     const moodValue = selectedFeelingData?.moodValue || 3
 
     const newMoodRating: MoodRating = {
@@ -118,13 +144,15 @@ export function FeedbackModal({ isOpen, onClose, sessionTitle, sessionDuration, 
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
+        <div className="ls-feedback-modal">
+          <style>{STYLES}</style>
+
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="fixed inset-0 z-50 bg-[var(--ls-bg)]/88"
             onClick={onClose}
           />
 
@@ -132,110 +160,142 @@ export function FeedbackModal({ isOpen, onClose, sessionTitle, sessionDuration, 
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border rounded-t-3xl shadow-2xl"
+            transition={{ type: 'spring', damping: 32, stiffness: 310 }}
+            className="fixed bottom-0 left-0 right-0 z-50 overflow-hidden rounded-t-md border-t border-[var(--ls-border-strong)] bg-[var(--ls-bg-elevated)] text-[var(--ls-text)]"
+            role="dialog"
+            aria-modal="true"
+            aria-label="session feedback"
           >
-            <div className="w-12 h-1.5 bg-muted-foreground/30 rounded-full mx-auto mt-4 mb-6" />
+            <div className="mx-auto mb-5 mt-3 h-1.5 w-12 rounded-full bg-[var(--ls-border-strong)]" />
 
             <div className="px-6 pb-8">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-semibold tracking-tight">How do you feel?</h2>
+              <div className="mb-6 flex items-center justify-between gap-4">
+                <div>
+                  <p className="mb-1 text-xs uppercase tracking-[0.22em] text-[var(--ls-text-subtle)]">
+                    session
+                  </p>
+                  <h2 className="font-fraunces text-2xl italic lowercase text-[var(--ls-text)]">
+                    how do you feel?
+                  </h2>
+                </div>
+
                 <button
+                  type="button"
                   onClick={onClose}
-                  className="w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-muted/80 transition-colors"
+                  aria-label="close feedback"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--ls-border-strong)] text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-sand-dim)] hover:text-[var(--ls-text)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
                 >
-                  <X weight="bold" className="w-5 h-5 text-muted-foreground" />
+                  <X weight="regular" className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="flex items-center justify-between gap-2 mb-6">
-                {feelings.map((feeling) => (
-                  <button
-                    key={feeling.id}
-                    onClick={() => setSelectedFeeling(feeling.id)}
-                    className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
-                      selectedFeeling === feeling.id
-                        ? 'border-primary bg-primary/10 scale-105'
-                        : 'border-border bg-muted/50 hover:border-primary/50 hover:bg-muted active:scale-95'
-                    }`}
-                  >
-                    <span className="text-4xl">{feeling.emoji}</span>
-                    <span className="text-xs font-medium text-muted-foreground">{feeling.label}</span>
-                  </button>
-                ))}
+              <div className="mb-6 grid grid-cols-5 gap-2">
+                {feelings.map((feeling) => {
+                  const selected = selectedFeeling === feeling.id
+
+                  return (
+                    <button
+                      key={feeling.id}
+                      type="button"
+                      onClick={() => setSelectedFeeling(feeling.id)}
+                      className={`flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-md border p-2 transition-all ${
+                        selected
+                          ? 'scale-[1.03] border-[var(--ls-sand-dim)] bg-[var(--ls-sand)]/8'
+                          : 'border-[var(--ls-border)] bg-[var(--ls-bg)]/35 hover:border-[var(--ls-border-strong)] hover:bg-[var(--ls-bg)]/55 active:scale-[0.98]'
+                      } focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]`}
+                      aria-pressed={selected}
+                    >
+                      <span className="text-3xl" aria-hidden="true">
+                        {feeling.emoji}
+                      </span>
+                      <span
+                        className={`text-[11px] lowercase ${
+                          selected ? 'text-[var(--ls-text)]' : 'text-[var(--ls-text-muted)]'
+                        }`}
+                      >
+                        {feeling.label}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
 
               <div className="mb-6">
-                <Input
-                  placeholder="Any notes? (optional)"
+                <label htmlFor="feedback-notes" className="sr-only">
+                  notes optional
+                </label>
+
+                <input
+                  id="feedback-notes"
+                  type="text"
+                  placeholder="any notes? optional"
                   value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="h-12 text-base"
+                  onChange={(event) => setNotes(event.target.value)}
                   maxLength={200}
+                  className="h-12 w-full rounded-md border border-[var(--ls-border-strong)] bg-[var(--ls-bg)] px-3 text-base text-[var(--ls-text)] placeholder:text-[var(--ls-text-subtle)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
                 />
+
+                <div className="mt-1 text-right text-[10px] tabular-nums text-[var(--ls-text-subtle)]">
+                  {notes.length}/200
+                </div>
               </div>
 
               <div className="flex flex-col gap-3">
-                <Button
+                <button
+                  type="button"
                   onClick={handleSave}
                   disabled={!selectedFeeling}
-                  className="w-full h-12 text-base font-medium"
-                  size="lg"
+                  className="h-12 w-full rounded-md bg-[var(--ls-sand)] px-5 font-fraunces text-lg italic lowercase text-[var(--ls-bg)] transition-colors hover:bg-[var(--ls-sand)]/90 disabled:cursor-not-allowed disabled:bg-[var(--ls-bg)] disabled:text-[var(--ls-text-subtle)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
                 >
-                  Save & Close
-                </Button>
+                  save and close
+                </button>
 
                 <button
+                  type="button"
                   onClick={handleSkip}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+                  className="rounded-md py-2 text-sm lowercase text-[var(--ls-text-muted)] transition-colors hover:text-[var(--ls-text)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
                 >
-                  Skip
+                  skip
                 </button>
               </div>
             </div>
           </motion.div>
 
           {showConfetti && <ConfettiEffect />}
-        </>
+        </div>
       )}
     </AnimatePresence>
   )
 }
 
 function ConfettiEffect() {
-  const particles = Array.from({ length: 50 })
-  
+  const particles = Array.from({ length: 36 })
+
   return (
     <div className="fixed inset-0 z-[60] pointer-events-none overflow-hidden">
-      {particles.map((_, i) => (
+      {particles.map((_, index) => (
         <motion.div
-          key={i}
+          key={index}
           initial={{
             x: '50vw',
-            y: '50vh',
+            y: '55vh',
             scale: 0,
-            rotate: 0,
+            opacity: 0,
           }}
           animate={{
-            x: `${Math.random() * 100}vw`,
-            y: `${Math.random() * 100}vh`,
-            scale: [0, 1, 1, 0],
-            rotate: Math.random() * 720 - 360,
+            x: `${20 + Math.random() * 60}vw`,
+            y: `${25 + Math.random() * 45}vh`,
+            scale: [0, 1, 0.75, 0],
+            opacity: [0, 0.38, 0.22, 0],
           }}
           transition={{
-            duration: 1.5 + Math.random() * 0.5,
+            duration: 1.6 + Math.random() * 0.5,
             ease: 'easeOut',
           }}
-          className="absolute w-3 h-3 rounded-sm"
+          className="absolute rounded-full bg-[var(--ls-sand)]"
           style={{
-            backgroundColor: [
-              '#7c5cfc',
-              '#a78bfa',
-              '#c4b5fd',
-              '#fbbf24',
-              '#fb923c',
-              '#f472b6',
-            ][Math.floor(Math.random() * 6)],
+            width: 3 + Math.random() * 5,
+            height: 3 + Math.random() * 5,
           }}
         />
       ))}
