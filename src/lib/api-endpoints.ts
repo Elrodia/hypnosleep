@@ -52,18 +52,6 @@ export function updateProfile(input: {
   return apiFetch<ProfileUser>('/api/profile', { method: 'PATCH', body: input })
 }
 
-export interface ReferralStats {
-  code: string | null
-  shareUrl: string
-  totalInvited: number
-  totalRewarded: number
-  daysEarned: number
-}
-
-export function getReferralStats(): Promise<ReferralStats> {
-  return apiFetch<ReferralStats>('/api/profile/referral')
-}
-
 export async function exportProfile(): Promise<Blob> {
   // This endpoint streams a JSON attachment. Call fetch directly to get
   // the raw blob rather than passing through the envelope unwrapper.
