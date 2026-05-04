@@ -17,9 +17,7 @@ export function ProblemSolution() {
               <Icon size={22} />
             </div>
             <h3 className="font-fraunces italic lowercase text-2xl mb-2 text-[var(--ls-text-muted)]">{problem}</h3>
-            <p className="text-[var(--ls-text)] leading-relaxed">
-              <span className="text-[var(--ls-sand)]">{solution}</span>
-            </p>
+            <p className="text-[var(--ls-sand)] leading-relaxed">{solution}</p>
           </GlassCard>
         ))}
       </div>
