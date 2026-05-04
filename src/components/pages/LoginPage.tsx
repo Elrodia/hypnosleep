@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
-import { Button } from '@/components/ui/button'
 import { GoogleLogo, GithubLogo, MicrosoftOutlookLogo } from '@phosphor-icons/react'
+import { Logo } from '@/components/Logo'
 import { canUseOAuthBrowserState, startOAuth, type OAuthProvider } from '@/lib/auth'
 import { toast } from 'sonner'
 
@@ -8,80 +8,73 @@ export function LoginPage() {
   const handleOAuthLogin = (provider: OAuthProvider) => {
     if (!canUseOAuthBrowserState()) {
       toast.error(
-        'OAuth login requires cookies and browser storage. Please allow cookies and disable strict anti-tracking protection, then try again.'
+        'oauth login requires cookies and browser storage. please allow cookies and disable strict anti-tracking protection, then try again.'
       )
       return
     }
-
     startOAuth(provider)
   }
 
-  const handleGoogleLogin = () => {
-    handleOAuthLogin('google')
-  }
-
-  const handleGithubLogin = () => {
-    handleOAuthLogin('github')
-  }
-
-  const handleMicrosoftLogin = () => {
-    handleOAuthLogin('microsoft')
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 pb-20">
+    <div className="ls-login min-h-screen flex items-center justify-center px-6 pb-20 bg-[var(--ls-bg)] text-[var(--ls-text)]">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
-        className="w-full max-w-sm space-y-8"
+        className="w-full max-w-sm space-y-10"
       >
-        <div className="text-center space-y-3">
+        {/* ── Brand block ── */}
+        <div className="text-center space-y-4">
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
+            initial={{ scale: 0.85, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.1, duration: 0.5 }}
-            className="text-5xl mb-4"
+            className="flex justify-center mb-6"
           >
-            🌙
+            <Logo variant="mark" size={56} alt="" className="rounded-xl" />
           </motion.div>
-          <h1 className="font-serif text-3xl font-semibold text-foreground">
-            Welcome to HypnoSleep
+          <h1 className="font-fraunces italic lowercase text-3xl text-[var(--ls-text)]">
+            welcome.
           </h1>
-          <p className="text-muted-foreground text-sm">
-            Sign in to start your journey to better sleep
+          <p className="text-sm text-[var(--ls-text-muted)] lowercase">
+            sign in to begin.
           </p>
         </div>
 
+        {/* ── OAuth buttons ── */}
         <div className="space-y-3">
-          <Button
-            onClick={handleGoogleLogin}
-            className="w-full h-12 bg-gradient-to-r from-primary via-[oklch(0.62_0.19_285)] to-[oklch(0.55_0.17_285)] hover:from-[oklch(0.62_0.19_285)] hover:via-[oklch(0.66_0.20_285)] hover:to-[oklch(0.58_0.18_285)] text-white shadow-lg shadow-primary/30 transition-all duration-300"
+          <button
+            type="button"
+            onClick={() => handleOAuthLogin('google')}
+            className="w-full h-12 flex items-center justify-center gap-3 rounded-md border border-[var(--ls-border-strong)] bg-transparent text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-sand-dim)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors text-sm lowercase"
           >
-            <GoogleLogo className="mr-3" size={20} weight="regular" />
-            Continue with Google
-          </Button>
+            <GoogleLogo size={18} weight="regular" />
+            <span>continue with google</span>
+          </button>
 
-          <Button
-            onClick={handleGithubLogin}
-            className="w-full h-12 bg-gradient-to-r from-primary via-[oklch(0.62_0.19_285)] to-[oklch(0.55_0.17_285)] hover:from-[oklch(0.62_0.19_285)] hover:via-[oklch(0.66_0.20_285)] hover:to-[oklch(0.58_0.18_285)] text-white shadow-lg shadow-primary/30 transition-all duration-300"
+          <button
+            type="button"
+            onClick={() => handleOAuthLogin('github')}
+            className="w-full h-12 flex items-center justify-center gap-3 rounded-md border border-[var(--ls-border-strong)] bg-transparent text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-sand-dim)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors text-sm lowercase"
           >
-            <GithubLogo className="mr-3" size={20} weight="regular" />
-            Continue with GitHub
-          </Button>
+            <GithubLogo size={18} weight="regular" />
+            <span>continue with github</span>
+          </button>
 
-          <Button
-            onClick={handleMicrosoftLogin}
-            className="w-full h-12 bg-gradient-to-r from-primary via-[oklch(0.62_0.19_285)] to-[oklch(0.55_0.17_285)] hover:from-[oklch(0.62_0.19_285)] hover:via-[oklch(0.66_0.20_285)] hover:to-[oklch(0.58_0.18_285)] text-white shadow-lg shadow-primary/30 transition-all duration-300"
+          <button
+            type="button"
+            onClick={() => handleOAuthLogin('microsoft')}
+            className="w-full h-12 flex items-center justify-center gap-3 rounded-md border border-[var(--ls-border-strong)] bg-transparent text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-sand-dim)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors text-sm lowercase"
           >
-            <MicrosoftOutlookLogo className="mr-3" size={20} weight="regular" />
-            Continue with Microsoft
-          </Button>
+            <MicrosoftOutlookLogo size={18} weight="regular" />
+            <span>continue with microsoft</span>
+          </button>
         </div>
 
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground">
-            By continuing, you agree to our Terms of Service and Privacy Policy
+        {/* ── Footer ── */}
+        <div className="text-center pt-2">
+          <p className="text-xs text-[var(--ls-text-subtle)] lowercase">
+            by continuing, you agree to our terms and privacy policy.
           </p>
         </div>
       </motion.div>
