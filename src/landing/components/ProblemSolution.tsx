@@ -12,12 +12,12 @@ export function ProblemSolution() {
     <section className="relative py-20 sm:py-28" aria-label="What HypnoSleep helps with">
       <div className="mx-auto max-w-7xl px-5 sm:px-8 grid md:grid-cols-3 gap-5">
         {items.map(({ icon: Icon, problem, solution }) => (
-          <GlassCard key={problem} className="p-7">
-            <div className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--ls-primary)]/15 text-[color:var(--ls-primary)]">
+          <GlassCard key={problem} className="p-7 bg-[var(--ls-bg-elevated)] border border-[var(--ls-border)]">
+            <div className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--ls-border-strong)] text-[var(--ls-sand-dim)]">
               <Icon size={22} />
             </div>
-            <h3 className="ls-display text-2xl mb-2">{problem}</h3>
-            <p className="text-[color:var(--ls-text-secondary)] leading-relaxed">{solution}</p>
+            <h3 className="font-fraunces italic lowercase text-2xl mb-2 text-[var(--ls-text-muted)]">{problem}</h3>
+            <p className="text-[var(--ls-sand)] leading-relaxed">{solution}</p>
           </GlassCard>
         ))}
       </div>

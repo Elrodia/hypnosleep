@@ -65,11 +65,11 @@ const socials: Array<{ label: string; href: string | null; icon: typeof Twitter 
 
 export function Footer() {
   return (
-    <footer className="relative border-t border-white/5 pt-16 pb-10 text-sm">
+    <footer className="relative border-t border-[var(--ls-border)] pt-16 pb-10 text-sm">
       <div className="mx-auto max-w-7xl px-5 sm:px-8 grid gap-10 sm:grid-cols-2 md:grid-cols-4">
         {columns.map((c) => (
           <div key={c.title}>
-            <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ls-text-secondary)]">
+            <h4 className="mb-3 text-xs font-semibold uppercase tracking-widest text-[var(--ls-text-subtle)]">
               {c.title}
             </h4>
             <ul className="space-y-2">
@@ -78,12 +78,12 @@ export function Footer() {
                   {link.live ? (
                     <a
                       href={link.href}
-                      className="text-[color:var(--ls-text-secondary)] hover:text-white transition-colors"
+                      className="text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
                     >
                       {link.label}
                     </a>
                   ) : (
-                    <span className="text-[color:var(--ls-text-secondary)]/60" title="Coming soon">
+                    <span className="text-[var(--ls-text-muted)]/60" title="Coming soon">
                       {link.label}
                     </span>
                   )}
@@ -94,12 +94,12 @@ export function Footer() {
         ))}
       </div>
 
-      <div className="mx-auto mt-12 max-w-7xl px-5 sm:px-8 flex flex-col sm:flex-row items-start sm:items-center gap-5 justify-between border-t border-white/5 pt-6">
+      <div className="mx-auto mt-12 max-w-7xl px-5 sm:px-8 flex flex-col sm:flex-row items-start sm:items-center gap-5 justify-between border-t border-[var(--ls-border)] pt-6">
         <div className="flex items-center gap-2">
           <Logo variant="mark" size={28} className="rounded-full" alt="" />
-          <span className="ls-display text-base">HypnoSleep</span>
-          <span className="ml-3 text-xs text-[color:var(--ls-text-secondary)]">
-            © {new Date().getFullYear()} HypnoSleep. Made with <span aria-label="love">❤️</span> in Belgium.
+          <span className="ls-display text-base text-[var(--ls-text)]">HypnoSleep</span>
+          <span className="ml-3 text-xs text-[var(--ls-text-muted)]">
+            © {new Date().getFullYear()} HypnoSleep. Made with <span aria-label="love" className="text-[var(--ls-sand)]">❤</span> in Belgium.
           </span>
         </div>
 
@@ -108,7 +108,7 @@ export function Footer() {
             const Icon = s.icon
             const inner = Icon ? <Icon size={16} /> : <span className="ls-display text-sm">t</span>
             const className =
-              'flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 transition-colors'
+              'flex h-9 w-9 items-center justify-center rounded-full border border-[var(--ls-border-strong)] text-[var(--ls-text-muted)] transition-colors'
             return (
               <li key={s.label}>
                 {s.href ? (
@@ -117,7 +117,7 @@ export function Footer() {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={s.label}
-                    className={`${className} hover:bg-white/10 hover:border-white/20`}
+                    className={`${className} hover:text-[var(--ls-sand)]`}
                   >
                     {inner}
                   </a>

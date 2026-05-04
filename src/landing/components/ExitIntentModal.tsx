@@ -38,25 +38,25 @@ export function ExitIntentModal({ open, onClose, onCtaClick }: ExitIntentModalPr
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+          <div className="absolute inset-0 bg-black/70" onClick={onClose} />
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="relative mx-auto w-full max-w-md rounded-2xl border border-white/10 bg-[color:var(--ls-surface-elevated)] p-7 shadow-2xl"
+            className="relative mx-auto w-full max-w-md rounded-2xl border border-[var(--ls-border-strong)] bg-[var(--ls-bg-elevated)] p-7"
           >
             <button
               aria-label="Close"
-              className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/5 hover:bg-white/10"
+              className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--ls-border)] text-[var(--ls-text-muted)] hover:text-[var(--ls-text)]"
               onClick={onClose}
             >
               <X size={16} />
             </button>
-            <h2 id="exit-title" className="ls-display text-2xl mb-2">
-              Wait — try it tonight, on us
+            <h2 id="exit-title" className="font-fraunces italic lowercase text-2xl mb-2 text-[var(--ls-text)]">
+              wait — try it tonight, on us
             </h2>
-            <p className="text-[color:var(--ls-text-secondary)] mb-6 leading-relaxed">
+            <p className="text-[var(--ls-text-muted)] mb-6 leading-relaxed">
               Start your free trial — no credit card required. One tap to cancel if it is not for you.
             </p>
             <Button
