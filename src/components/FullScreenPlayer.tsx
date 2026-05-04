@@ -32,6 +32,30 @@ interface FullScreenPlayerProps {
   onStop?: () => void
 }
 
+const STYLES = `
+.ls-player {
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+  --ls-danger: #d79a8b;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.ls-player .font-fraunces {
+  font-family: 'Fraunces', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+.ls-player [data-radix-popper-content-wrapper] {
+  z-index: 60;
+}
+`
+
 export function FullScreenPlayer({
   isOpen,
   isPlaying,
@@ -220,12 +244,13 @@ export function FullScreenPlayer({
           animate={{ y: 0 }}
           exit={{ y: '100%' }}
           transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-          className="fixed inset-0 z-50 bg-[var(--ls-bg)]"
+          className="ls-player fixed inset-0 z-50 bg-[var(--ls-bg)] text-[var(--ls-text)]"
         >
+          <style>{STYLES}</style>
           <BreathingBackground />
 
           <motion.div
-            className="ls-player relative z-10 h-full flex flex-col"
+            className="relative z-10 h-full flex flex-col"
             animate={{ opacity: chromeOpacity }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             onPointerMove={wakeChrome}
@@ -237,7 +262,7 @@ export function FullScreenPlayer({
               <button
                 type="button"
                 onClick={onClose}
-                className="w-10 h-10 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+                className="w-10 h-10 flex items-center justify-center rounded-full border border-transparent text-[var(--ls-text-muted)] hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
                 aria-label="close player"
               >
                 <CaretDown weight="regular" className="w-5 h-5" />
@@ -247,7 +272,7 @@ export function FullScreenPlayer({
                 <button
                   type="button"
                   onClick={() => setShowSoundsModal(true)}
-                  className="w-10 h-10 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+                  className="w-10 h-10 flex items-center justify-center rounded-full border border-transparent text-[var(--ls-text-muted)] hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
                   aria-label="background sound"
                 >
                   <Waves weight="regular" className="w-5 h-5" />
@@ -256,7 +281,7 @@ export function FullScreenPlayer({
                 <button
                   type="button"
                   onClick={() => setShowTimerModal(true)}
-                  className="relative w-10 h-10 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+                  className="relative w-10 h-10 flex items-center justify-center rounded-full border border-transparent text-[var(--ls-text-muted)] hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
                   aria-label="sleep timer"
                 >
                   <Clock weight="regular" className="w-5 h-5" />
@@ -271,7 +296,7 @@ export function FullScreenPlayer({
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
-                      className="w-10 h-10 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+                      className="w-10 h-10 flex items-center justify-center rounded-full border border-transparent text-[var(--ls-text-muted)] hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
                       aria-label="more options"
                     >
                       <DotsThree weight="regular" className="w-5 h-5" />
@@ -279,49 +304,57 @@ export function FullScreenPlayer({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"
-                    className="w-52 bg-[var(--ls-bg-elevated)] border-[var(--ls-border-strong)] text-[var(--ls-text)]"
+                    className="w-56 rounded-md border border-[var(--ls-border-strong)] bg-[var(--ls-bg-elevated)] p-1 text-[var(--ls-text)] shadow-none"
                   >
-                    <DropdownMenuItem onClick={handleToggleLoop} className="flex items-center justify-between">
+                    <DropdownMenuItem
+                      onClick={handleToggleLoop}
+                      className="flex cursor-pointer items-center justify-between rounded-sm px-2.5 py-2 text-sm lowercase text-[var(--ls-text-muted)] outline-none transition-colors hover:bg-[var(--ls-sand)]/8 hover:text-[var(--ls-text)] focus:bg-[var(--ls-sand)]/8 focus:text-[var(--ls-text)] data-[disabled]:pointer-events-none data-[disabled]:opacity-45"
+                    >
                       <div className="flex items-center gap-2">
                         <Repeat weight="regular" className="w-4 h-4" />
-                        <span>Loop Session</span>
+                        <span>loop session</span>
                       </div>
                       {loopEnabled && <Check weight="regular" className="w-4 h-4 text-[var(--ls-sand)]" />}
                     </DropdownMenuItem>
 
-                    <DropdownMenuItem onClick={handleToggleFadeOut} className="flex items-center justify-between">
+                    <DropdownMenuItem
+                      onClick={handleToggleFadeOut}
+                      className="flex cursor-pointer items-center justify-between rounded-sm px-2.5 py-2 text-sm lowercase text-[var(--ls-text-muted)] outline-none transition-colors hover:bg-[var(--ls-sand)]/8 hover:text-[var(--ls-text)] focus:bg-[var(--ls-sand)]/8 focus:text-[var(--ls-text)] data-[disabled]:pointer-events-none data-[disabled]:opacity-45"
+                    >
                       <div className="flex items-center gap-2">
                         <TrendDown weight="regular" className="w-4 h-4" />
-                        <span>Fade Out</span>
+                        <span>fade out</span>
                       </div>
                       {fadeOutEnabled && <Check weight="regular" className="w-4 h-4 text-[var(--ls-sand)]" />}
                     </DropdownMenuItem>
 
                     <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
+                      <DropdownMenuSubTrigger
+                        className="flex cursor-pointer items-center rounded-sm px-2.5 py-2 text-sm lowercase text-[var(--ls-text-muted)] outline-none transition-colors hover:bg-[var(--ls-sand)]/8 hover:text-[var(--ls-text)] focus:bg-[var(--ls-sand)]/8 focus:text-[var(--ls-text)]"
+                      >
                         <div className="flex items-center gap-2">
                           <Speedometer weight="regular" className="w-4 h-4" />
-                          <span>Playback Speed</span>
+                          <span>playback speed</span>
                         </div>
                       </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="bg-[var(--ls-bg-elevated)] border-[var(--ls-border-strong)] text-[var(--ls-text)]">
+                      <DropdownMenuSubContent className="rounded-md border border-[var(--ls-border-strong)] bg-[var(--ls-bg-elevated)] p-1 text-[var(--ls-text)] shadow-none">
                         <DropdownMenuItem
                           onClick={() => handleSetPlaybackSpeed(0.75)}
-                          className="flex items-center justify-between"
+                          className="flex cursor-pointer items-center justify-between rounded-sm px-2.5 py-2 text-sm lowercase text-[var(--ls-text-muted)] outline-none transition-colors hover:bg-[var(--ls-sand)]/8 hover:text-[var(--ls-text)] focus:bg-[var(--ls-sand)]/8 focus:text-[var(--ls-text)] data-[disabled]:pointer-events-none data-[disabled]:opacity-45"
                         >
                           <span>0.75x</span>
                           {playbackSpeed === 0.75 && <Check weight="regular" className="w-4 h-4 text-[var(--ls-sand)]" />}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleSetPlaybackSpeed(1)}
-                          className="flex items-center justify-between"
+                          className="flex cursor-pointer items-center justify-between rounded-sm px-2.5 py-2 text-sm lowercase text-[var(--ls-text-muted)] outline-none transition-colors hover:bg-[var(--ls-sand)]/8 hover:text-[var(--ls-text)] focus:bg-[var(--ls-sand)]/8 focus:text-[var(--ls-text)] data-[disabled]:pointer-events-none data-[disabled]:opacity-45"
                         >
-                          <span>1x (Normal)</span>
+                          <span>1x normal</span>
                           {playbackSpeed === 1 && <Check weight="regular" className="w-4 h-4 text-[var(--ls-sand)]" />}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleSetPlaybackSpeed(1.25)}
-                          className="flex items-center justify-between"
+                          className="flex cursor-pointer items-center justify-between rounded-sm px-2.5 py-2 text-sm lowercase text-[var(--ls-text-muted)] outline-none transition-colors hover:bg-[var(--ls-sand)]/8 hover:text-[var(--ls-text)] focus:bg-[var(--ls-sand)]/8 focus:text-[var(--ls-text)] data-[disabled]:pointer-events-none data-[disabled]:opacity-45"
                         >
                           <span>1.25x</span>
                           {playbackSpeed === 1.25 && <Check weight="regular" className="w-4 h-4 text-[var(--ls-sand)]" />}
@@ -329,7 +362,7 @@ export function FullScreenPlayer({
                       </DropdownMenuSubContent>
                     </DropdownMenuSub>
 
-                    <DropdownMenuSeparator />
+                    <DropdownMenuSeparator className="my-1 h-px bg-[var(--ls-border)]" />
 
                     <DropdownMenuItem
                       onClick={() => {
@@ -338,15 +371,15 @@ export function FullScreenPlayer({
                           onClose()
                         }
                       }}
-                      className="text-[var(--ls-text)]"
+                      className="flex cursor-pointer items-center rounded-sm px-2.5 py-2 text-sm lowercase text-[var(--ls-danger)] outline-none transition-colors hover:bg-[var(--ls-danger)]/8 focus:bg-[var(--ls-danger)]/8 data-[disabled]:pointer-events-none data-[disabled]:opacity-45"
                     >
                       <div className="flex items-center gap-2">
                         <Stop weight="regular" className="w-4 h-4" />
-                        <span>Stop Session</span>
+                        <span>stop session</span>
                       </div>
                     </DropdownMenuItem>
 
-                    <DropdownMenuSeparator />
+                    <DropdownMenuSeparator className="my-1 h-px bg-[var(--ls-border)]" />
 
                     <DropdownMenuItem
                       onClick={async () => {
@@ -365,10 +398,11 @@ export function FullScreenPlayer({
                           // User cancelled the share sheet — silent.
                         }
                       }}
+                      className="flex cursor-pointer items-center justify-between rounded-sm px-2.5 py-2 text-sm lowercase text-[var(--ls-text-muted)] outline-none transition-colors hover:bg-[var(--ls-sand)]/8 hover:text-[var(--ls-text)] focus:bg-[var(--ls-sand)]/8 focus:text-[var(--ls-text)] data-[disabled]:pointer-events-none data-[disabled]:opacity-45"
                     >
                       <div className="flex items-center gap-2">
                         <ShareNetwork weight="regular" className="w-4 h-4" />
-                        <span>Share</span>
+                        <span>share</span>
                       </div>
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -389,22 +423,24 @@ export function FullScreenPlayer({
                           setFavoritePending(false)
                         }
                       }}
+                      className="flex cursor-pointer items-center justify-between rounded-sm px-2.5 py-2 text-sm lowercase text-[var(--ls-text-muted)] outline-none transition-colors hover:bg-[var(--ls-sand)]/8 hover:text-[var(--ls-text)] focus:bg-[var(--ls-sand)]/8 focus:text-[var(--ls-text)] data-[disabled]:pointer-events-none data-[disabled]:opacity-45"
                     >
                       <div className="flex items-center gap-2">
                         <Heart
                           weight={favorited ? 'fill' : 'regular'}
                           className={`w-4 h-4 ${favorited ? 'text-[var(--ls-sand)]' : ''}`}
                         />
-                        <span>{favorited ? 'Unfavorite' : 'Favorite'}</span>
+                        <span>{favorited ? 'unfavorite' : 'favorite'}</span>
                       </div>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => setShowReport(true)}
                       disabled={!sessionId}
+                      className="flex cursor-pointer items-center justify-between rounded-sm px-2.5 py-2 text-sm lowercase text-[var(--ls-text-muted)] outline-none transition-colors hover:bg-[var(--ls-sand)]/8 hover:text-[var(--ls-text)] focus:bg-[var(--ls-sand)]/8 focus:text-[var(--ls-text)] data-[disabled]:pointer-events-none data-[disabled]:opacity-45"
                     >
                       <div className="flex items-center gap-2">
                         <Flag weight="regular" className="w-4 h-4" />
-                        <span>Report</span>
+                        <span>report</span>
                       </div>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -418,7 +454,7 @@ export function FullScreenPlayer({
               </h1>
               <div className="mt-3 flex items-center gap-3">
                 <span className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
-                  {category}
+                  {category.toLowerCase()}
                 </span>
                 {fadeOutEnabled && (
                   <>
@@ -445,7 +481,7 @@ export function FullScreenPlayer({
                 <button
                   type="button"
                   onClick={handleRewind}
-                  className="w-12 h-12 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+                  className="w-12 h-12 flex items-center justify-center rounded-full border border-transparent text-[var(--ls-text-muted)] hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
                   aria-label="rewind 15 seconds"
                 >
                   <ArrowCounterClockwise weight="regular" className="w-6 h-6" />
@@ -456,13 +492,13 @@ export function FullScreenPlayer({
                   <button
                     type="button"
                     onClick={onPlayPause}
-                    className="absolute inset-2 flex items-center justify-center rounded-full border border-[var(--ls-sand)] bg-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/8 transition-colors"
+                    className="absolute inset-2 flex items-center justify-center rounded-full border border-[var(--ls-sand)] bg-[var(--ls-bg)] text-[var(--ls-sand)] hover:bg-[var(--ls-sand)]/8 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
                     aria-label={isPlaying ? 'pause' : 'play'}
                   >
                     {isPlaying ? (
-                      <Pause weight="regular" className="w-8 h-8 text-[var(--ls-sand)]" />
+                      <Pause weight="regular" className="w-8 h-8" />
                     ) : (
-                      <Play weight="regular" className="w-8 h-8 text-[var(--ls-sand)] ml-0.5" />
+                      <Play weight="regular" className="w-8 h-8 ml-0.5" />
                     )}
                   </button>
                 </div>
@@ -470,7 +506,7 @@ export function FullScreenPlayer({
                 <button
                   type="button"
                   onClick={handleForward}
-                  className="w-12 h-12 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+                  className="w-12 h-12 flex items-center justify-center rounded-full border border-transparent text-[var(--ls-text-muted)] hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
                   aria-label="forward 15 seconds"
                 >
                   <ArrowClockwise weight="regular" className="w-6 h-6" />
@@ -490,7 +526,7 @@ export function FullScreenPlayer({
                     onMouseUp={handleSeekEnd}
                     onTouchStart={() => setIsDragging(true)}
                     onTouchEnd={handleSeekEnd}
-                    className="w-full h-[2px] bg-[var(--ls-border-strong)] rounded-full appearance-none cursor-pointer
+                    className="w-full h-[2px] bg-[var(--ls-border-strong)] rounded-full appearance-none cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)] focus-visible:ring-offset-4 focus-visible:ring-offset-[var(--ls-bg)]
                       [&::-webkit-slider-thumb]:appearance-none
                       [&::-webkit-slider-thumb]:w-3
                       [&::-webkit-slider-thumb]:h-3
@@ -554,39 +590,44 @@ export function FullScreenPlayer({
 function BreathingBackground() {
   return (
     <div
-      className="absolute inset-0 overflow-hidden"
-      style={{ background: 'var(--ls-bg)' }}
+      className="absolute inset-0 overflow-hidden bg-[var(--ls-bg)]"
       aria-hidden="true"
     >
-      {/* A single soft radial that pulses 4s in / 4s out.
-          No rotation, no color cycling, no blobs. */}
-      <motion.div
-        className="absolute"
-        style={{
-          width: '90vmin',
-          height: '90vmin',
-          left: '50%',
-          top: '50%',
-          translateX: '-50%',
-          translateY: '-50%',
-          background:
-            'radial-gradient(circle, rgba(201, 182, 163, 0.08) 0%, rgba(201, 182, 163, 0.03) 35%, transparent 70%)',
-          filter: 'blur(40px)',
-        }}
-        animate={{
-          scale: [1, 1.08, 1],
-          opacity: [0.6, 1, 0.6],
-        }}
-        transition={{
-          duration: 8,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
-      />
-      {/* Subtle grain to avoid banding on dark backgrounds — same
-          texture used on HomePage. Static, no animation. */}
+      <div className="absolute left-1/2 top-1/2 h-[82vmin] w-[82vmin] -translate-x-1/2 -translate-y-1/2">
+        {[0, 1, 2].map((index) => (
+          <motion.div
+            key={index}
+            className="absolute inset-0 rounded-full border border-[var(--ls-sand)]/20"
+            initial={{ scale: 0.42, opacity: 0 }}
+            animate={{
+              scale: [0.42, 0.76, 1],
+              opacity: [0, 0.22, 0],
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              delay: index * 1.8,
+              ease: 'easeInOut',
+            }}
+          />
+        ))}
+
+        <motion.div
+          className="absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[var(--ls-border-strong)]"
+          animate={{
+            scale: [1, 1.08, 1],
+            opacity: [0.45, 0.8, 0.45],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+        />
+      </div>
+
       <div
-        className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay"
+        className="absolute inset-0 opacity-[0.035] pointer-events-none mix-blend-overlay"
         style={{
           backgroundImage:
             "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='0.4'/></svg>\")",
