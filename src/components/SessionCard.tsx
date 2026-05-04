@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Play, Heart } from '@phosphor-icons/react'
+import { useState, type MouseEvent, type ReactNode } from 'react'
+import { Play, Heart, Waveform } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
@@ -17,14 +17,28 @@ interface SessionCardProps {
   searchQuery?: string
 }
 
-const categoryColors: Record<string, string> = {
-  Sleep: 'bg-indigo-600/90 text-indigo-50',
-  Confidence: 'bg-purple-600/90 text-purple-50',
-  Fears: 'bg-violet-600/90 text-violet-50',
-  Habits: 'bg-blue-600/90 text-blue-50',
-  Focus: 'bg-teal-600/90 text-teal-50',
-  Custom: 'bg-fuchsia-600/90 text-fuchsia-50',
-  All: 'bg-slate-600/90 text-slate-50',
+const STYLES = `
+.ls-session-card {
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.ls-session-card .font-fraunces {
+  font-family: 'Fraunces', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+`
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 export function SessionCard({
@@ -32,7 +46,6 @@ export function SessionCard({
   title,
   category,
   duration,
-  gradient,
   isFavorited = false,
   onPlay,
   onToggleFavorite,
@@ -43,43 +56,47 @@ export function SessionCard({
   const [isPressed, setIsPressed] = useState(false)
   const [localFavorited, setLocalFavorited] = useState(isFavorited)
 
-  const highlightText = (text: string, query: string) => {
-    if (!query.trim()) return text
-    
-    const parts = text.split(new RegExp(`(${query})`, 'gi'))
+  const highlightText = (text: string, query: string): ReactNode => {
+    const cleanQuery = query.trim()
+    if (!cleanQuery) return text
+
+    const parts = text.split(new RegExp(`(${escapeRegExp(cleanQuery)})`, 'gi'))
+
     return (
       <>
         {parts.map((part, index) =>
-          part.toLowerCase() === query.toLowerCase() ? (
-            <mark key={index} className="bg-primary/30 text-foreground rounded px-0.5">
+          part.toLowerCase() === cleanQuery.toLowerCase() ? (
+            <mark
+              key={index}
+              className="rounded bg-[var(--ls-sand)]/18 px-0.5 text-[var(--ls-text)]"
+            >
               {part}
             </mark>
           ) : (
-            part
-          )
+            <span key={index}>{part}</span>
+          ),
         )}
       </>
     )
   }
 
-  const handleToggleFavorite = (e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleToggleFavorite = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+
     const newFavoritedState = !localFavorited
     setLocalFavorited(newFavoritedState)
     onToggleFavorite?.(id, newFavoritedState)
   }
 
-  const handlePlay = (e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handlePlay = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
     onPlay()
   }
 
   return (
     <motion.div
-      className={cn('group', className)}
-      animate={{
-        scale: isPressed ? 0.95 : 1,
-      }}
+      className={cn('ls-session-card group', className)}
+      animate={{ scale: isPressed ? 0.985 : 1 }}
       transition={{
         type: 'spring',
         stiffness: 400,
@@ -89,70 +106,83 @@ export function SessionCard({
       onPointerUp={() => setIsPressed(false)}
       onPointerLeave={() => setIsPressed(false)}
     >
-      <div 
-        className="bg-card rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer"
+      <style>{STYLES}</style>
+
+      <div
+        className="cursor-pointer overflow-hidden rounded-md border border-[var(--ls-border-strong)] bg-[var(--ls-bg-elevated)]/65 text-[var(--ls-text)] transition-colors hover:border-[var(--ls-sand-dim)] hover:bg-[var(--ls-bg-elevated)]/82"
         onClick={onClick}
+        role={onClick ? 'button' : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onKeyDown={(event) => {
+          if (!onClick) return
+
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            onClick()
+          }
+        }}
       >
-        <div
-          className={cn(
-            'relative h-32 bg-gradient-to-br flex items-center justify-center',
-            gradient
-          )}
-        >
-          <span className="absolute top-2 right-2 text-xs font-medium px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-sm text-white">
-            {duration}
+        <div className="relative flex h-28 items-center justify-center border-b border-[var(--ls-border)] bg-[var(--ls-bg)]/45">
+          <motion.div
+            animate={{ opacity: [0.22, 0.4, 0.22], scale: [1, 1.04, 1] }}
+            transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute h-20 w-20 rounded-full border border-[var(--ls-sand)]/22"
+            aria-hidden="true"
+          />
+
+          <div className="relative flex h-12 w-12 items-center justify-center rounded-full border border-[var(--ls-border-strong)] text-[var(--ls-sand)]">
+            <Waveform size={24} weight="regular" />
+          </div>
+
+          <span className="absolute right-2 top-2 rounded-full border border-[var(--ls-border-strong)] bg-[var(--ls-bg)]/80 px-2.5 py-1 text-xs lowercase text-[var(--ls-text-muted)]">
+            {duration.toLowerCase()}
           </span>
         </div>
 
-        <div className="p-3 space-y-3">
-          <h3 className="font-semibold text-sm leading-tight line-clamp-2 min-h-[2.5rem]">
+        <div className="space-y-3 p-3">
+          <h3 className="min-h-[2.5rem] line-clamp-2 font-fraunces text-base italic lowercase leading-tight text-[var(--ls-text)]">
             {highlightText(title, searchQuery)}
           </h3>
 
           <div className="flex items-center justify-between gap-2">
-            <span
-              className={cn(
-                'inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full',
-                categoryColors[category] || categoryColors.All
-              )}
-            >
-              {highlightText(category, searchQuery)}
+            <span className="inline-flex max-w-[55%] items-center rounded-full border border-[var(--ls-sand-dim)] bg-[var(--ls-sand)]/8 px-2.5 py-1 text-xs lowercase text-[var(--ls-sand)]">
+              <span className="truncate">
+                {highlightText(category, searchQuery)}
+              </span>
             </span>
 
             <div className="flex items-center gap-2">
               <motion.button
+                type="button"
                 onClick={handleToggleFavorite}
-                className="p-1.5 hover:bg-muted/50 rounded-full transition-colors"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-transparent text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
                 whileTap={{ scale: 0.9 }}
-                aria-label={localFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                aria-label={localFavorited ? 'remove from favorites' : 'add to favorites'}
+                aria-pressed={localFavorited}
               >
                 <motion.div
-                  animate={{
-                    scale: localFavorited ? [1, 1.3, 1] : 1,
-                  }}
-                  transition={{
-                    duration: 0.3,
-                    ease: 'easeOut',
-                  }}
+                  animate={{ scale: localFavorited ? [1, 1.18, 1] : 1 }}
+                  transition={{ duration: 0.24, ease: 'easeOut' }}
                 >
                   <Heart
                     weight={localFavorited ? 'fill' : 'regular'}
                     className={cn(
-                      'w-5 h-5 transition-colors duration-200',
-                      localFavorited ? 'text-red-500' : 'text-muted-foreground'
+                      'h-5 w-5 transition-colors duration-200',
+                      localFavorited ? 'text-[var(--ls-sand)]' : '',
                     )}
                   />
                 </motion.div>
               </motion.button>
 
               <motion.button
+                type="button"
                 onClick={handlePlay}
-                className="w-9 h-9 rounded-full bg-primary hover:bg-primary/90 flex items-center justify-center transition-colors shadow-md hover:shadow-lg"
-                whileHover={{ scale: 1.05 }}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--ls-sand)] bg-[var(--ls-sand)] text-[var(--ls-bg)] transition-colors hover:bg-[var(--ls-sand)]/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
+                whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.95 }}
-                aria-label="Play session"
+                aria-label="play session"
               >
-                <Play weight="fill" className="w-4 h-4 text-primary-foreground ml-0.5" />
+                <Play weight="fill" className="ml-0.5 h-4 w-4" />
               </motion.button>
             </div>
           </div>
