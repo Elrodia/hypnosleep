@@ -13,7 +13,7 @@ import { useAuth } from '@/lib/auth-context'
  *      AuthProvider may already have done this on its own mount).
  *   2. Call `refresh()` so the user's profile is loaded before the
  *      app shell mounts.
- *   3. Show a proper "Signing you in…" UI the whole time instead of
+ *   3. Show a calm "signing you in…" UI the whole time instead of
  *      briefly flashing the landing page like the old
  *      `consumeOAuthCallback`-inside-`App.tsx` flow did.
  *
@@ -31,7 +31,7 @@ export function AuthCallbackPage() {
   }, [refresh])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background text-foreground px-6">
+    <div className="ls-auth-callback min-h-screen flex items-center justify-center bg-[var(--ls-bg)] text-[var(--ls-text)] px-6">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -39,16 +39,18 @@ export function AuthCallbackPage() {
         className="flex flex-col items-center gap-6 text-center max-w-sm"
       >
         <CircleNotch
-          size={48}
-          weight="bold"
-          className="text-primary animate-spin"
+          size={40}
+          weight="regular"
+          className="text-[var(--ls-sand-dim)] animate-spin"
         />
-        <div className="space-y-1">
-          <h1 className="text-2xl font-serif font-semibold">Signing you in…</h1>
-          <p className="text-sm text-muted-foreground">
+        <div className="space-y-2">
+          <h1 className="font-fraunces italic lowercase text-2xl text-[var(--ls-text)]">
+            signing you in…
+          </h1>
+          <p className="text-sm text-[var(--ls-text-muted)] lowercase">
             {tokenOk
-              ? 'Finishing up your sign-in, one moment.'
-              : 'Checking your session — hold tight.'}
+              ? 'finishing up, one moment.'
+              : 'checking your session — hold tight.'}
           </p>
         </div>
       </motion.div>
