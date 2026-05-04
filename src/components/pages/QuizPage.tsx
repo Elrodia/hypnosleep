@@ -1,10 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Shield, Moon, Cigarette, Heart, Ghost, Target, Scales, Pencil, Check, SunHorizon, Coffee, Clock } from '@phosphor-icons/react'
-import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
-import { Badge } from '@/components/ui/badge'
-import { Slider } from '@/components/ui/slider'
 
 interface GoalOption {
   id: string
@@ -20,31 +16,27 @@ interface TimeOption {
 }
 
 const goalOptions: GoalOption[] = [
-  { id: 'confidence', label: 'Confidence', icon: Shield },
-  { id: 'sleep', label: 'Better Sleep', icon: Moon },
-  { id: 'smoking', label: 'Quit Smoking', icon: Cigarette },
-  { id: 'anxiety', label: 'Reduce Anxiety', icon: Heart },
-  { id: 'fears', label: 'Overcome Fears', icon: Ghost },
-  { id: 'focus', label: 'Improve Focus', icon: Target },
-  { id: 'weight', label: 'Weight Loss', icon: Scales },
-  { id: 'custom', label: 'Custom Goal', icon: Pencil },
+  { id: 'confidence', label: 'confidence', icon: Shield },
+  { id: 'sleep', label: 'better sleep', icon: Moon },
+  { id: 'smoking', label: 'quit smoking', icon: Cigarette },
+  { id: 'anxiety', label: 'reduce anxiety', icon: Heart },
+  { id: 'fears', label: 'overcome fears', icon: Ghost },
+  { id: 'focus', label: 'improve focus', icon: Target },
+  { id: 'weight', label: 'weight loss', icon: Scales },
+  { id: 'custom', label: 'something else', icon: Pencil },
 ]
 
 const timeOptions: TimeOption[] = [
-  { id: 'before-sleep', label: 'Before Sleep', icon: Moon, recommended: true },
-  { id: 'morning', label: 'Morning Routine', icon: SunHorizon },
-  { id: 'breaks', label: 'During Breaks', icon: Coffee },
-  { id: 'anytime', label: 'Anytime', icon: Clock },
+  { id: 'before-sleep', label: 'before sleep', icon: Moon, recommended: true },
+  { id: 'morning', label: 'morning routine', icon: SunHorizon },
+  { id: 'breaks', label: 'during breaks', icon: Coffee },
+  { id: 'anytime', label: 'anytime', icon: Clock },
 ]
 
-const durationDescriptions: Record<number, string> = {
-  5: 'Quick reset',
-  10: 'Light session',
-  15: 'Focused practice',
-  20: 'Deep work',
-  25: 'Extended journey',
-  30: 'Full immersion',
-}
+const durationOptions = [
+  { value: 5, label: '5 minutes' },
+  { value: 10, label: '10 minutes' },
+] as const
 
 interface QuizPageProps {
   onComplete: (data: {
@@ -58,34 +50,28 @@ export function QuizPage({ onComplete }: QuizPageProps) {
   const [step, setStep] = useState(1)
   const [selectedGoals, setSelectedGoals] = useState<string[]>([])
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
-  const [duration, setDuration] = useState(15)
+  const [duration, setDuration] = useState<5 | 10>(5)
 
   const toggleGoal = (goalId: string) => {
-    setSelectedGoals((current) => {
-      if (current.includes(goalId)) {
-        return current.filter((id) => id !== goalId)
-      } else {
-        return [...current, goalId]
-      }
-    })
+    setSelectedGoals((current) =>
+      current.includes(goalId)
+        ? current.filter((id) => id !== goalId)
+        : [...current, goalId],
+    )
   }
 
   const handleStep1Continue = () => {
-    if (selectedGoals.length > 0) {
-      setStep(2)
-    }
+    if (selectedGoals.length > 0) setStep(2)
   }
 
   const handleStep2Continue = () => {
-    if (selectedTime) {
-      setStep(3)
-    }
+    if (selectedTime) setStep(3)
   }
 
   const handleStep3Complete = () => {
     onComplete({
       selectedGoals,
-      preferredTime: selectedTime || 'before-sleep',
+      preferredTime: selectedTime ?? 'before-sleep',
       sessionDuration: duration,
     })
   }
@@ -97,18 +83,33 @@ export function QuizPage({ onComplete }: QuizPageProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="min-h-screen bg-background text-foreground p-6 pb-24"
+      className="ls-quiz min-h-screen bg-[var(--ls-bg)] text-[var(--ls-text)] p-6 pb-24"
     >
       <div className="max-w-2xl mx-auto">
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">Step {step} of 3</span>
-            <span className="text-sm text-muted-foreground">{progress}%</span>
+
+        {/* ── Progress strip ── */}
+        <div className="mb-10">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
+              step {step} of 3
+            </span>
+            <span className="text-xs text-[var(--ls-text-subtle)]">
+              {progress}%
+            </span>
           </div>
-          <Progress value={progress} className="h-2" />
+          <div className="h-px w-full bg-[var(--ls-border)] relative overflow-hidden">
+            <motion.div
+              className="absolute inset-y-0 left-0 bg-[var(--ls-sand)]"
+              initial={false}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+            />
+          </div>
         </div>
 
         <AnimatePresence mode="wait">
+
+          {/* ── STEP 1 — Goals ── */}
           {step === 1 && (
             <motion.div
               key="step1"
@@ -118,29 +119,31 @@ export function QuizPage({ onComplete }: QuizPageProps) {
               transition={{ duration: 0.3 }}
             >
               <div className="mb-8">
-                <h1 className="text-3xl font-semibold mb-2 font-serif">
-                  What would you like to work on?
+                <h1 className="font-fraunces italic lowercase text-3xl mb-2 text-[var(--ls-text)]">
+                  what would you like to work on?
                 </h1>
-                <p className="text-muted-foreground">Pick all that apply.</p>
+                <p className="text-sm text-[var(--ls-text-muted)] lowercase">
+                  pick all that apply.
+                </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-8">
+              <div className="grid grid-cols-2 gap-3 mb-10">
                 {goalOptions.map((goal) => {
                   const Icon = goal.icon
                   const isSelected = selectedGoals.includes(goal.id)
-
                   return (
                     <motion.button
                       key={goal.id}
+                      type="button"
                       onClick={() => toggleGoal(goal.id)}
-                      whileTap={{ scale: 0.95 }}
+                      whileTap={{ scale: 0.97 }}
                       className={`
-                        relative flex flex-col items-center justify-center gap-3 p-6 rounded-lg
-                        bg-card border-2 transition-all duration-200
+                        relative flex flex-col items-center justify-center gap-3 p-5 rounded-md
+                        bg-[var(--ls-bg-elevated)] border transition-colors
                         ${
                           isSelected
-                            ? 'border-primary shadow-lg shadow-primary/20'
-                            : 'border-border hover:border-primary/50'
+                            ? 'border-[var(--ls-sand)] bg-[var(--ls-sand)]/[0.06]'
+                            : 'border-[var(--ls-border)] hover:border-[var(--ls-border-strong)]'
                         }
                       `}
                     >
@@ -148,21 +151,20 @@ export function QuizPage({ onComplete }: QuizPageProps) {
                         <motion.div
                           initial={{ scale: 0, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
-                          className="absolute top-2 right-2 bg-primary rounded-full p-1"
+                          className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--ls-sand)] flex items-center justify-center"
                         >
-                          <Check weight="bold" className="w-4 h-4 text-primary-foreground" />
+                          <Check weight="regular" className="w-3 h-3 text-[var(--ls-bg)]" />
                         </motion.div>
                       )}
-
                       <Icon
-                        weight="duotone"
-                        className={`w-12 h-12 transition-colors ${
-                          isSelected ? 'text-primary' : 'text-muted-foreground'
+                        weight="regular"
+                        className={`w-9 h-9 transition-colors ${
+                          isSelected ? 'text-[var(--ls-sand)]' : 'text-[var(--ls-text-muted)]'
                         }`}
                       />
                       <span
-                        className={`text-sm font-medium text-center transition-colors ${
-                          isSelected ? 'text-foreground' : 'text-muted-foreground'
+                        className={`text-sm text-center transition-colors lowercase ${
+                          isSelected ? 'text-[var(--ls-text)]' : 'text-[var(--ls-text-muted)]'
                         }`}
                       >
                         {goal.label}
@@ -172,17 +174,18 @@ export function QuizPage({ onComplete }: QuizPageProps) {
                 })}
               </div>
 
-              <Button
+              <button
+                type="button"
                 onClick={handleStep1Continue}
                 disabled={selectedGoals.length === 0}
-                className="w-full h-12 text-base font-medium"
-                size="lg"
+                className="w-full h-12 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 transition-colors text-sm lowercase disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
               >
-                Continue
-              </Button>
+                continue
+              </button>
             </motion.div>
           )}
 
+          {/* ── STEP 2 — Time ── */}
           {step === 2 && (
             <motion.div
               key="step2"
@@ -192,82 +195,75 @@ export function QuizPage({ onComplete }: QuizPageProps) {
               transition={{ duration: 0.3 }}
             >
               <div className="mb-8">
-                <h1 className="text-3xl font-semibold mb-2 font-serif">
-                  When do you prefer to listen?
+                <h1 className="font-fraunces italic lowercase text-3xl mb-2 text-[var(--ls-text)]">
+                  when do you prefer to listen?
                 </h1>
               </div>
 
-              <div className="flex flex-col gap-3 mb-8">
+              <div className="flex flex-col gap-3 mb-10">
                 {timeOptions.map((option) => {
                   const Icon = option.icon
                   const isSelected = selectedTime === option.id
-
                   return (
                     <motion.button
                       key={option.id}
+                      type="button"
                       onClick={() => setSelectedTime(option.id)}
-                      whileTap={{ scale: 0.98 }}
+                      whileTap={{ scale: 0.99 }}
                       className={`
-                        relative flex items-center gap-4 p-5 rounded-lg
-                        bg-card border-2 transition-all duration-200
+                        relative flex items-center gap-4 p-4 rounded-md
+                        bg-[var(--ls-bg-elevated)] border transition-colors text-left
                         ${
                           isSelected
-                            ? 'border-primary shadow-lg shadow-primary/30 bg-primary/5'
-                            : 'border-border hover:border-primary/50'
+                            ? 'border-[var(--ls-sand)] bg-[var(--ls-sand)]/[0.06]'
+                            : 'border-[var(--ls-border)] hover:border-[var(--ls-border-strong)]'
                         }
                       `}
                     >
-                      <div className="flex-shrink-0">
-                        <Icon
-                          weight="duotone"
-                          className={`w-8 h-8 transition-colors ${
-                            isSelected ? 'text-primary' : 'text-muted-foreground'
-                          }`}
-                        />
-                      </div>
-                      
-                      <div className="flex-1 text-center">
-                        <span
-                          className={`text-base font-medium transition-colors ${
-                            isSelected ? 'text-foreground' : 'text-muted-foreground'
-                          }`}
-                        >
-                          {option.label}
+                      <Icon
+                        weight="regular"
+                        className={`w-6 h-6 flex-shrink-0 transition-colors ${
+                          isSelected ? 'text-[var(--ls-sand)]' : 'text-[var(--ls-text-muted)]'
+                        }`}
+                      />
+                      <span
+                        className={`flex-1 text-base transition-colors lowercase ${
+                          isSelected ? 'text-[var(--ls-text)]' : 'text-[var(--ls-text-muted)]'
+                        }`}
+                      >
+                        {option.label}
+                      </span>
+                      {option.recommended && (
+                        <span className="text-[10px] uppercase tracking-widest text-[var(--ls-text-subtle)]">
+                          recommended
                         </span>
-                      </div>
-
-                      <div className="flex-shrink-0 w-8">
-                        {option.recommended && (
-                          <Badge variant="secondary" className="text-xs bg-primary/20 text-primary border-primary/30">
-                            Recommended
-                          </Badge>
-                        )}
-                        {isSelected && !option.recommended && (
-                          <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className="w-6 h-6 rounded-full bg-primary flex items-center justify-center"
-                          >
-                            <Check weight="bold" className="w-4 h-4 text-primary-foreground" />
-                          </motion.div>
-                        )}
-                      </div>
+                      )}
+                      {isSelected && (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="w-5 h-5 rounded-full bg-[var(--ls-sand)] flex items-center justify-center flex-shrink-0"
+                        >
+                          <Check weight="regular" className="w-3 h-3 text-[var(--ls-bg)]" />
+                        </motion.div>
+                      )}
                     </motion.button>
                   )
                 })}
               </div>
 
-              <Button
+              <button
+                type="button"
                 onClick={handleStep2Continue}
                 disabled={!selectedTime}
-                className="w-full h-12 text-base font-medium"
-                size="lg"
+                className="w-full h-12 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 transition-colors text-sm lowercase disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
               >
-                Continue
-              </Button>
+                continue
+              </button>
             </motion.div>
           )}
 
+          {/* ── STEP 3 — Duration ── */}
           {step === 3 && (
             <motion.div
               key="step3"
@@ -277,98 +273,53 @@ export function QuizPage({ onComplete }: QuizPageProps) {
               transition={{ duration: 0.3 }}
             >
               <div className="mb-8">
-                <h1 className="text-3xl font-semibold mb-2 font-serif">
-                  How long should sessions be?
+                <h1 className="font-fraunces italic lowercase text-3xl mb-2 text-[var(--ls-text)]">
+                  how long should sessions be?
                 </h1>
+                <p className="text-sm text-[var(--ls-text-muted)] lowercase">
+                  you can change this later in preferences.
+                </p>
               </div>
 
-              <div className="flex flex-col items-center gap-8 mb-12">
-                <motion.div
-                  key={duration}
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                  className="relative w-48 h-48 flex items-center justify-center"
-                >
-                  <svg className="absolute inset-0 w-full h-full -rotate-90">
-                    <circle
-                      cx="96"
-                      cy="96"
-                      r="80"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      className="text-card"
-                    />
-                    <motion.circle
-                      cx="96"
-                      cy="96"
-                      r="80"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                      className="text-primary"
-                      initial={{ strokeDasharray: '0 502' }}
-                      animate={{ 
-                        strokeDasharray: `${(duration / 30) * 502} 502`
-                      }}
-                      transition={{ duration: 0.5, ease: 'easeInOut' }}
-                    />
-                  </svg>
-                  
-                  <div className="flex flex-col items-center justify-center">
-                    <motion.span
-                      key={`duration-${duration}`}
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ duration: 0.2 }}
-                      className="text-5xl font-bold text-primary"
+              <div className="grid grid-cols-2 gap-3 mb-10">
+                {durationOptions.map((opt) => {
+                  const isSelected = duration === opt.value
+                  return (
+                    <motion.button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setDuration(opt.value)}
+                      whileTap={{ scale: 0.97 }}
+                      className={`
+                        py-6 rounded-md transition-colors border lowercase
+                        ${
+                          isSelected
+                            ? 'border-[var(--ls-sand)] bg-[var(--ls-sand)]/[0.06] text-[var(--ls-text)]'
+                            : 'border-[var(--ls-border)] bg-[var(--ls-bg-elevated)] text-[var(--ls-text-muted)] hover:border-[var(--ls-border-strong)]'
+                        }
+                      `}
                     >
-                      {duration}
-                    </motion.span>
-                    <span className="text-lg text-muted-foreground">minutes</span>
-                  </div>
-                </motion.div>
-
-                <div className="w-full max-w-md px-2">
-                  <Slider
-                    value={[duration]}
-                    onValueChange={(value) => setDuration(value[0])}
-                    min={5}
-                    max={30}
-                    step={5}
-                    className="w-full"
-                  />
-                  
-                  <div className="flex justify-between mt-2 px-1">
-                    <span className="text-xs text-muted-foreground">5 min</span>
-                    <span className="text-xs text-muted-foreground">30 min</span>
-                  </div>
-                </div>
-
-                <motion.div
-                  key={`desc-${duration}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="text-center"
-                >
-                  <span className="text-lg font-medium text-foreground">
-                    {duration} min — {durationDescriptions[duration]}
-                  </span>
-                </motion.div>
+                      <div className={`font-fraunces italic text-3xl mb-1 ${isSelected ? 'text-[var(--ls-sand)]' : ''}`}>
+                        {opt.value}
+                      </div>
+                      <div className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
+                        minutes
+                      </div>
+                    </motion.button>
+                  )
+                })}
               </div>
 
-              <Button
+              <button
+                type="button"
                 onClick={handleStep3Complete}
-                className="w-full h-12 text-base font-medium"
-                size="lg"
+                className="w-full h-12 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 transition-colors text-sm lowercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
               >
-                Complete Setup
-              </Button>
+                begin
+              </button>
             </motion.div>
           )}
+
         </AnimatePresence>
       </div>
     </motion.div>
