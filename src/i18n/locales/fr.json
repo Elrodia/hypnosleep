@@ -1,0 +1,236 @@
+{
+  "common": {
+    "language": "Langue",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "continue": "Continuer",
+    "loading": "Chargement",
+    "error": "Une erreur est survenue"
+  },
+  "languageSwitcher": {
+    "label": "Changer de langue",
+    "ariaButton": "Ouvrir le menu des langues"
+  },
+  "nav": {
+    "features": "Fonctionnalités",
+    "howItWorks": "Comment ça marche",
+    "pricing": "Tarifs",
+    "faq": "FAQ",
+    "logIn": "Se connecter",
+    "startFreeTrial": "Essai gratuit",
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu"
+  },
+  "hero": {
+    "eyebrow": "hypnose conçue par ia, faite pour vous",
+    "titleLine1": "reprogrammez votre esprit",
+    "titleLine2": "pendant votre sommeil",
+    "subtitle": "des séances d'hypnose personnalisées, écrites pour l'objectif que vous décrivez, en environ 30 secondes. dormez mieux, gagnez en confiance, changez vos habitudes.",
+    "ctaPrimary": "commencer l'essai gratuit",
+    "samplePlay": "écouter un extrait",
+    "samplePause": "mettre en pause",
+    "ariaSamplePlay": "écouter un extrait de 15 secondes",
+    "ariaSamplePause": "mettre l'extrait en pause",
+    "errorRetry": "{{error}} — réessayez plus tard.",
+    "trialBullets": "essai 7 jours · sans carte bancaire · annulable à tout moment",
+    "ariaOrb": "animation d'orbe hypnotique"
+  },
+  "problemSolution": {
+    "eyebrow": "Pourquoi ça existe",
+    "title": "Les enregistrements génériques ne s'adaptent pas à votre nuit.",
+    "body": "La plupart des applis d'hypnose vous servent les cinquante mêmes bandes que tout le monde. Ici, on en écrit une nouvelle à chaque fois, autour de l'objectif que vous avez vraiment — ce soir."
+  },
+  "howItWorks": {
+    "eyebrow": "Comment ça marche",
+    "title": "De « je veux changer » à endormi en trois minutes",
+    "subtitle": "Pas de questionnaire interminable. Pas d'abonnement à quatre applis. Juste un objectif, une ia, une séance — ce soir.",
+    "step1Title": "Dites-nous sur quoi vous voulez travailler",
+    "step1Caption": "Sur quoi voulez-vous travailler ?",
+    "step1Tag1": "Sommeil",
+    "step1Tag2": "20 min",
+    "step1Tag3": "Voix calme",
+    "step1Sample": "M'endormir plus vite les soirs de semaine",
+    "step2Title": "L'ia rédige votre script d'hypnose personnel",
+    "step2Caption": "Création de votre séance…",
+    "step2Sub": "Induction · approfondissement · suggestions",
+    "step3Title": "Écoutez avant de dormir — réveillez-vous transformé",
+    "step3SessionTitle": "Glisser dans le sommeil profond",
+    "step3SessionMeta": "Sommeil · 18:24"
+  },
+  "featuresGrid": {
+    "eyebrow": "Fonctionnalités",
+    "title": "Tout ce qu'un bon hypnothérapeute vous donnerait, sans les 90 € de consultation",
+    "personalizedTitle": "Scripts ia personnalisés",
+    "personalizedDesc": "Chaque séance unique, adaptée à vos objectifs.",
+    "voicesTitle": "6 voix apaisantes",
+    "voicesDesc": "Trouvez la voix qui vous emmène ailleurs.",
+    "soundsTitle": "Sons d'ambiance",
+    "soundsDesc": "Pluie, océan, forêt, vent, ou silence.",
+    "privateTitle": "Privé par défaut",
+    "privateDesc": "Vos séances ne quittent jamais votre compte."
+  },
+  "useCases": {
+    "eyebrow": "Cas d'usage",
+    "title": "Qu'est-ce que vous êtes venu changer ?",
+    "tryFreeButton": "Essayer une séance {{label}} gratuitement",
+    "items": {
+      "sleep": {
+        "label": "Sommeil",
+        "description": "Inductions hypnotiques calibrées sur votre rythme du soir et votre voix préférée. La plupart s'endorment avant la barre des 12 minutes."
+      },
+      "confidence": {
+        "label": "Confiance",
+        "description": "Affirmations quotidiennes réécrites autour de vos vrais objectifs — l'entretien, la conversation, ce que vous repoussez."
+      },
+      "smoking": {
+        "label": "Arrêter de fumer",
+        "description": "Scripts ciblés sur l'envie et l'identité. Déclenchés par contexte (« après le dîner », « avec le café ») pour avoir la bonne séance à portée de main."
+      },
+      "anxiety": {
+        "label": "Anxiété",
+        "description": "Séances d'ancrage et de régulation, en 10 minutes. Pas de thérapie longue, pas de liste d'attente."
+      },
+      "focus": {
+        "label": "Concentration",
+        "description": "Courtes amorces avant le travail qui aident à commencer la chose, pas juste à planifier de la commencer."
+      }
+    }
+  },
+  "pricing": {
+    "eyebrow": "Tarifs",
+    "title": "gratuit pour commencer. pro quand vous êtes sérieux.",
+    "subtitle": "Sept jours de Pro offerts. Annulable en un clic si ce n'est pas pour vous.",
+    "billingMonthly": "Mensuel",
+    "billingYearly": "Annuel",
+    "saveBadge": "Économisez {{percent}} %",
+    "freeTitle": "Gratuit",
+    "freeTagline": "Pour tester du bout du doigt.",
+    "freePrice": "0 $",
+    "freePeriod": "/à vie",
+    "freeBullet1": "2 séances à vie",
+    "freeBullet2": "Séances de 5 minutes",
+    "freeBullet3": "1 voix",
+    "freeBullet4": "Silence ou bruit de pluie",
+    "freeCta": "Commencer gratuitement",
+    "proTitle": "Pro",
+    "proTagline": "Tout, sans limite, tout le temps.",
+    "proPeriodMonth": "/mois",
+    "proPeriodYear": "/an",
+    "proBullet1": "8 séances par mois",
+    "proBullet2": "Séances de 3 à 12 minutes",
+    "proBullet3": "Les 6 voix",
+    "proBullet4": "Les 5 sons d'ambiance",
+    "proCta": "Démarrer l'essai 7 jours",
+    "proDisclaimer": "Aucun débit avant la fin de l'essai. Annulable à tout moment.",
+    "yearlySaveBadge": "Économisez {{amount}} $/an",
+    "mostPopular": "Le plus choisi",
+    "ariaBilling": "Période de facturation"
+  },
+  "faq": {
+    "eyebrow": "FAQ",
+    "title": "Les questions qu'on nous pose souvent",
+    "items": {
+      "different": {
+        "question": "Qu'est-ce qui distingue HypnoSleep des autres applis d'hypnose ?",
+        "answer": "HypnoSleep écrit un nouveau script d'hypnose pour l'objectif que vous décrivez — à chaque séance. Choisissez une voix et une durée, et vous avez un audio personnalisé en environ 30 secondes."
+      },
+      "works": {
+        "question": "Est-ce que l'hypnose par ia fonctionne vraiment ?",
+        "answer": "L'hypnose, c'est essentiellement de l'attention focalisée plus de la suggestion. L'ia écrit le script en suivant la structure que les hypnothérapeutes cliniciens utilisent — induction, approfondissement, suggestion, retour — et une voix calme vous le lit."
+      },
+      "safe": {
+        "question": "Est-ce sans danger ?",
+        "answer": "Oui. Écoutez dans un endroit calme où vous pouvez vous reposer en sécurité. N'écoutez pas en conduisant ou en utilisant des machines. En cas d'antécédents de psychose, d'épilepsie ou de SSPT, parlez-en à un clinicien qualifié avant d'utiliser un produit d'hypnose."
+      },
+      "speed": {
+        "question": "Combien de temps pour générer une séance ?",
+        "answer": "Habituellement 30 à 60 secondes au total : quelques secondes pour écrire le script, le reste pour la synthèse vocale."
+      },
+      "cancel": {
+        "question": "Puis-je annuler à tout moment ?",
+        "answer": "Oui. Un clic dans Réglages → Abonnement. Vos avantages Pro restent actifs jusqu'à la fin de la période, sans question."
+      },
+      "refund": {
+        "question": "Faites-vous des remboursements ?",
+        "answer": "Si l'appli n'a pas marché pour vous, écrivez-nous dans les 30 jours suivant votre premier paiement Pro et on regarde votre cas. Nous sommes une petite équipe et on veut que vous soyez bien."
+      },
+      "privacy": {
+        "question": "Mes données sont-elles privées ?",
+        "answer": "Vos objectifs, scripts et historique d'écoute sont chiffrés et liés uniquement à votre compte. Nous ne vendons jamais de données, nous n'entraînons jamais de modèles tiers sur votre contenu, et vous pouvez tout exporter ou supprimer en un clic."
+      },
+      "languages": {
+        "question": "Quelles langues sont prises en charge ?",
+        "answer": "Les séances sont générées en anglais au lancement. L'interface de l'application est disponible en anglais, français, portugais, espagnol, allemand et italien. D'autres langues de séance suivront une fois la qualité validée."
+      }
+    }
+  },
+  "finalCta": {
+    "title": "votre transformation commence ce soir",
+    "subtitle": "essai 7 jours. sans carte bancaire. annulable à tout moment.",
+    "button": "commencer l'essai gratuit"
+  },
+  "footer": {
+    "product": "Produit",
+    "company": "Entreprise",
+    "resources": "Ressources",
+    "legal": "Mentions légales",
+    "links": {
+      "features": "Fonctionnalités",
+      "pricing": "Tarifs",
+      "templates": "Modèles",
+      "roadmap": "Feuille de route",
+      "about": "À propos",
+      "blog": "Blog",
+      "pressKit": "Kit presse",
+      "contact": "Contact",
+      "helpCenter": "Centre d'aide",
+      "api": "API",
+      "affiliates": "Affiliation",
+      "sitemap": "Plan du site",
+      "terms": "Conditions",
+      "privacy": "Confidentialité",
+      "cookies": "Cookies",
+      "gdpr": "RGPD"
+    },
+    "madeIn": "© {{year}} HypnoSleep. Fait avec",
+    "inBelgium": "en Belgique."
+  },
+  "exitIntent": {
+    "title": "attendez, avant de partir",
+    "subtitle": "essayez une séance, gratuitement, sans carte.",
+    "ctaPrimary": "démarrer mon essai gratuit",
+    "ctaDismiss": "non merci",
+    "ariaClose": "Fermer"
+  },
+  "login": {
+    "title": "bienvenue.",
+    "subtitle": "connectez-vous pour commencer.",
+    "google": "continuer avec google",
+    "github": "continuer avec github",
+    "microsoft": "continuer avec microsoft",
+    "footerTerms": "en continuant, vous acceptez nos conditions et notre politique de confidentialité.",
+    "errorCookies": "la connexion oauth nécessite les cookies et le stockage du navigateur. autorisez les cookies et désactivez la protection anti-tracking stricte, puis réessayez."
+  },
+  "authCallback": {
+    "title": "connexion en cours.",
+    "subtitleOk": "encore un instant.",
+    "subtitleChecking": "vérification de votre session — un instant."
+  },
+  "authError": {
+    "title": "Échec de la connexion",
+    "subtitle": "Nous n'avons pas pu finaliser votre connexion. Voici ce qui s'est passé :",
+    "tryAgain": "Réessayer",
+    "backToHome": "Retour à l'accueil",
+    "errors": {
+      "oauth_failed": "Le service de connexion a renvoyé une erreur. Réessayez.",
+      "oauth_cancelled": "Vous avez annulé la connexion. Pas de souci — réessayez quand vous voulez.",
+      "invalid_state": "La session a expiré pendant la connexion. Réessayez une fois.",
+      "network": "Impossible de joindre le service de connexion. Vérifiez votre connexion.",
+      "unknown": "Une erreur inattendue est survenue. Réessayez ou contactez le support."
+    }
+  },
+  "splash": {
+    "wordmark": "hypnosleep",
+    "tagline": "reprogrammez votre esprit pendant votre sommeil."
+  }
+}

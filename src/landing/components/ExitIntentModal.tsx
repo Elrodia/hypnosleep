@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from './shared/Button'
 
 interface ExitIntentModalProps {
@@ -10,6 +11,7 @@ interface ExitIntentModalProps {
 }
 
 export function ExitIntentModal({ open, onClose, onCtaClick }: ExitIntentModalProps) {
+  const { t } = useTranslation()
   // Escape to close — respecting accessibility without needing a focus trap
   // library (the modal contains only two focusable elements). Also locks
   // body scroll while the modal is open so the page behind can't scroll,
@@ -47,17 +49,17 @@ export function ExitIntentModal({ open, onClose, onCtaClick }: ExitIntentModalPr
             className="relative mx-auto w-full max-w-md rounded-2xl border border-[var(--ls-border-strong)] bg-[var(--ls-bg-elevated)] p-7"
           >
             <button
-              aria-label="Close"
+              aria-label={t('exitIntent.ariaClose')}
               className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--ls-border)] text-[var(--ls-text-muted)] hover:text-[var(--ls-text)]"
               onClick={onClose}
             >
               <X size={16} />
             </button>
             <h2 id="exit-title" className="font-fraunces italic lowercase text-2xl mb-2 text-[var(--ls-text)]">
-              wait — try it tonight, on us
+              {t('exitIntent.title')}
             </h2>
             <p className="text-[var(--ls-text-muted)] mb-6 leading-relaxed">
-              Start your free trial — no credit card required. One tap to cancel if it is not for you.
+              {t('exitIntent.subtitle')}
             </p>
             <Button
               size="lg"
@@ -67,8 +69,15 @@ export function ExitIntentModal({ open, onClose, onCtaClick }: ExitIntentModalPr
                 onClose()
               }}
             >
-              Start Free Trial
+              {t('exitIntent.ctaPrimary')}
             </Button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-3 block w-full text-center text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+            >
+              {t('exitIntent.ctaDismiss')}
+            </button>
           </motion.div>
         </motion.div>
       )}

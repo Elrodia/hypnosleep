@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Menu, X } from 'lucide-react'
 import { Button } from './shared/Button'
 import { posthog } from '../lib/posthog'
@@ -10,18 +11,19 @@ interface NavProps {
   onLogin: () => void
 }
 
-const navLinks = [
-  { href: '#features', label: 'Features' },
-  { href: '#how-it-works', label: 'How it Works' },
-  { href: '#pricing', label: 'Pricing' },
-  { href: '#faq', label: 'FAQ' },
-]
-
 export function Nav({ onCtaClick, onLogin }: NavProps) {
+  const { t } = useTranslation()
   // Background fades to opaque once the user has scrolled past the hero —
   // protects nav legibility without fighting the hero gradient above it.
   const [scrolled, setScrolled] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
+
+  const navLinks = [
+    { href: '#features', label: t('nav.features') },
+    { href: '#how-it-works', label: t('nav.howItWorks') },
+    { href: '#pricing', label: t('nav.pricing') },
+    { href: '#faq', label: t('nav.faq') },
+  ]
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16)
@@ -79,15 +81,15 @@ export function Nav({ onCtaClick, onLogin }: NavProps) {
               onClick={onLogin}
               className="text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition px-3 py-2"
             >
-              Log In
+              {t('nav.logIn')}
             </button>
-            <Button size="md" onClick={() => onCtaClick('nav')}>Start Free Trial</Button>
+            <Button size="md" onClick={() => onCtaClick('nav')}>{t('nav.startFreeTrial')}</Button>
           </div>
 
           <button
             type="button"
             className="md:hidden inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--ls-border-strong)] text-[var(--ls-text)]"
-            aria-label="Open menu"
+            aria-label={drawerOpen ? t('nav.closeMenu') : t('nav.openMenu')}
             aria-expanded={drawerOpen}
             onClick={() => setDrawerOpen((o) => !o)}
           >
@@ -117,10 +119,10 @@ export function Nav({ onCtaClick, onLogin }: NavProps) {
             ))}
             <div className="mt-6 flex flex-col gap-3">
               <Button size="lg" onClick={() => { setDrawerOpen(false); onCtaClick('nav_mobile') }}>
-                Start Free Trial
+                {t('nav.startFreeTrial')}
               </Button>
               <Button size="lg" variant="secondary" onClick={() => { setDrawerOpen(false); onLogin() }}>
-                Log In
+                {t('nav.logIn')}
               </Button>
             </div>
           </div>

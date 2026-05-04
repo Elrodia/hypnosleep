@@ -1,8 +1,10 @@
 import { Twitter, Instagram, Youtube } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Logo } from '../../components/Logo'
 
 interface FooterLink {
-  label: string
+  /** i18n key under `footer.links.*` for the visible label. */
+  labelKey: string
   href: string
   /** When true, the link points to a real destination — otherwise it's
       kept as plain text until the destination comes online. Keeping the
@@ -17,41 +19,41 @@ interface FooterLink {
  * the rest fall back to non-interactive text so we don't ship `href="#"`
  * links that scroll to the top and pollute history.
  */
-const columns: { title: string; links: FooterLink[] }[] = [
+const columns: { titleKey: string; links: FooterLink[] }[] = [
   {
-    title: 'Product',
+    titleKey: 'footer.product',
     links: [
-      { label: 'Features', href: '#features', live: true },
-      { label: 'Pricing', href: '#pricing', live: true },
-      { label: 'Templates', href: '#templates', live: true },
-      { label: 'Roadmap', href: '/roadmap' },
+      { labelKey: 'features', href: '#features', live: true },
+      { labelKey: 'pricing', href: '#pricing', live: true },
+      { labelKey: 'templates', href: '#templates', live: true },
+      { labelKey: 'roadmap', href: '/roadmap' },
     ],
   },
   {
-    title: 'Company',
+    titleKey: 'footer.company',
     links: [
-      { label: 'About', href: '/about', live: true },
-      { label: 'Blog', href: '/blog' },
-      { label: 'Press Kit', href: '/press' },
-      { label: 'Contact', href: 'mailto:hello@hypnosleep.app', live: true },
+      { labelKey: 'about', href: '/about', live: true },
+      { labelKey: 'blog', href: '/blog' },
+      { labelKey: 'pressKit', href: '/press' },
+      { labelKey: 'contact', href: 'mailto:hello@hypnosleep.app', live: true },
     ],
   },
   {
-    title: 'Resources',
+    titleKey: 'footer.resources',
     links: [
-      { label: 'Help Center', href: '/help', live: true },
-      { label: 'API', href: '/docs/api' },
-      { label: 'Affiliates', href: '/affiliates' },
-      { label: 'Sitemap', href: '/sitemap.xml' },
+      { labelKey: 'helpCenter', href: '/help', live: true },
+      { labelKey: 'api', href: '/docs/api' },
+      { labelKey: 'affiliates', href: '/affiliates' },
+      { labelKey: 'sitemap', href: '/sitemap.xml' },
     ],
   },
   {
-    title: 'Legal',
+    titleKey: 'footer.legal',
     links: [
-      { label: 'Terms', href: '/legal/terms', live: true },
-      { label: 'Privacy', href: '/legal/privacy', live: true },
-      { label: 'Cookies', href: '/legal/cookies', live: true },
-      { label: 'GDPR', href: '/legal/gdpr' },
+      { labelKey: 'terms', href: '/legal/terms', live: true },
+      { labelKey: 'privacy', href: '/legal/privacy', live: true },
+      { labelKey: 'cookies', href: '/legal/cookies', live: true },
+      { labelKey: 'gdpr', href: '/legal/gdpr' },
     ],
   },
 ]
@@ -64,31 +66,35 @@ const socials: Array<{ label: string; href: string | null; icon: typeof Twitter 
 ]
 
 export function Footer() {
+  const { t } = useTranslation()
   return (
     <footer className="relative border-t border-[var(--ls-border)] pt-16 pb-10 text-sm">
       <div className="mx-auto max-w-7xl px-5 sm:px-8 grid gap-10 sm:grid-cols-2 md:grid-cols-4">
         {columns.map((c) => (
-          <div key={c.title}>
+          <div key={c.titleKey}>
             <h4 className="mb-3 text-xs font-semibold uppercase tracking-widest text-[var(--ls-text-subtle)]">
-              {c.title}
+              {t(c.titleKey)}
             </h4>
             <ul className="space-y-2">
-              {c.links.map((link) => (
-                <li key={link.label}>
-                  {link.live ? (
-                    <a
-                      href={link.href}
-                      className="text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
-                    >
-                      {link.label}
-                    </a>
-                  ) : (
-                    <span className="text-[var(--ls-text-muted)]/60" title="Coming soon">
-                      {link.label}
-                    </span>
-                  )}
-                </li>
-              ))}
+              {c.links.map((link) => {
+                const label = t(`footer.links.${link.labelKey}`)
+                return (
+                  <li key={link.labelKey}>
+                    {link.live ? (
+                      <a
+                        href={link.href}
+                        className="text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
+                      >
+                        {label}
+                      </a>
+                    ) : (
+                      <span className="text-[var(--ls-text-muted)]/60" title="Coming soon">
+                        {label}
+                      </span>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           </div>
         ))}
@@ -99,7 +105,9 @@ export function Footer() {
           <Logo variant="mark" size={28} className="rounded-full" alt="" />
           <span className="ls-display text-base text-[var(--ls-text)]">HypnoSleep</span>
           <span className="ml-3 text-xs text-[var(--ls-text-muted)]">
-            © {new Date().getFullYear()} HypnoSleep. Made with <span aria-label="love" className="text-[var(--ls-sand)]">❤</span> in Belgium.
+            {t('footer.madeIn', { year: new Date().getFullYear() })}{' '}
+            <span aria-label="love" className="text-[var(--ls-sand)]">❤</span>{' '}
+            {t('footer.inBelgium')}
           </span>
         </div>
 

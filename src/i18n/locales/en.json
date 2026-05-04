@@ -1,10 +1,236 @@
 {
   "common": {
     "language": "Language",
-    "save": "Save"
+    "save": "Save",
+    "cancel": "Cancel",
+    "continue": "Continue",
+    "loading": "Loading",
+    "error": "Something went wrong"
   },
   "languageSwitcher": {
     "label": "Change language",
     "ariaButton": "Open language menu"
+  },
+  "nav": {
+    "features": "Features",
+    "howItWorks": "How it works",
+    "pricing": "Pricing",
+    "faq": "FAQ",
+    "logIn": "Log In",
+    "startFreeTrial": "Start Free Trial",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "hero": {
+    "eyebrow": "ai-crafted hypnosis, made for you",
+    "titleLine1": "rewire your mind",
+    "titleLine2": "while you sleep",
+    "subtitle": "personalised hypnosis sessions, written for the goal you describe, in about 30 seconds. sleep deeper, build confidence, break habits.",
+    "ctaPrimary": "start free trial",
+    "samplePlay": "listen to a sample",
+    "samplePause": "pause sample",
+    "ariaSamplePlay": "listen to 15 second sample",
+    "ariaSamplePause": "pause sample",
+    "errorRetry": "{{error}} — please try again later.",
+    "trialBullets": "7-day free trial · no credit card · cancel anytime",
+    "ariaOrb": "hypnotic orb animation"
+  },
+  "problemSolution": {
+    "eyebrow": "Why this exists",
+    "title": "Generic recordings don't fit your night.",
+    "body": "Most hypnosis apps give you the same fifty pre-recorded tracks as everyone else. We write a new one each time, around the goal you actually have — tonight."
+  },
+  "howItWorks": {
+    "eyebrow": "How it works",
+    "title": "From \"I want to change\" to asleep in three minutes",
+    "subtitle": "No lengthy intake forms. No subscriptions to four apps. Just one goal, one AI, one session — tonight.",
+    "step1Title": "Tell us what you want to work on",
+    "step1Caption": "What do you want to work on?",
+    "step1Tag1": "Sleep",
+    "step1Tag2": "20 min",
+    "step1Tag3": "Calm voice",
+    "step1Sample": "Falling asleep faster on work nights",
+    "step2Title": "AI crafts your personal hypnosis script",
+    "step2Caption": "Crafting your session…",
+    "step2Sub": "Writing induction · deepening · suggestions",
+    "step3Title": "Listen before sleep — wake up transformed",
+    "step3SessionTitle": "Drift Into Deep Sleep",
+    "step3SessionMeta": "Sleep · 18:24"
+  },
+  "featuresGrid": {
+    "eyebrow": "Features",
+    "title": "Everything a good hypnotherapist would give you, without the 90€ copay",
+    "personalizedTitle": "Personalized AI Scripts",
+    "personalizedDesc": "Every session unique to your goals.",
+    "voicesTitle": "6 Soothing Voices",
+    "voicesDesc": "Find the voice that helps you drift away.",
+    "soundsTitle": "Background Sounds",
+    "soundsDesc": "Rain, ocean, forest, wind, or silence.",
+    "privateTitle": "Private by Design",
+    "privateDesc": "Your sessions never leave your account."
+  },
+  "useCases": {
+    "eyebrow": "Use cases",
+    "title": "What are you here to change?",
+    "tryFreeButton": "Try a {{label}} session free",
+    "items": {
+      "sleep": {
+        "label": "Sleep",
+        "description": "Hypnotic inductions calibrated to your wind-down time and preferred voice. Most users drift off before the 12-minute mark."
+      },
+      "confidence": {
+        "label": "Confidence",
+        "description": "Daily affirmations rewritten around your actual goals — the interview, the conversation, the thing you keep avoiding."
+      },
+      "smoking": {
+        "label": "Quit Smoking",
+        "description": "Targeted cravings-and-identity scripts. Triggered by context (\"after dinner\", \"with coffee\") so the right session is one tap away."
+      },
+      "anxiety": {
+        "label": "Anxiety",
+        "description": "Grounding and regulation sessions you can run in 10 minutes. No talk therapy, no waiting list."
+      },
+      "focus": {
+        "label": "Focus",
+        "description": "Short pre-work primers that help you start the thing, not just plan to start the thing."
+      }
+    }
+  },
+  "pricing": {
+    "eyebrow": "Pricing",
+    "title": "free to start. pro when you're serious.",
+    "subtitle": "Seven days of Pro on the house. Cancel in one tap if it is not for you.",
+    "billingMonthly": "Monthly",
+    "billingYearly": "Yearly",
+    "saveBadge": "Save {{percent}}%",
+    "freeTitle": "Free",
+    "freeTagline": "For dipping a toe in.",
+    "freePrice": "$0",
+    "freePeriod": "/forever",
+    "freeBullet1": "2 sessions ever",
+    "freeBullet2": "5-minute sessions",
+    "freeBullet3": "1 voice",
+    "freeBullet4": "Silence or rain background",
+    "freeCta": "Get Started Free",
+    "proTitle": "Pro",
+    "proTagline": "Everything, unlimited, always on.",
+    "proPeriodMonth": "/month",
+    "proPeriodYear": "/year",
+    "proBullet1": "8 sessions per month",
+    "proBullet2": "3 to 12 minute sessions",
+    "proBullet3": "All 6 voices",
+    "proBullet4": "All 5 background sounds",
+    "proCta": "Start 7-Day Free Trial",
+    "proDisclaimer": "No charge until trial ends. Cancel anytime.",
+    "yearlySaveBadge": "Save ${{amount}}/year",
+    "mostPopular": "Most popular",
+    "ariaBilling": "Billing period"
+  },
+  "faq": {
+    "eyebrow": "FAQ",
+    "title": "Questions we get a lot",
+    "items": {
+      "different": {
+        "question": "What makes HypnoSleep different from other hypnosis apps?",
+        "answer": "HypnoSleep writes a fresh hypnosis script for the goal you describe — every session, every time. Pick a voice and a length, and you have a personalised audio in about 30 seconds."
+      },
+      "works": {
+        "question": "Does AI hypnosis actually work?",
+        "answer": "Hypnosis is essentially focused attention plus suggestion. The AI writes the script following the structured pattern that clinical hypnotherapists use — induction, deepening, suggestion, emergence — and a calm voice reads it to you."
+      },
+      "safe": {
+        "question": "Is it safe?",
+        "answer": "Yes. Listen in a quiet place where you can rest safely. Do not listen while driving or operating machinery. If you have a history of psychosis, seizures, or PTSD, talk to a qualified clinician before using any hypnosis product."
+      },
+      "speed": {
+        "question": "How long does session generation take?",
+        "answer": "Usually 30 to 60 seconds end to end: a few seconds to write the script, the rest for voice synthesis."
+      },
+      "cancel": {
+        "question": "Can I cancel anytime?",
+        "answer": "Yes. One tap in Settings → Subscription. Your Pro benefits stay active until the end of the billing period, no questions asked."
+      },
+      "refund": {
+        "question": "Do you offer refunds?",
+        "answer": "If the app did not work for you, email us within 30 days of your first Pro charge and we will look at your case. We are a small team and we want you happy."
+      },
+      "privacy": {
+        "question": "Is my data private?",
+        "answer": "Your goals, scripts, and listening history are encrypted and tied only to your account. We never sell data, we never train third-party models on your content, and you can export or delete everything with one tap."
+      },
+      "languages": {
+        "question": "What languages are supported?",
+        "answer": "Sessions are generated in English at launch. The app interface is available in English, French, Portuguese, Spanish, German and Italian. More session languages will follow once we can ship them properly."
+      }
+    }
+  },
+  "finalCta": {
+    "title": "your transformation starts tonight",
+    "subtitle": "7-day free trial. no credit card. cancel anytime.",
+    "button": "start free trial"
+  },
+  "footer": {
+    "product": "Product",
+    "company": "Company",
+    "resources": "Resources",
+    "legal": "Legal",
+    "links": {
+      "features": "Features",
+      "pricing": "Pricing",
+      "templates": "Templates",
+      "roadmap": "Roadmap",
+      "about": "About",
+      "blog": "Blog",
+      "pressKit": "Press Kit",
+      "contact": "Contact",
+      "helpCenter": "Help Center",
+      "api": "API",
+      "affiliates": "Affiliates",
+      "sitemap": "Sitemap",
+      "terms": "Terms",
+      "privacy": "Privacy",
+      "cookies": "Cookies",
+      "gdpr": "GDPR"
+    },
+    "madeIn": "© {{year}} HypnoSleep. Made with",
+    "inBelgium": "in Belgium."
+  },
+  "exitIntent": {
+    "title": "wait, before you go",
+    "subtitle": "try one session, free, no card.",
+    "ctaPrimary": "start my free trial",
+    "ctaDismiss": "no thanks",
+    "ariaClose": "Close"
+  },
+  "login": {
+    "title": "welcome.",
+    "subtitle": "sign in to begin.",
+    "google": "continue with google",
+    "github": "continue with github",
+    "microsoft": "continue with microsoft",
+    "footerTerms": "by continuing, you agree to our terms and privacy policy.",
+    "errorCookies": "oauth login requires cookies and browser storage. please allow cookies and disable strict anti-tracking protection, then try again."
+  },
+  "authCallback": {
+    "title": "signing you in.",
+    "subtitleOk": "finishing up, one moment.",
+    "subtitleChecking": "checking your session — hold tight."
+  },
+  "authError": {
+    "title": "Sign-in failed",
+    "subtitle": "We couldn't complete your login. Here's what happened:",
+    "tryAgain": "Try again",
+    "backToHome": "Back to home",
+    "errors": {
+      "oauth_failed": "The sign-in service returned an error. Please try again.",
+      "oauth_cancelled": "You cancelled the sign-in. No worries — try again whenever.",
+      "invalid_state": "The session expired during sign-in. Please try once more.",
+      "network": "We couldn't reach the sign-in service. Check your connection.",
+      "unknown": "An unexpected error occurred. Please try again or contact support."
+    }
+  },
+  "splash": {
+    "wordmark": "hypnosleep",
+    "tagline": "rewire your mind while you sleep."
   }
 }

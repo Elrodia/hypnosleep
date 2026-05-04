@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { GoogleLogo, GithubLogo, MicrosoftOutlookLogo } from '@phosphor-icons/react'
 import { Logo } from '@/components/Logo'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
@@ -6,11 +7,10 @@ import { canUseOAuthBrowserState, startOAuth, type OAuthProvider } from '@/lib/a
 import { toast } from 'sonner'
 
 export function LoginPage() {
+  const { t } = useTranslation()
   const handleOAuthLogin = (provider: OAuthProvider) => {
     if (!canUseOAuthBrowserState()) {
-      toast.error(
-        'oauth login requires cookies and browser storage. please allow cookies and disable strict anti-tracking protection, then try again.'
-      )
+      toast.error(t('login.errorCookies'))
       return
     }
     startOAuth(provider)
@@ -35,10 +35,10 @@ export function LoginPage() {
             <Logo variant="mark" size={56} alt="" className="rounded-xl" />
           </motion.div>
           <h1 className="font-fraunces italic lowercase text-3xl text-[var(--ls-text)]">
-            welcome.
+            {t('login.title')}
           </h1>
           <p className="text-sm text-[var(--ls-text-muted)] lowercase">
-            sign in to begin.
+            {t('login.subtitle')}
           </p>
         </div>
 
@@ -50,7 +50,7 @@ export function LoginPage() {
             className="w-full h-12 flex items-center justify-center gap-3 rounded-md border border-[var(--ls-border-strong)] bg-transparent text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-sand-dim)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors text-sm lowercase"
           >
             <GoogleLogo size={18} weight="regular" />
-            <span>continue with google</span>
+            <span>{t('login.google')}</span>
           </button>
 
           <button
@@ -59,7 +59,7 @@ export function LoginPage() {
             className="w-full h-12 flex items-center justify-center gap-3 rounded-md border border-[var(--ls-border-strong)] bg-transparent text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-sand-dim)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors text-sm lowercase"
           >
             <GithubLogo size={18} weight="regular" />
-            <span>continue with github</span>
+            <span>{t('login.github')}</span>
           </button>
 
           <button
@@ -68,14 +68,14 @@ export function LoginPage() {
             className="w-full h-12 flex items-center justify-center gap-3 rounded-md border border-[var(--ls-border-strong)] bg-transparent text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-sand-dim)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors text-sm lowercase"
           >
             <MicrosoftOutlookLogo size={18} weight="regular" />
-            <span>continue with microsoft</span>
+            <span>{t('login.microsoft')}</span>
           </button>
         </div>
 
         {/* ── Footer ── */}
         <div className="text-center pt-2">
           <p className="text-xs text-[var(--ls-text-subtle)] lowercase">
-            by continuing, you agree to our terms and privacy policy.
+            {t('login.footerTerms')}
           </p>
         </div>
 

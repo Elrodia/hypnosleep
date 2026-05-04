@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Nav } from './components/Nav'
 import { Hero } from './components/Hero'
 import { ProblemSolution } from './components/ProblemSolution'
@@ -15,7 +16,7 @@ import { useExitIntent } from './hooks/useExitIntent'
 import { useScrollDepth } from './hooks/useScrollDepth'
 import { posthog } from './lib/posthog'
 import { PRICING } from '@/config/pricing'
-import { faqs } from './data/faqs'
+import { FAQ_IDS } from './data/faqs'
 import './styles/landing.css'
 
 interface LandingPageProps {
@@ -32,6 +33,7 @@ interface LandingPageProps {
 const EXIT_INTENT_KEY = 'hs_landing_exit_shown'
 
 export function LandingPage({ onStartTrial, onLogin }: LandingPageProps) {
+  const { t } = useTranslation()
   useScrollDepth()
 
   const [exitOpen, setExitOpen] = useState(false)
@@ -74,10 +76,10 @@ export function LandingPage({ onStartTrial, onLogin }: LandingPageProps) {
     const faqPage = {
       '@context': 'https://schema.org',
       '@type': 'FAQPage',
-      mainEntity: faqs.map(({ question, answer }) => ({
+      mainEntity: FAQ_IDS.map((id) => ({
         '@type': 'Question',
-        name: question,
-        acceptedAnswer: { '@type': 'Answer', text: answer },
+        name: t(`faq.items.${id}.question`),
+        acceptedAnswer: { '@type': 'Answer', text: t(`faq.items.${id}.answer`) },
       })),
     }
     const node = document.createElement('script')
@@ -86,7 +88,7 @@ export function LandingPage({ onStartTrial, onLogin }: LandingPageProps) {
     node.dataset.landing = 'true'
     document.head.appendChild(node)
     return () => { document.head.removeChild(node) }
-  }, [])
+  }, [t])
 
   return (
     <div className="ls-scope ls-has-sticky-cta">
