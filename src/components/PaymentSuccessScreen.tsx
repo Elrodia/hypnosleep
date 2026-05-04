@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Button } from './ui/button'
 import { Check } from '@phosphor-icons/react'
 
 interface PaymentSuccessScreenProps {
@@ -9,35 +8,58 @@ interface PaymentSuccessScreenProps {
   onAutoRedirect: () => void
 }
 
+interface CelebrationMote {
+  id: number
+  x: number
+  y: number
+  size: number
+  delay: number
+  duration: number
+  drift: number
+  opacity: number
+}
+
+const STYLES = `
+.ls-payment-success {
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.ls-payment-success .font-fraunces {
+  font-family: 'Fraunces', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+`
+
 export function PaymentSuccessScreen({
   onNavigateToCreate,
   onNavigateToLibrary,
   onAutoRedirect,
 }: PaymentSuccessScreenProps) {
   const [showCheckmark, setShowCheckmark] = useState(false)
-  const [confettiParticles, setConfettiParticles] = useState<Array<{
-    id: number
-    x: number
-    y: number
-    rotation: number
-    color: string
-    size: number
-    delay: number
-    duration: number
-  }>>([])
+  const [motes, setMotes] = useState<CelebrationMote[]>([])
 
   useEffect(() => {
-    const particles = Array.from({ length: 80 }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: -10,
-      rotation: Math.random() * 360,
-      color: Math.random() > 0.5 ? '#7c5cfc' : '#ffd700',
-      size: Math.random() * 10 + 5,
-      delay: Math.random() * 0.3,
-      duration: Math.random() * 1.5 + 1.5,
+    const nextMotes: CelebrationMote[] = Array.from({ length: 42 }, (_, index) => ({
+      id: index,
+      x: 15 + Math.random() * 70,
+      y: 18 + Math.random() * 64,
+      size: 2 + Math.random() * 4,
+      delay: Math.random() * 0.9,
+      duration: 3.2 + Math.random() * 2.8,
+      drift: -12 + Math.random() * 24,
+      opacity: 0.14 + Math.random() * 0.24,
     }))
-    setConfettiParticles(particles)
+
+    setMotes(nextMotes)
 
     const checkmarkTimer = setTimeout(() => {
       setShowCheckmark(true)
@@ -58,141 +80,149 @@ export function PaymentSuccessScreen({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center px-6 overflow-hidden"
+      className="ls-payment-success fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-[var(--ls-bg)] px-6 text-[var(--ls-text)]"
     >
+      <style>{STYLES}</style>
+
       <AnimatePresence>
-        {confettiParticles.map((particle) => (
-          <motion.div
-            key={particle.id}
+        {motes.map((mote) => (
+          <motion.span
+            key={mote.id}
             initial={{
-              x: `${particle.x}vw`,
-              y: `${particle.y}vh`,
-              rotate: particle.rotation,
-              opacity: 1,
-            }}
-            animate={{
-              x: `${particle.x + (Math.random() - 0.5) * 30}vw`,
-              y: '110vh',
-              rotate: particle.rotation + (Math.random() - 0.5) * 720,
+              x: `${mote.x}vw`,
+              y: `${mote.y}vh`,
+              scale: 0,
               opacity: 0,
             }}
-            transition={{
-              duration: particle.duration,
-              delay: particle.delay,
-              ease: 'easeIn',
+            animate={{
+              x: [`${mote.x}vw`, `${mote.x + mote.drift}vw`, `${mote.x}vw`],
+              y: [`${mote.y}vh`, `${mote.y - 8}vh`, `${mote.y}vh`],
+              scale: [0, 1, 0.75, 0],
+              opacity: [0, mote.opacity, mote.opacity * 0.45, 0],
             }}
+            transition={{
+              duration: mote.duration,
+              delay: mote.delay,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+            className="absolute rounded-full bg-[var(--ls-sand)]"
             style={{
-              position: 'absolute',
-              width: particle.size,
-              height: particle.size,
-              backgroundColor: particle.color,
-              borderRadius: Math.random() > 0.5 ? '50%' : '0%',
+              width: mote.size,
+              height: mote.size,
             }}
           />
         ))}
       </AnimatePresence>
 
-      <div className="relative z-10 flex flex-col items-center text-center max-w-md w-full">
+      <div className="relative z-10 flex w-full max-w-md flex-col items-center text-center">
         <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: showCheckmark ? 1 : 0 }}
-          transition={{ 
-            type: 'spring', 
-            stiffness: 200, 
-            damping: 20,
-            delay: 0.3 
+          initial={{ scale: 0.92, opacity: 0 }}
+          animate={{ scale: showCheckmark ? 1 : 0.92, opacity: showCheckmark ? 1 : 0 }}
+          transition={{
+            type: 'spring',
+            stiffness: 180,
+            damping: 22,
+            delay: 0.15,
           }}
           className="mb-8"
         >
-          <div className="relative w-32 h-32">
-            <svg
-              viewBox="0 0 100 100"
-              className="w-full h-full"
-            >
-              <motion.circle
-                cx="50"
-                cy="50"
-                r="45"
-                fill="none"
-                stroke="url(#gradient)"
-                strokeWidth="3"
-                initial={{ pathLength: 0 }}
-                animate={{ pathLength: showCheckmark ? 1 : 0 }}
-                transition={{ duration: 0.6, ease: 'easeInOut', delay: 0.5 }}
-              />
-              <defs>
-                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#7c5cfc" />
-                  <stop offset="100%" stopColor="#a78bfa" />
-                </linearGradient>
-              </defs>
-            </svg>
-            
+          <div className="relative flex h-32 w-32 items-center justify-center">
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: showCheckmark ? 1 : 0 }}
-              transition={{ 
-                type: 'spring', 
-                stiffness: 200, 
-                damping: 15,
-                delay: 0.8 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{
+                scale: showCheckmark ? [0.8, 1.06, 1] : 0.8,
+                opacity: showCheckmark ? 1 : 0,
               }}
-              className="absolute inset-0 flex items-center justify-center"
+              transition={{ duration: 0.7, ease: 'easeOut', delay: 0.25 }}
+              className="absolute inset-0 rounded-full border border-[var(--ls-sand)]"
+            />
+
+            <motion.div
+              initial={{ scale: 0.7, opacity: 0 }}
+              animate={{
+                scale: showCheckmark ? [0.7, 1.08, 1] : 0.7,
+                opacity: showCheckmark ? 1 : 0,
+              }}
+              transition={{ duration: 0.6, ease: 'easeOut', delay: 0.45 }}
+              className="flex h-24 w-24 items-center justify-center rounded-full border border-[var(--ls-border-strong)] bg-[var(--ls-bg-elevated)] text-[var(--ls-sand)]"
             >
-              <Check size={64} weight="bold" className="text-primary" />
+              <Check size={56} weight="regular" />
             </motion.div>
+
+            <motion.span
+              animate={{
+                scale: [1, 1.24, 1],
+                opacity: [0.22, 0, 0.22],
+              }}
+              transition={{
+                duration: 3.2,
+                repeat: Infinity,
+                ease: 'easeOut',
+              }}
+              className="absolute inset-0 rounded-full border border-[var(--ls-sand)]/45"
+              aria-hidden="true"
+            />
           </div>
         </motion.div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
+        <motion.p
+          initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.1, duration: 0.4 }}
-          className="text-4xl font-bold mb-3 bg-gradient-to-r from-primary via-purple-400 to-primary bg-clip-text text-transparent"
+          transition={{ delay: 0.95, duration: 0.36, ease: 'easeOut' }}
+          className="mb-2 text-xs uppercase tracking-[0.22em] text-[var(--ls-text-subtle)]"
         >
-          Welcome to Pro!
+          pro unlocked
+        </motion.p>
+
+        <motion.h1
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.08, duration: 0.38, ease: 'easeOut' }}
+          className="font-fraunces mb-3 text-4xl italic lowercase leading-tight text-[var(--ls-text)]"
+        >
+          welcome to pro
         </motion.h1>
 
         <motion.p
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.3, duration: 0.4 }}
-          className="text-lg text-muted-foreground mb-10"
+          transition={{ delay: 1.2, duration: 0.38, ease: 'easeOut' }}
+          className="mb-10 max-w-sm text-sm leading-relaxed text-[var(--ls-text-muted)]"
         >
-          You've unlocked the full HypnoSleep experience.
+          your full hypnosleep experience is now unlocked.
         </motion.p>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.5, duration: 0.4 }}
-          className="flex flex-col gap-4 w-full"
+          transition={{ delay: 1.35, duration: 0.38, ease: 'easeOut' }}
+          className="flex w-full flex-col gap-3"
         >
-          <Button
-            size="lg"
-            className="w-full text-lg h-14 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700"
+          <button
+            type="button"
             onClick={onNavigateToCreate}
+            className="h-14 w-full rounded-md bg-[var(--ls-sand)] px-5 font-fraunces text-lg italic lowercase text-[var(--ls-bg)] transition-colors hover:bg-[var(--ls-sand)]/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
           >
-            Create Your First Custom Session
-          </Button>
+            create a custom session
+          </button>
 
-          <Button
-            size="lg"
-            variant="outline"
-            className="w-full text-lg h-14 border-primary/30 hover:bg-primary/10"
+          <button
+            type="button"
             onClick={onNavigateToLibrary}
+            className="h-14 w-full rounded-md border border-[var(--ls-border-strong)] px-5 text-base lowercase text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-sand-dim)] hover:text-[var(--ls-text)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
           >
-            Explore the Library
-          </Button>
+            explore the library
+          </button>
         </motion.div>
 
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 2, duration: 0.4 }}
-          className="text-sm text-muted-foreground mt-8"
+          transition={{ delay: 1.8, duration: 0.36 }}
+          className="mt-8 text-xs lowercase text-[var(--ls-text-subtle)]"
         >
-          Redirecting to home in 10 seconds...
+          redirecting home in 10 seconds…
         </motion.p>
       </div>
     </motion.div>
