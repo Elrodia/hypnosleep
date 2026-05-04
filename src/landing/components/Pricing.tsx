@@ -21,18 +21,17 @@ const YEARLY = PRICING.yearlyPrice
 const YEARLY_VS_MONTHLY = yearlyEquivalentOfMonthly
 
 const freeBullets = [
-  '3 AI sessions / month',
-  '30 pre-built templates',
-  '2 voices',
-  '30-second previews',
+  '2 sessions ever',
+  '5-minute sessions',
+  '1 voice',
+  'Silence or rain background',
 ]
 
 const proBullets = [
-  'Unlimited AI sessions',
+  '8 sessions per month',
+  '3 to 12 minute sessions',
   'All 6 voices',
-  'Background sound mixer',
-  'Offline downloads',
-  'Priority generation',
+  'All 5 background sounds',
 ]
 
 export function Pricing({ onCtaClick }: PricingProps) {

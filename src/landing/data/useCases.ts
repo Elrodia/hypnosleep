@@ -4,6 +4,12 @@ export interface UseCase {
   description: string
 }
 
+export interface Testimonial {
+  name: string
+  role: string
+  quote: string
+}
+
 export const useCases: UseCase[] = [
   {
     id: 'sleep',
