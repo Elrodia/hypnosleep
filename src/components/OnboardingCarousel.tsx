@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { motion, AnimatePresence, PanInfo } from 'framer-motion'
 import {
-  Brain,
-  Moon,
-  TrendUp,
   Sparkle,
-  Star,
+  MoonStars,
+  WaveSine,
   CaretLeft,
   CaretRight,
 } from '@phosphor-icons/react'
-import { Button } from './ui/button'
 
 interface OnboardingCarouselProps {
   onComplete: () => void
@@ -21,172 +18,62 @@ interface SlideContent {
   visual: ReactNode
 }
 
-function Slide1Visual() {
-  return (
-    <div className="relative">
-      <motion.div
-        animate={{ scale: [1, 1.05, 1], rotate: [0, 5, -5, 0] }}
-        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <Brain size={120} weight="duotone" className="text-primary" />
-      </motion.div>
-
-      <motion.div
-        className="absolute -top-4 -right-4"
-        animate={{
-          scale: [0, 1, 0],
-          rotate: [0, 180, 360],
-          opacity: [0, 1, 0],
-        }}
-        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <Sparkle size={32} weight="fill" className="text-accent" />
-      </motion.div>
-
-      <motion.div
-        className="absolute -bottom-2 -left-2"
-        animate={{
-          scale: [0, 1, 0],
-          rotate: [0, -180, -360],
-          opacity: [0, 1, 0],
-        }}
-        transition={{
-          duration: 2,
-          repeat: Infinity,
-          ease: 'easeInOut',
-          delay: 1,
-        }}
-      >
-        <Sparkle size={24} weight="fill" className="text-accent" />
-      </motion.div>
-
-      <motion.div
-        className="absolute top-0 right-8"
-        animate={{ scale: [0, 1, 0], opacity: [0, 1, 0] }}
-        transition={{
-          duration: 2,
-          repeat: Infinity,
-          ease: 'easeInOut',
-          delay: 0.5,
-        }}
-      >
-        <Sparkle size={20} weight="fill" className="text-accent/70" />
-      </motion.div>
-    </div>
-  )
+const STYLES = `
+.ls-onboarding {
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+  font-family: 'Inter', system-ui, sans-serif;
 }
-
-function Slide2Visual() {
-  return (
-    <div className="relative">
-      <motion.div
-        animate={{ rotate: [0, 360] }}
-        transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-      >
-        <Moon size={120} weight="duotone" className="text-primary" />
-      </motion.div>
-
-      {Array.from({ length: 8 }).map((_, i) => {
-        const angle = (i * 360) / 8
-        const radius = 80
-        const x = Math.cos((angle * Math.PI) / 180) * radius
-        const y = Math.sin((angle * Math.PI) / 180) * radius
-
-        return (
-          <motion.div
-            key={i}
-            className="absolute"
-            style={{ left: '50%', top: '50%', x, y }}
-            animate={{ scale: [0, 1, 0], opacity: [0, 1, 0] }}
-            transition={{
-              duration: 3,
-              repeat: Infinity,
-              ease: 'easeInOut',
-              delay: i * 0.3,
-            }}
-          >
-            <Star size={16} weight="fill" className="text-accent" />
-          </motion.div>
-        )
-      })}
-    </div>
-  )
+.ls-onboarding .font-fraunces {
+  font-family: 'Fraunces', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
+`
 
-function Slide3Visual() {
+/**
+ * A single slowly-breathing glyph per slide. The animation is a
+ * 4-second scale pulse from 1.00 to 1.04 and back — barely
+ * perceptible, intentional, calming. No rotation, no orbital
+ * decorations, no sparkles.
+ */
+function BreathingGlyph({ icon: Icon }: { icon: typeof Sparkle }) {
   return (
-    <div className="relative">
-      <svg
-        width="120"
-        height="120"
-        viewBox="0 0 120 120"
-        className="text-primary"
-      >
-        <motion.path
-          d="M 20 100 L 40 80 L 60 60 L 80 40 L 100 20"
-          stroke="currentColor"
-          strokeWidth="4"
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: 'easeInOut',
-            repeatDelay: 1,
-          }}
-        />
-
-        {[20, 40, 60, 80, 100].map((x, i) => {
-          const y = 100 - i * 20
-          return (
-            <motion.circle
-              key={i}
-              cx={x}
-              cy={y}
-              r="6"
-              fill="currentColor"
-              initial={{ scale: 0 }}
-              animate={{ scale: [0, 1.2, 1] }}
-              transition={{
-                duration: 0.5,
-                delay: i * 0.2,
-                repeat: Infinity,
-                repeatDelay: 2.5,
-              }}
-            />
-          )
-        })}
-      </svg>
-
-      <motion.div
-        className="absolute -top-2 right-0"
-        animate={{ y: [-10, -20, -10], opacity: [0.5, 1, 0.5] }}
-        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <TrendUp size={32} weight="bold" className="text-accent" />
-      </motion.div>
-    </div>
+    <motion.div
+      animate={{ scale: [1, 1.04, 1], opacity: [0.85, 1, 0.85] }}
+      transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+      className="text-[var(--ls-sand)]"
+    >
+      <Icon size={96} weight="regular" />
+    </motion.div>
   )
 }
 
 const slides: SlideContent[] = [
   {
-    title: 'AI-Powered Hypnosis',
-    subtitle: 'Personalized sessions crafted by AI, just for you.',
-    visual: <Slide1Visual />,
+    title: 'sessions written for you.',
+    subtitle:
+      'tell us what you want to work on. an ai writes a fresh hypnosis script for that exact goal — no pre-recorded tracks.',
+    visual: <BreathingGlyph icon={Sparkle} />,
   },
   {
-    title: 'Sleep Better Tonight',
-    subtitle: 'Fall asleep faster with guided hypnosis before bed.',
-    visual: <Slide2Visual />,
+    title: 'a calm voice, every night.',
+    subtitle:
+      'pick from six voices and an ambient background. listen before sleep, on a break, or whenever you have ten minutes.',
+    visual: <BreathingGlyph icon={MoonStars} />,
   },
   {
-    title: 'Transform Your Mind',
-    subtitle: 'Build confidence, break habits, overcome fears.',
-    visual: <Slide3Visual />,
+    title: 'small changes, repeated.',
+    subtitle:
+      'hypnosis works through repetition. your library keeps every session, so you can return to the ones that resonate.',
+    visual: <BreathingGlyph icon={WaveSine} />,
   },
 ]
 
@@ -235,8 +122,6 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
   // Keyboard navigation: ←/→ to move, Enter on the last slide to complete.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't hijack browser/OS shortcuts (e.g. Alt/Meta+Arrow for
-      // back/forward) or keystrokes targeted at editable elements.
       if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
       const target = e.target as HTMLElement | null
       if (target) {
@@ -285,20 +170,22 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
   const slide = slides[currentSlide]
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col">
-      {/* Skip button */}
+    <div className="ls-onboarding fixed inset-0 z-50 bg-[var(--ls-bg)] text-[var(--ls-text)] flex flex-col">
+      <style>{STYLES}</style>
+
+      {/* ── Skip button ── */}
       <div className="flex justify-end p-4 pt-6">
         <button
           type="button"
           onClick={handleComplete}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="text-sm text-[var(--ls-text-subtle)] hover:text-[var(--ls-text-muted)] transition-colors px-3 py-1.5 lowercase focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)] rounded-md"
           aria-label="Skip onboarding"
         >
-          Skip
+          skip
         </button>
       </div>
 
-      {/* Slide stage */}
+      {/* ── Slide stage ── */}
       <div className="flex-1 overflow-hidden relative">
         <AnimatePresence mode="wait" initial={false} custom={direction}>
           <motion.div
@@ -315,12 +202,12 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
             onDragEnd={handleDragEnd}
             className="absolute inset-0 flex flex-col items-center justify-center px-8"
           >
-            <div className="mb-12">{slide.visual}</div>
+            <div className="mb-14">{slide.visual}</div>
 
-            <h2 className="text-3xl font-semibold mb-4 text-center">
+            <h2 className="font-fraunces italic lowercase text-3xl mb-4 text-center text-[var(--ls-text)] max-w-md">
               {slide.title}
             </h2>
-            <p className="text-muted-foreground text-center text-lg leading-relaxed max-w-sm">
+            <p className="text-center text-base leading-relaxed max-w-sm text-[var(--ls-text-muted)]">
               {slide.subtitle}
             </p>
 
@@ -329,104 +216,62 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.4 }}
-                className="mt-10"
+                className="mt-12"
               >
-                <Button
-                  size="lg"
+                <button
+                  type="button"
                   onClick={handleComplete}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-12 py-6 text-lg font-medium rounded-full shadow-lg shadow-primary/20"
+                  className="px-10 h-12 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 transition-colors text-sm lowercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
                 >
-                  Get Started
-                </Button>
+                  begin
+                </button>
               </motion.div>
             )}
           </motion.div>
         </AnimatePresence>
 
-        {/* Left arrow */}
+        {/* ── Left arrow ── */}
         <button
           type="button"
           onClick={goPrev}
           disabled={isFirst}
           aria-label="Previous slide"
-          className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-card/70 backdrop-blur border border-border flex items-center justify-center text-foreground shadow-md transition-all duration-200 hover:bg-card hover:scale-105 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full border border-[var(--ls-border-strong)] bg-transparent flex items-center justify-center text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-sand-dim)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:border-[var(--ls-border-strong)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
         >
-          <CaretLeft size={22} weight="bold" />
+          <CaretLeft size={20} weight="regular" />
         </button>
 
-        {/* Right arrow */}
-        <motion.button
+        {/* ── Right arrow ── */}
+        <button
           type="button"
           onClick={isLast ? handleComplete : goNext}
-          aria-label={isLast ? 'Get started' : 'Next slide'}
-          animate={
-            !isLast
-              ? { scale: [1, 1.08, 1], boxShadow: [
-                  '0 4px 12px rgba(0,0,0,0.15)',
-                  '0 6px 20px rgba(0,0,0,0.25)',
-                  '0 4px 12px rgba(0,0,0,0.15)',
-                ] }
-              : { scale: 1 }
-          }
-          transition={{ duration: 1.6, repeat: !isLast ? Infinity : 0, ease: 'easeInOut' }}
-          className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md transition-colors duration-200 hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={isLast ? 'Begin' : 'Next slide'}
+          className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full border border-[var(--ls-border-strong)] bg-transparent flex items-center justify-center text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-sand-dim)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
         >
-          <CaretRight size={22} weight="bold" />
-        </motion.button>
+          <CaretRight size={20} weight="regular" />
+        </button>
       </div>
 
-      {/* Hint text */}
-      <div className="px-6 pt-4 flex items-center justify-center">
-        <motion.p
-          key={isLast ? 'hint-last' : 'hint-next'}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="text-xs sm:text-sm text-muted-foreground text-center flex items-center gap-2"
-        >
-          {isLast ? (
-            <>
-              <span>You're all set — tap</span>
-              <span className="font-medium text-foreground">Get Started</span>
-              <span>to continue.</span>
-            </>
-          ) : (
-            <>
-              <span>Tap the</span>
-              <CaretRight
-                size={14}
-                weight="bold"
-                className="text-primary inline-block"
-                aria-hidden="true"
-              />
-              <span>
-                right arrow (or press <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted/50 font-mono text-[10px] sm:text-xs">→</kbd>) to continue
-              </span>
-            </>
-          )}
-        </motion.p>
-      </div>
-
-      {/* Dot indicators */}
+      {/* ── Dot indicators ── */}
       <div className="pb-12 pt-6 flex items-center justify-center gap-2">
         {slides.map((_, i) => (
           <button
             key={i}
             type="button"
             onClick={() => goTo(i)}
-            className="transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full p-1 -m-1"
+            className="transition-all duration-300 focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)] rounded-full p-1 -m-1"
             aria-label={`Go to slide ${i + 1}`}
             aria-current={currentSlide === i ? 'true' : undefined}
           >
             <motion.div
               className="rounded-full"
               animate={{
-                width: currentSlide === i ? 32 : 8,
-                height: 8,
+                width: currentSlide === i ? 28 : 6,
+                height: 6,
                 backgroundColor:
                   currentSlide === i
-                    ? 'var(--primary)'
-                    : 'var(--muted)',
+                    ? 'rgb(201, 182, 163)' // sand
+                    : 'rgba(232, 230, 225, 0.16)', // border-strong
               }}
               transition={{ duration: 0.3 }}
             />
