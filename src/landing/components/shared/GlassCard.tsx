@@ -1,22 +1,26 @@
-import type { HTMLAttributes, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
-export function GlassCard({
-  children,
-  className = '',
-  highlighted = false,
-  ...rest
-}: HTMLAttributes<HTMLDivElement> & { children: ReactNode; highlighted?: boolean }) {
+interface GlassCardProps {
+  children: ReactNode
+  className?: string
+  /**
+   * Retained for backward compatibility with call sites authored before the
+   * Liminal Space migration. The flat hairline treatment is the same for
+   * both states; the prop is accepted but no longer alters the visual.
+   */
+  highlighted?: boolean
+}
+
+/**
+ * Liminal-Space card: hairline border on slightly elevated background, no
+ * blur, no glow. The component name is retained for backward compatibility
+ * — the "glass" treatment is gone but the API is preserved so call sites
+ * don't need to change.
+ */
+export function GlassCard({ children, className = '' }: GlassCardProps) {
   return (
     <div
-      className={
-        'relative rounded-2xl border backdrop-blur-xl transition ' +
-        (highlighted
-          ? 'border-[color:var(--ls-primary)]/60 bg-[color:var(--ls-surface)]/70 shadow-[0_30px_80px_-40px_rgba(124,92,252,0.5)]'
-          : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.05]') +
-        ' ' +
-        className
-      }
-      {...rest}
+      className={`rounded-md border border-[var(--ls-border)] bg-[var(--ls-bg-elevated)] ${className}`}
     >
       {children}
     </div>
