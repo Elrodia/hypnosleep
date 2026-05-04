@@ -7,12 +7,12 @@ export const faqs: FAQ[] = [
   {
     question: 'What makes HypnoSleep different from other hypnosis apps?',
     answer:
-      'Most hypnosis apps give everyone the same 50 pre-recorded tracks. HypnoSleep writes a new script for you every time — based on your goal, your preferred voice, and how your last sessions went. It is the difference between a generic relaxation tape and a therapist who remembers what you talked about last week.',
+      'HypnoSleep writes a fresh hypnosis script for the goal you describe — every session, every time. Pick a voice and a length, and you have a personalised audio in about 30 seconds.',
   },
   {
     question: 'Does AI hypnosis actually work?',
     answer:
-      'Hypnosis is essentially focused attention plus suggestion. The AI handles the writing; the state of relaxation you reach is yours. We use the same structured patterns (induction → deepening → suggestion → emergence) that clinical hypnotherapists use, and iterate scripts based on what users rate as effective.',
+      'Hypnosis is essentially focused attention plus suggestion. The AI writes the script following the structured pattern that clinical hypnotherapists use — induction, deepening, suggestion, emergence — and a calm voice reads it to you.',
   },
   {
     question: 'Is it safe?',
@@ -22,7 +22,7 @@ export const faqs: FAQ[] = [
   {
     question: 'How long does session generation take?',
     answer:
-      'Usually 20 to 30 seconds. Pro users get priority generation during peak hours, which typically keeps it under 15 seconds.',
+      'Usually 30 to 60 seconds end to end: a few seconds to write the script, the rest for voice synthesis.',
   },
   {
     question: 'Can I cancel anytime?',
@@ -32,7 +32,7 @@ export const faqs: FAQ[] = [
   {
     question: 'Do you offer refunds?',
     answer:
-      'If the app did not work for you, email us within 30 days of your first Pro charge and we will refund it. No forms, no "please explain".',
+      'If the app did not work for you, email us within 30 days of your first Pro charge and we will look at your case. We are a small team and we want you happy.',
   },
   {
     question: 'Is my data private?',
@@ -42,6 +42,6 @@ export const faqs: FAQ[] = [
   {
     question: 'What languages are supported?',
     answer:
-      'English, Dutch, French, German, Spanish, and Italian at launch. More coming based on user requests.',
+      'English at launch. Other languages will follow once we can ship them properly.',
   },
 ]

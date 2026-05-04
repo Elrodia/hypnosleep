@@ -15,6 +15,7 @@ import { useExitIntent } from './hooks/useExitIntent'
 import { useScrollDepth } from './hooks/useScrollDepth'
 import { posthog } from './lib/posthog'
 import { PRICING } from '@/config/pricing'
+import { faqs } from './data/faqs'
 import './styles/landing.css'
 
 interface LandingPageProps {
@@ -64,29 +65,19 @@ export function LandingPage({ onStartTrial, onLogin }: LandingPageProps) {
       '@type': 'SoftwareApplication',
       name: 'HypnoSleep',
       operatingSystem: 'Web, iOS, Android',
-      applicationCategory: 'HealthApplication',
+      applicationCategory: 'LifestyleApplication',
       offers: [
         { '@type': 'Offer', price: String(PRICING.freePrice), priceCurrency: 'USD', name: 'Free' },
         { '@type': 'Offer', price: PRICING.yearlyPrice.toFixed(2), priceCurrency: 'USD', name: 'Pro Yearly' },
       ],
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: '4.8',
-        ratingCount: '2000',
-      },
     }
     const faqPage = {
       '@context': 'https://schema.org',
       '@type': 'FAQPage',
-      mainEntity: [
-        ['What makes HypnoSleep different from other hypnosis apps?', 'HypnoSleep writes a new hypnosis script for you every time based on your goal, voice preference, and past sessions.'],
-        ['Does AI hypnosis actually work?', 'Hypnosis is focused attention plus suggestion. We follow clinical induction patterns and iterate based on effectiveness ratings.'],
-        ['Is it safe?', 'Yes. Do not listen while driving. Consult a clinician if you have psychosis, seizures, or PTSD.'],
-        ['Can I cancel anytime?', 'Yes, from Settings with one tap.'],
-      ].map(([q, a]) => ({
+      mainEntity: faqs.map(({ question, answer }) => ({
         '@type': 'Question',
-        name: q,
-        acceptedAnswer: { '@type': 'Answer', text: a },
+        name: question,
+        acceptedAnswer: { '@type': 'Answer', text: answer },
       })),
     }
     const node = document.createElement('script')

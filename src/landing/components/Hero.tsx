@@ -63,18 +63,9 @@ export function Hero({ onCtaClick }: HeroProps) {
             </p>
           )}
 
-          <p className="text-sm text-[color:var(--ls-text-secondary)] mb-5">
-            Join 2,000+ people transforming their minds nightly
+          <p className="text-sm text-[color:var(--ls-text-secondary)]">
+            7-day free trial · no credit card · cancel anytime
           </p>
-
-          <ul className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-[color:var(--ls-text-secondary)]">
-            {['No credit card required', 'Cancel anytime', '100% private'].map((t) => (
-              <li key={t} className="flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
-                {t}
-              </li>
-            ))}
-          </ul>
         </div>
 
         {/* Morphing hypnotic orb — pure CSS, no asset request. */}

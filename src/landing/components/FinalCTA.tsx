@@ -19,7 +19,7 @@ export function FinalCTA({ onCtaClick }: FinalCTAProps) {
             Your transformation starts tonight
           </h2>
           <p className="text-[color:var(--ls-text-secondary)] mx-auto max-w-xl mb-8">
-            Join thousands who fall asleep to AI-crafted hypnosis. 7 days free.
+            7-day free trial. no credit card. cancel anytime.
           </p>
           <Button size="lg" pulse onClick={() => onCtaClick('final_cta')}>
             Start Free Trial

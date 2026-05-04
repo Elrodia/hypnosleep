@@ -63,7 +63,11 @@ export function UseCases({ onCtaClick }: UseCasesProps) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.25 }}
-              className="grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-6 items-start"
+              className={
+                quotes.length > 0
+                  ? 'grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-6 items-start'
+                  : 'max-w-2xl'
+              }
             >
               <GlassCard className="p-6 sm:p-7">
                 <h3 className="ls-display text-2xl mb-3">{current.label}</h3>
@@ -79,20 +83,22 @@ export function UseCases({ onCtaClick }: UseCasesProps) {
                 </Button>
               </GlassCard>
 
-              <ul className="grid sm:grid-cols-2 gap-4">
-                {quotes.map((q) => (
-                  <li key={q.name}>
-                    <GlassCard className="p-5 h-full">
-                      <p className="text-sm leading-relaxed text-[color:var(--ls-text)] mb-4">
-                        &ldquo;{q.quote}&rdquo;
-                      </p>
-                      <div className="text-xs text-[color:var(--ls-text-secondary)]">
-                        <span className="text-[color:var(--ls-text)]">{q.name}</span> · {q.role}
-                      </div>
-                    </GlassCard>
-                  </li>
-                ))}
-              </ul>
+              {quotes.length > 0 && (
+                <ul className="grid sm:grid-cols-2 gap-4">
+                  {quotes.map((q) => (
+                    <li key={q.name}>
+                      <GlassCard className="p-5 h-full">
+                        <p className="text-sm leading-relaxed text-[color:var(--ls-text)] mb-4">
+                          &ldquo;{q.quote}&rdquo;
+                        </p>
+                        <div className="text-xs text-[color:var(--ls-text-secondary)]">
+                          <span className="text-[color:var(--ls-text)]">{q.name}</span> · {q.role}
+                        </div>
+                      </GlassCard>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </motion.div>
           </AnimatePresence>
         </div>
