@@ -252,24 +252,9 @@ export function ProfilePage() {
           </button>
         </section>
 
-        {/* === FOOTER: discreet referral link === */}
-        <footer className="pt-8 flex flex-col items-center gap-1 text-xs">
-          <button
-            type="button"
-            onClick={() => {
-              // Surface the existing referral mechanic without giving it
-              // page-level real estate. The dedicated /referral route
-              // (or the ReferralCard mounted there) is where the loud
-              // viral-loop UI lives, if/when it justifies its space.
-              window.dispatchEvent(new CustomEvent('navigate-to-referral'))
-            }}
-            className="text-[var(--ls-text-muted)] hover:text-[var(--ls-sand)] active:text-[var(--ls-sand)] underline-offset-4 hover:underline active:underline transition-colors"
-          >
-            share with a friend
-          </button>
-          <p className="text-[var(--ls-text-subtle)]">
-            give 7 days free, get 7 days free
-          </p>
+        {/* === FOOTER: brand line === */}
+        <footer className="pt-10 flex flex-col items-center gap-1 text-xs text-[var(--ls-text-subtle)]">
+          <p className="lowercase">made in belgium</p>
         </footer>
 
       </div>
