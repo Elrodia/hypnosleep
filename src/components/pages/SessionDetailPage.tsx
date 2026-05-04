@@ -1,10 +1,19 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, ShareNetwork, Heart, Play, Lock, PencilSimple, Spinner } from '@phosphor-icons/react'
-import { Button } from '@/components/ui/button'
+import {
+  ArrowLeft,
+  ShareNetwork,
+  Heart,
+  Play,
+  Lock,
+  PencilSimple,
+  Spinner,
+  Trash,
+  Clock,
+  Waveform,
+} from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
 import {
   getSession,
@@ -15,7 +24,7 @@ import {
 } from '@/lib/api-endpoints'
 import { ApiError } from '@/lib/api'
 import { ScriptEditorModal } from '@/components/ScriptEditorModal'
-import { formatCategory, formatDurationMin, CATEGORY_GRADIENTS } from '@/lib/session-ui'
+import { formatCategory, formatDurationMin } from '@/lib/session-ui'
 
 interface SessionDetailPageProps {
   sessionId: string
@@ -28,17 +37,33 @@ interface SessionDetailPageProps {
   onDeleted?: () => void
 }
 
-const categoryTags: Record<string, string> = {
-  Sleep: 'bg-indigo-600/90 text-indigo-50',
-  Confidence: 'bg-purple-600/90 text-purple-50',
-  Fears: 'bg-violet-600/90 text-violet-50',
-  Habits: 'bg-blue-600/90 text-blue-50',
-  Focus: 'bg-teal-600/90 text-teal-50',
-  Anxiety: 'bg-violet-500/90 text-violet-50',
-  Custom: 'bg-fuchsia-600/90 text-fuchsia-50',
+const STYLES = `
+.ls-session-detail {
+  --ls-bg: #0a0a0f;
+  --ls-bg-elevated: #12121a;
+  --ls-text: #e8e6e1;
+  --ls-text-muted: #8a8580;
+  --ls-text-subtle: #5a5650;
+  --ls-sand: #c9b6a3;
+  --ls-sand-dim: #8a7d6e;
+  --ls-border: rgba(232, 230, 225, 0.08);
+  --ls-border-strong: rgba(232, 230, 225, 0.16);
+  --ls-danger: #d79a8b;
+  font-family: 'Inter', system-ui, sans-serif;
 }
+.ls-session-detail .font-fraunces {
+  font-family: 'Fraunces', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+`
 
-export function SessionDetailPage({ sessionId, onBack, onPlay, onDeleted }: SessionDetailPageProps) {
+export function SessionDetailPage({
+  sessionId,
+  onBack,
+  onPlay,
+  onDeleted,
+}: SessionDetailPageProps) {
   const { user } = useAuth()
   const isProUser = user?.plan === 'pro'
   const qc = useQueryClient()
@@ -101,12 +126,14 @@ export function SessionDetailPage({ sessionId, onBack, onPlay, onDeleted }: Sess
 
   const handleShare = async () => {
     if (!session) return
+
     const url = `${window.location.origin}/?session=${encodeURIComponent(session.id)}`
     const payload = {
       title: session.title,
       text: `Check out this hypnosis session: ${session.title}`,
       url,
     }
+
     if (typeof navigator !== 'undefined' && 'share' in navigator) {
       try {
         await (navigator as Navigator & { share: (d: ShareData) => Promise<void> }).share(payload)
@@ -116,6 +143,7 @@ export function SessionDetailPage({ sessionId, onBack, onPlay, onDeleted }: Sess
         // Fall through to clipboard fallback below.
       }
     }
+
     try {
       await navigator.clipboard.writeText(url)
       toast.success('Link copied to clipboard!')
@@ -145,27 +173,37 @@ export function SessionDetailPage({ sessionId, onBack, onPlay, onDeleted }: Sess
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
-        <Spinner size={40} className="text-primary animate-spin" />
+      <div className="ls-session-detail fixed inset-0 z-50 flex items-center justify-center bg-[var(--ls-bg)] text-[var(--ls-text)]">
+        <style>{STYLES}</style>
+        <Spinner size={32} className="animate-spin text-[var(--ls-sand)]" />
       </div>
     )
   }
 
   if (isError || !session) {
     return (
-      <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center gap-4 p-6">
-        <p className="text-muted-foreground text-center">Couldn't load this session.</p>
-        <Button onClick={onBack}>Go back</Button>
+      <div className="ls-session-detail fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 bg-[var(--ls-bg)] p-6 text-[var(--ls-text)]">
+        <style>{STYLES}</style>
+        <p className="text-center text-sm text-[var(--ls-text-muted)]">
+          couldn't load this session.
+        </p>
+        <button
+          type="button"
+          onClick={onBack}
+          className="rounded-md border border-[var(--ls-border-strong)] bg-[var(--ls-bg-elevated)] px-5 py-2 text-sm lowercase text-[var(--ls-text)] transition-colors hover:border-[var(--ls-sand-dim)] hover:text-[var(--ls-sand)]"
+        >
+          go back
+        </button>
       </div>
     )
   }
 
   const category = formatCategory(session.category)
-  const gradient = CATEGORY_GRADIENTS[category] ?? 'from-purple-600 to-indigo-600'
   const scriptText = session.scriptText ?? ''
-  const scriptLines = scriptText.split('\n').filter((line) => line.trim())
+  const scriptLines = scriptText.split('\n').map((l) => l.trim()).filter(Boolean)
   const previewLines = scriptLines.slice(0, 3)
-  const remainingLines = scriptLines.slice(3)
+  const lockedPreviewLines = scriptLines.slice(3, 7)
+  const proRemainingLines = scriptLines.slice(3)
 
   const formattedDate = new Date(session.createdAt).toLocaleDateString('en-US', {
     month: 'long',
@@ -173,204 +211,249 @@ export function SessionDetailPage({ sessionId, onBack, onPlay, onDeleted }: Sess
     year: 'numeric',
   })
 
+  const statusLabel =
+    session.status === 'ready'
+      ? 'ready'
+      : session.status === 'generating'
+      ? 'preparing'
+      : session.status
+
+  const isReady = session.status === 'ready'
+  const hasLockedScript = !isProUser && proRemainingLines.length > 0
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-50 bg-background overflow-hidden"
+      className="ls-session-detail fixed inset-0 z-50 overflow-hidden bg-[var(--ls-bg)] text-[var(--ls-text)]"
     >
+      <style>{STYLES}</style>
+
       <div className="h-full overflow-y-auto pb-32">
-        <div className={cn('relative h-64 bg-gradient-to-br', gradient)}>
-          <div className="absolute inset-0 opacity-30">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/20 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/20 rounded-full blur-3xl" />
-          </div>
+        {/* Top bar */}
+        <header className="sticky top-0 z-10 bg-[var(--ls-bg)] border-b border-[var(--ls-border)]">
+          <div className="flex items-center justify-between h-14 px-5">
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="back"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--ls-border)] bg-[var(--ls-bg-elevated)] text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)]"
+            >
+              <ArrowLeft size={18} weight="regular" />
+            </button>
 
-          <div className="relative h-full flex flex-col">
-            <div className="flex items-center justify-between p-4">
-              <motion.button
-                onClick={onBack}
-                className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white border border-white/20"
-                whileTap={{ scale: 0.95 }}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleShare}
+                aria-label="share"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--ls-border)] bg-[var(--ls-bg-elevated)] text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)]"
               >
-                <ArrowLeft weight="bold" size={20} />
-              </motion.button>
+                <ShareNetwork size={18} weight="regular" />
+              </button>
 
-              <div className="flex items-center gap-2">
-                <motion.button
-                  onClick={handleShare}
-                  className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white border border-white/20"
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <ShareNetwork weight="bold" size={20} />
-                </motion.button>
+              <button
+                type="button"
+                onClick={() => favoriteMutation.mutate()}
+                disabled={favoriteMutation.isPending}
+                aria-label={session.favorited ? 'unfavorite' : 'favorite'}
+                aria-pressed={session.favorited}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--ls-border)] bg-[var(--ls-bg-elevated)] text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)] disabled:opacity-60"
+              >
+                <Heart
+                  size={18}
+                  weight={session.favorited ? 'fill' : 'regular'}
+                  className={session.favorited ? 'text-[var(--ls-sand)]' : ''}
+                />
+              </button>
+            </div>
+          </div>
+        </header>
 
-                <motion.button
-                  onClick={() => favoriteMutation.mutate()}
-                  disabled={favoriteMutation.isPending}
-                  className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white border border-white/20 disabled:opacity-60"
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Heart
-                    weight={session.favorited ? 'fill' : 'bold'}
-                    size={20}
-                    className={session.favorited ? 'text-red-400' : ''}
-                  />
-                </motion.button>
-              </div>
+        <div className="mx-auto max-w-xl px-6 pt-10 space-y-8">
+          {/* Title block */}
+          <section className="space-y-5">
+            <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-[var(--ls-text-subtle)]">
+              <span>session</span>
+              <span aria-hidden="true">·</span>
+              <span>{statusLabel}</span>
+              {!isReady && (
+                <Spinner
+                  size={11}
+                  className="animate-spin text-[var(--ls-text-subtle)]"
+                />
+              )}
             </div>
 
-            <div className="flex-1" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-          </div>
-        </div>
+            <h1 className="font-fraunces italic lowercase text-4xl leading-tight text-[var(--ls-text)]">
+              {session.title.toLowerCase()}
+            </h1>
 
-        <div className="px-5 -mt-8 relative z-10">
-          <div className="bg-card rounded-3xl shadow-2xl p-6 border border-border/50">
-            <h1 className="text-3xl font-serif font-semibold mb-4 leading-tight">{session.title}</h1>
-
-            <div className="flex items-center gap-3 mb-2">
-              <span
-                className={cn(
-                  'inline-flex items-center text-sm font-medium px-3 py-1.5 rounded-full',
-                  categoryTags[category] || 'bg-slate-600/90 text-slate-50',
-                )}
-              >
-                {category}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[var(--ls-text-muted)]">
+              <span className="inline-flex items-center rounded-full border border-[var(--ls-border-strong)] bg-[var(--ls-bg-elevated)] px-3 py-1 text-[11px] lowercase tracking-wide text-[var(--ls-sand)]">
+                {category.toLowerCase()}
               </span>
-              <span className="text-sm text-muted-foreground font-medium">
+              <span className="inline-flex items-center gap-1.5">
+                <Clock size={13} weight="regular" />
                 {formatDurationMin(session.durationSec)}
               </span>
-              {session.status !== 'ready' && (
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <Spinner className="animate-spin" size={12} />
-                  {session.status}
-                </span>
-              )}
+              <span className="inline-flex items-center gap-1.5">
+                <Waveform size={13} weight="regular" />
+                {formattedDate.toLowerCase()}
+              </span>
             </div>
+          </section>
 
-            <p className="text-xs text-muted-foreground">Created {formattedDate}</p>
-          </div>
-
-          <div className="mt-6">
-            <div className="flex items-center justify-between px-1 mb-4">
-              <h2 className="text-lg font-semibold">Script Preview</h2>
+          {/* Script preview card */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs uppercase tracking-[0.2em] text-[var(--ls-text-subtle)]">
+                script
+              </h2>
               {isProUser && scriptText && (
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
+                  type="button"
                   onClick={() => setShowEditor(true)}
-                  className="gap-2"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-[var(--ls-border)] bg-[var(--ls-bg-elevated)] px-3 py-1.5 text-xs lowercase text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-sand-dim)] hover:text-[var(--ls-sand)]"
                 >
-                  <PencilSimple size={16} />
-                  Edit
-                </Button>
+                  <PencilSimple size={13} weight="regular" />
+                  edit
+                </button>
               )}
             </div>
 
-            <div className="bg-card rounded-2xl p-5 border border-border relative overflow-hidden">
+            <div className="relative overflow-hidden rounded-md border border-[var(--ls-border-strong)] bg-[var(--ls-bg-elevated)]/70 p-6">
               {scriptText ? (
-                <div className="space-y-4 text-sm leading-relaxed text-foreground/90">
+                <div className="space-y-4 text-sm leading-relaxed text-[var(--ls-text)]">
                   {previewLines.map((line, index) => (
                     <p
-                      key={index}
-                      className="first-letter:text-primary first-letter:text-lg first-letter:font-semibold"
+                      key={`p-${index}`}
+                      className="first-letter:text-[var(--ls-sand)] first-letter:text-lg first-letter:font-medium"
                     >
                       {line}
                     </p>
                   ))}
 
-                  <div className="relative">
-                    <div className="space-y-4 blur-sm select-none pointer-events-none">
-                      {remainingLines.slice(0, 4).map((line, index) => (
-                        <p key={index} className="text-muted-foreground/60">
+                  {isProUser && proRemainingLines.length > 0 && (
+                    <div className="space-y-4">
+                      {proRemainingLines.map((line, index) => (
+                        <p
+                          key={`pro-${index}`}
+                          className="text-sm leading-relaxed text-[var(--ls-text)]"
+                        >
                           {line}
                         </p>
                       ))}
                     </div>
+                  )}
 
-                    {!isProUser && remainingLines.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="absolute inset-0 flex items-center justify-center bg-gradient-to-t from-card via-card/95 to-transparent"
+                  {hasLockedScript && (
+                    <div className="relative">
+                      <div
+                        aria-hidden="true"
+                        className="space-y-4 select-none pointer-events-none opacity-30"
                       >
-                        <div className="text-center px-4 py-8">
-                          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                            <Lock weight="fill" size={32} className="text-primary" />
-                          </div>
-                          <h3 className="text-lg font-semibold mb-2">Unlock Full Script</h3>
-                          <p className="text-sm text-muted-foreground mb-4 max-w-xs">
-                            Upgrade to Pro to read the complete hypnosis script and access advanced features
-                          </p>
-                          <Button
-                            onClick={handleUnlockPro}
-                            className="gap-2 bg-gradient-to-r from-primary via-purple-600 to-primary bg-[length:200%_100%] animate-shimmer"
+                        {lockedPreviewLines.map((line, index) => (
+                          <p
+                            key={`locked-${index}`}
+                            className="text-[var(--ls-text-muted)]"
                           >
-                            <Lock weight="fill" size={16} />
-                            Unlock with Pro
-                          </Button>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {isProUser && (
-                      <div className="space-y-4 mt-4">
-                        {remainingLines.slice(4).map((line, index) => (
-                          <p key={index} className="text-sm leading-relaxed text-foreground/90">
                             {line}
                           </p>
                         ))}
                       </div>
-                    )}
-                  </div>
+
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.15 }}
+                        className="absolute inset-0 flex items-center justify-center bg-gradient-to-t from-[var(--ls-bg-elevated)] via-[var(--ls-bg-elevated)]/95 to-transparent"
+                      >
+                        <div className="px-4 py-8 text-center">
+                          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-[var(--ls-border-strong)] bg-[var(--ls-bg)] text-[var(--ls-sand)]">
+                            <Lock size={22} weight="regular" />
+                          </div>
+                          <h3 className="font-fraunces italic lowercase text-xl text-[var(--ls-text)] mb-2">
+                            unlock full script
+                          </h3>
+                          <p className="mx-auto mb-5 max-w-xs text-xs text-[var(--ls-text-muted)] leading-relaxed">
+                            upgrade to pro to read the complete hypnosis script and access advanced features
+                          </p>
+                          <button
+                            type="button"
+                            onClick={handleUnlockPro}
+                            className="inline-flex items-center gap-2 rounded-md border border-[var(--ls-sand-dim)] bg-[var(--ls-sand)]/10 px-5 py-2 text-sm lowercase text-[var(--ls-sand)] transition-colors hover:bg-[var(--ls-sand)]/15"
+                          >
+                            <Lock size={14} weight="regular" />
+                            unlock with pro
+                          </button>
+                        </div>
+                      </motion.div>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Script is not yet available for this session.
+                <p className="py-4 text-center text-sm text-[var(--ls-text-muted)]">
+                  script is not yet available for this session.
                 </p>
               )}
             </div>
-          </div>
+          </section>
 
+          {/* Pro: regenerate */}
           {isProUser && (
-            <div className="mt-6">
-              <Button
-                variant="outline"
+            <section>
+              <button
+                type="button"
                 onClick={() => regenerateMutation.mutate()}
                 disabled={regenerateMutation.isPending || session.status === 'generating'}
-                className="w-full gap-2"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-[var(--ls-border-strong)] bg-[var(--ls-bg-elevated)] px-4 py-3 text-sm lowercase text-[var(--ls-text)] transition-colors hover:border-[var(--ls-sand-dim)] hover:text-[var(--ls-sand)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {regenerateMutation.isPending ? 'Regenerating…' : 'Regenerate Audio'}
-              </Button>
-            </div>
+                {regenerateMutation.isPending ? (
+                  <>
+                    <Spinner size={14} className="animate-spin" />
+                    regenerating…
+                  </>
+                ) : (
+                  <>
+                    <Waveform size={14} weight="regular" />
+                    regenerate audio
+                  </>
+                )}
+              </button>
+            </section>
           )}
 
-          <div className="mt-8 pb-4">
+          {/* Delete */}
+          <section className="pt-2">
             <button
+              type="button"
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
-              className="w-full text-center py-3 text-sm font-medium text-destructive hover:text-destructive/80 transition-colors disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-2 py-3 text-xs lowercase tracking-wide text-[var(--ls-text-subtle)] transition-colors hover:text-[var(--ls-danger)] disabled:opacity-50"
             >
-              {deleteMutation.isPending ? 'Deleting…' : 'Delete Session'}
+              <Trash size={13} weight="regular" />
+              {deleteMutation.isPending ? 'deleting…' : 'delete session'}
             </button>
-          </div>
+          </section>
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-background via-background to-transparent border-t border-border/50 backdrop-blur-xl z-20">
-        <Button
-          onClick={onPlay}
-          size="lg"
-          disabled={session.status !== 'ready'}
-          className="w-full h-14 text-lg font-semibold gap-3 shadow-lg shadow-primary/20"
-        >
-          <Play weight="fill" size={24} />
-          {session.status === 'ready' ? 'Play Session' : 'Preparing audio…'}
-        </Button>
+      {/* Bottom play bar — flat, near-black, hairline border, sand CTA */}
+      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-[var(--ls-border)] bg-[var(--ls-bg)] px-5 py-4">
+        <div className="mx-auto max-w-xl">
+          <button
+            type="button"
+            onClick={onPlay}
+            disabled={!isReady}
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md border border-[var(--ls-sand-dim)] bg-[var(--ls-sand)]/10 text-sm lowercase tracking-wide text-[var(--ls-sand)] transition-colors hover:bg-[var(--ls-sand)]/15 disabled:cursor-not-allowed disabled:border-[var(--ls-border)] disabled:bg-transparent disabled:text-[var(--ls-text-subtle)]"
+          >
+            <Play size={16} weight={isReady ? 'fill' : 'regular'} />
+            {isReady ? 'play session' : 'preparing audio…'}
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>
