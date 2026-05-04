@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- HypnoSleep mark: a crescent moon with a small star companion.
+       Designed to read at sizes from 16x16 favicons to 1200x630 OG.
+       Uses the Liminal Space sand accent on whatever background. -->
+  <path d="M 42 18 A 16 16 0 1 0 42 46 A 11 12 0 1 1 42 18 Z"
+        fill="#c9b6a3" fill-rule="evenodd"/>
+  <circle cx="22" cy="18" r="1.8" fill="#c9b6a3"/>
+</svg>
