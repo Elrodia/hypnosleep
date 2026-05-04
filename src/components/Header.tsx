@@ -66,34 +66,35 @@ export function Header() {
   )
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-14 border-b border-border/50 bg-card/30 backdrop-blur-xl z-50">
+    <header className="ls-header fixed top-0 left-0 right-0 h-14 border-b border-[var(--ls-border)] bg-[var(--ls-bg)] z-50">
       <div className="flex items-center justify-between h-full px-4 relative">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <Logo variant="mark" size={28} className="rounded-md" alt="" />
-          <h1 className="text-xl font-serif tracking-wide text-foreground">
-            HypnoSleep
+          <h1 className="font-fraunces italic lowercase text-lg text-[var(--ls-text)]">
+            hypnosleep
           </h1>
         </div>
 
         <button
+          type="button"
           onClick={(e) => {
             // Stop propagation so the panel's outside-click handler
             // doesn't immediately close the popover we just opened.
             e.stopPropagation()
             if (user) setOpen((v) => !v)
           }}
-          className="relative p-2 -mr-2 transition-colors hover:text-primary"
+          className="relative p-2 -mr-2 text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)] rounded-md"
           aria-label={user ? `Notifications${unread > 0 ? ` (${unread} unread)` : ''}` : 'Notifications'}
           aria-haspopup="dialog"
           aria-expanded={open}
         >
-          <Bell size={24} weight="regular" className="text-foreground" />
+          <Bell size={22} weight="regular" />
           {user && unread > 0 && (
             <motion.span
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0 }}
-              className="absolute top-1 right-1 min-w-[16px] h-4 px-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full border border-card"
+              className="absolute top-1 right-1 min-w-[16px] h-4 px-1 flex items-center justify-center bg-[var(--ls-sand)] text-[var(--ls-bg)] text-[10px] font-medium rounded-full"
             >
               {unread > 9 ? '9+' : unread}
             </motion.span>
