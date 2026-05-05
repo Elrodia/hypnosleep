@@ -33,7 +33,7 @@ const TRIGGER_COPY: Record<PaywallTriggerReason, string> = {
   pro_duration: 'longer sessions are part of pro.',
 }
 
-const FREE_LINES = ['2 sessions, ever', '5 minutes each', '1 voice, 2 backgrounds']
+const FREE_LINES = ['2 sessions, ever', '5 minutes each', '4 voices, 2 backgrounds']
 
 const PRO_LINES = [
   '8 sessions per month',

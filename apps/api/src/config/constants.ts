@@ -8,13 +8,17 @@ export const RATE_LIMITS = {
   AI_GENERATION_FREE: 3,
 } as const;
 
-/** Available TTS voices mapped to Edge TTS voice identifiers */
+/** Available TTS voices mapped to Edge TTS voice identifiers.
+ *
+ * Free tier exposes a curated set of voices well-suited to hypnosis
+ * and sleep (calm/soft/grounded). All voices are compatible with the
+ * `eleven_turbo_v2_5` ElevenLabs model used in production. */
 export const VOICES = {
   'en-US-AnaNeural': { label: 'Calm Female', pro: false },
   'en-US-GuyNeural': { label: 'Deep Male', pro: false },
+  'en-US-AriaNeural': { label: 'Soft Whisper', pro: false },
+  'en-AU-NatashaNeural': { label: 'Warm Australian', pro: false },
   'en-GB-SoniaNeural': { label: 'Gentle British', pro: true },
-  'en-AU-NatashaNeural': { label: 'Warm Australian', pro: true },
-  'en-US-AriaNeural': { label: 'Soft Whisper', pro: true },
   'en-US-DavisNeural': { label: 'Steady Guide', pro: true },
 } as const;
 
@@ -83,8 +87,15 @@ export const PLAN_LIMITS = {
     /** Free tier is locked to a single duration. */
     minDurationMin: 5,
     maxDurationMin: 5,
-    /** The single voice available on free. */
-    voicesAllowed: ['en-US-AnaNeural'] as readonly string[],
+    /** Curated voices available on free — calm/soft/grounded options
+     *  tuned for hypnosis and sleep. All are compatible with
+     *  `eleven_turbo_v2_5` (0.5 credit/char). */
+    voicesAllowed: [
+      'en-US-AnaNeural',
+      'en-US-GuyNeural',
+      'en-US-AriaNeural',
+      'en-AU-NatashaNeural',
+    ] as readonly string[],
     /** The two background sounds available on free. */
     backgroundsAllowed: ['silence', 'rain'] as readonly string[],
   },
