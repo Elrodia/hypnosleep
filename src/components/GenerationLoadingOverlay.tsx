@@ -117,7 +117,7 @@ export function GenerationLoadingOverlay({
       }
     }
     window.addEventListener('keydown', handler, { capture: true })
-    return () => window.removeEventListener('keydown', handler, { capture: true } as EventListenerOptions)
+    return () => window.removeEventListener('keydown', handler, { capture: true })
   }, [isOpen])
 
   const baseSteps: Omit<GenerationStep, 'status'>[] = [
