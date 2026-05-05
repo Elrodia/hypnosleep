@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect, useRef } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
@@ -6,7 +6,6 @@ import { CaretDown, Lock } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
-import { GenerationLoadingOverlay } from '@/components/GenerationLoadingOverlay'
 import { SessionPreviewScreen } from '@/components/SessionPreviewScreen'
 import { ScriptEditorModal } from '@/components/ScriptEditorModal'
 import { RecentCreations } from '@/components/RecentCreations'
@@ -14,18 +13,16 @@ import { PaywallModal } from '@/components/PaywallModal'
 import { requestUpgradePage } from '@/lib/upgrade-intent'
 import { useAuth } from '@/lib/auth-context'
 import {
-  generateSession,
   getSession,
   listSessions,
   regenerateSessionAudio,
   deleteSession,
-  cancelSessionGeneration,
   editSessionScript,
   type SessionDetail,
 } from '@/lib/api-endpoints'
 import { ApiError } from '@/lib/api'
-import { getAuthToken } from '@/lib/auth'
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
+import { useGeneration } from '@/contexts/GenerationContext'
 import { useKV } from '@/hooks/use-kv'
 import { formatCategory } from '@/lib/session-ui'
 
@@ -124,6 +121,8 @@ export function CreatePage() {
   const isPro = user?.plan === 'pro'
   const qc = useQueryClient()
   const { play } = useAudioPlayer()
+  const generation = useGeneration()
+  const isGenerating = generation.isGenerating
 
   // User-configured defaults from PreferencesPage. These persist via
   // the Redis-backed KV hook, so a returning user starts the Create
@@ -135,7 +134,6 @@ export function CreatePage() {
 
   const [inputValue, setInputValue] = useState('')
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
-  const [isGenerating, setIsGenerating] = useState(false)
   const [selectedVoice, setSelectedVoice] = useState(() => defaultVoiceKV ?? 'en-US-AnaNeural')
   const [selectedCategory, _setSelectedCategory] = useState<string | null>(null)
   const [sessionLength, setSessionLength] = useState<number>(() => {
@@ -153,17 +151,6 @@ export function CreatePage() {
   const [showPaywall, setShowPaywall] = useState(false)
   const [paywallTrigger, setPaywallTrigger] = useState<'session-limit' | 'premium-voice'>('session-limit')
 
-  // Live generation progress driven by the backend SSE stream. The
-  // overlay (GenerationLoadingOverlay) reads these to highlight the
-  // correct step instead of relying on fake timers.
-  const [generationStep, setGenerationStep] = useState<string>('queued')
-  const [generationPercent, setGenerationPercent] = useState<number>(0)
-  const [generationMessage, setGenerationMessage] = useState<string>('Waiting in queue...')
-
-  // Holds the current SSE EventSource so we can close it on cancel /
-  // unmount. Kept in a ref so re-renders don't orphan subscriptions.
-  const eventSourceRef = useRef<EventSource | null>(null)
-
   useEffect(() => {
     const interval = setInterval(() => {
       setPlaceholderIndex((prev) => (prev + 1) % PLACEHOLDER_EXAMPLES.length)
@@ -171,126 +158,12 @@ export function CreatePage() {
     return () => clearInterval(interval)
   }, [])
 
-  // Make sure any open SSE stream is closed when the component
-  // unmounts — otherwise the backend keeps a handler alive for the
-  // full 5-minute timeout.
-  useEffect(() => {
-    return () => {
-      eventSourceRef.current?.close()
-      eventSourceRef.current = null
-    }
-  }, [])
-
-  /**
-   * Subscribe to the SSE progress stream for a newly-generated
-   * session.
-   *
-   * The backend (see `apps/api/src/modules/sessions/sessions.sse.ts`)
-   * emits just two named events:
-   *
-   *   - `progress` — every update, including the terminal
-   *     `{ step: 'done', progress: 100, audioUrl }` and
-   *     `{ step: 'error', message, error }` payloads.
-   *   - `close` — a book-end sent right before `res.end()`.
-   *
-   * We therefore key off `event.step` inside the `progress` handler
-   * rather than listening for `done` / `error` as named events
-   * (previous implementation did, which meant successful generations
-   * closed the stream → `onerror` fired → the promise rejected with
-   * "Lost connection" even though the audio was ready).
-   *
-   * Resolves with the final session detail when `step === 'done'`;
-   * rejects with the server-provided message when `step === 'error'`.
-   */
-  const subscribeToGeneration = (sessionId: string) =>
-    new Promise<SessionDetail>((resolve, reject) => {
-      const token = getAuthToken()
-      if (!token) {
-        reject(new Error('Not authenticated'))
-        return
-      }
-      // EventSource can't set headers, so the backend accepts the JWT
-      // as a query param on this specific route (see authenticateFromQuery).
-      const url = `/api/sessions/${encodeURIComponent(sessionId)}/events?token=${encodeURIComponent(token)}`
-      const es = new EventSource(url)
-      eventSourceRef.current = es
-
-      // Track whether we've already resolved/rejected so a subsequent
-      // `onerror` (which `EventSource` fires automatically when the
-      // server closes the connection after a terminal event) does not
-      // overwrite a successful completion with a spurious failure.
-      let settled = false
-      const done = (fn: () => void) => {
-        if (settled) return
-        settled = true
-        es.close()
-        if (eventSourceRef.current === es) eventSourceRef.current = null
-        fn()
-      }
-
-      es.addEventListener('progress', (ev) => {
-        let payload: {
-          step?: string
-          progress?: number
-          message?: string
-          audioUrl?: string
-          error?: string
-        } = {}
-        try {
-          payload = JSON.parse((ev as MessageEvent).data)
-        } catch {
-          // Malformed payload / keepalive — nothing to do.
-          return
-        }
-
-        if (typeof payload.step === 'string') setGenerationStep(payload.step)
-        if (typeof payload.progress === 'number') setGenerationPercent(payload.progress)
-        if (typeof payload.message === 'string') setGenerationMessage(payload.message)
-
-        if (payload.step === 'done') {
-          done(async () => {
-            try {
-              const detail = await getSession(sessionId)
-              resolve(detail)
-            } catch (err) {
-              reject(err)
-            }
-          })
-          return
-        }
-
-        if (payload.step === 'error') {
-          const msg = payload.error || payload.message || 'Generation failed'
-          done(() => reject(new Error(msg)))
-        }
-      })
-
-      es.onerror = () => {
-        // Only treat this as a failure if we haven't already finished.
-        // The browser auto-reconnects; once the server has closed the
-        // stream after a terminal `progress` event there's nothing to
-        // reconnect to, and `done()` is a no-op for the settled case.
-        done(() => reject(new Error('Lost connection to generation stream')))
-      }
-    })
-
-  // Tracks the in-flight session id so handleCancelGeneration can
-  // POST to the server-side cancel endpoint, not just close the SSE.
-  // Cleared on every settled outcome (success / error / cancel).
-  const activeSessionIdRef = useRef<string | null>(null)
-
   const handleGenerate = async () => {
     if (!inputValue.trim()) return
 
-    setIsGenerating(true)
-    // Reset progress state so a prior cancelled/failed run doesn't
-    // leak into the new one.
-    setGenerationStep('queued')
-    setGenerationPercent(0)
-    setGenerationMessage('Waiting in queue...')
     try {
       const category = selectedCategory ?? inferCategory(inputValue)
-      const { sessionId } = await generateSession({
+      const detail = await generation.runGeneration({
         userPrompt: inputValue.trim(),
         durationMin: sessionLength,
         voiceId: selectedVoice,
@@ -300,20 +173,10 @@ export function CreatePage() {
         background: backgroundSound,
         category,
       })
-      activeSessionIdRef.current = sessionId
-
-      const detail = await subscribeToGeneration(sessionId)
-      activeSessionIdRef.current = null
       setGeneratedSession(detail)
       qc.invalidateQueries({ queryKey: ['sessions'] })
-      setIsGenerating(false)
       setShowPreview(true)
     } catch (err) {
-      setIsGenerating(false)
-      eventSourceRef.current?.close()
-      eventSourceRef.current = null
-      activeSessionIdRef.current = null
-
       if (err instanceof ApiError) {
         if (err.status === 402) {
           setPaywallTrigger('session-limit')
@@ -346,23 +209,6 @@ export function CreatePage() {
       }
       toast.error(err instanceof Error ? err.message : t('create.toastGenerationFailed'))
     }
-  }
-
-  const handleCancelGeneration = () => {
-    const sid = activeSessionIdRef.current
-    eventSourceRef.current?.close()
-    eventSourceRef.current = null
-    setIsGenerating(false)
-    // Server-side abort: tells the worker to skip the next steps and
-    // refunds the user's quota slot. Best-effort — local UI state is
-    // already in the cancelled state regardless of network outcome.
-    if (sid) {
-      void cancelSessionGeneration(sid).catch(() => {
-        /* swallow — local state is already cancelled */
-      })
-    }
-    activeSessionIdRef.current = null
-    toast.info(t('create.toastGenerationCancelled'))
   }
 
   const handleListenNow = () => {
@@ -837,14 +683,6 @@ export function CreatePage() {
         onEdit={handleEditSession}
         onRegenerate={handleRegenerateAudio}
         onDelete={handleDeleteSession}
-      />
-
-      <GenerationLoadingOverlay
-        isOpen={isGenerating}
-        onCancel={handleCancelGeneration}
-        step={generationStep}
-        percent={generationPercent}
-        message={generationMessage}
       />
 
       {generatedSession && (

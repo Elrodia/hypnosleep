@@ -598,7 +598,15 @@
     "synthesizing": "synthesising the voice…",
     "addingBackground": "adding background sounds…",
     "finalizing": "almost there…",
-    "ariaClose": "cancel generation"
+    "ariaClose": "cancel generation",
+    "title": "building your session",
+    "subtitle": "keep this screen open while hypnosleep prepares the audio.",
+    "persistHint": "do not close this screen",
+    "preparing": "preparing your session…",
+    "progressLabel": "session generation progress",
+    "confirmCancel": "cancel and discard this session?",
+    "confirmCancelCta": "yes, cancel",
+    "keepGoing": "keep going"
   },
   "notifications": {
     "title": "notifications",

@@ -596,8 +596,17 @@
   "generationLoading": {
     "writing": "scrittura del tuo script…",
     "synthesizing": "sintesi della voce…",
+    "addingBackground": "aggiunta dei suoni di sottofondo…",
     "finalizing": "ci siamo quasi…",
-    "ariaClose": "annulla generazione"
+    "ariaClose": "annulla generazione",
+    "title": "stiamo creando la tua sessione",
+    "subtitle": "tieni aperta questa schermata mentre hypnosleep prepara l'audio.",
+    "persistHint": "non chiudere questa schermata",
+    "preparing": "preparazione della sessione…",
+    "progressLabel": "avanzamento della generazione",
+    "confirmCancel": "annullare e scartare questa sessione?",
+    "confirmCancelCta": "sì, annulla",
+    "keepGoing": "continua"
   },
   "notifications": {
     "title": "notifiche",

@@ -598,7 +598,15 @@
     "synthesizing": "synthèse de la voix…",
     "addingBackground": "ajout des fonds sonores…",
     "finalizing": "presque prêt…",
-    "ariaClose": "annuler la génération"
+    "ariaClose": "annuler la génération",
+    "title": "création de votre séance",
+    "subtitle": "gardez cet écran ouvert pendant qu'hypnosleep prépare votre audio.",
+    "persistHint": "ne fermez pas cet écran",
+    "preparing": "préparation de votre séance…",
+    "progressLabel": "progression de la génération",
+    "confirmCancel": "annuler et abandonner cette séance ?",
+    "confirmCancelCta": "oui, annuler",
+    "keepGoing": "continuer"
   },
   "notifications": {
     "title": "notifications",

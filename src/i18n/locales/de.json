@@ -596,8 +596,17 @@
   "generationLoading": {
     "writing": "dein skript wird geschrieben …",
     "synthesizing": "stimme wird synthetisiert …",
+    "addingBackground": "hintergrundgeräusche werden hinzugefügt …",
     "finalizing": "fast fertig …",
-    "ariaClose": "generierung abbrechen"
+    "ariaClose": "generierung abbrechen",
+    "title": "deine sitzung wird erstellt",
+    "subtitle": "lass diesen bildschirm geöffnet, während hypnosleep das audio vorbereitet.",
+    "persistHint": "diesen bildschirm nicht schließen",
+    "preparing": "sitzung wird vorbereitet …",
+    "progressLabel": "fortschritt der sitzungserstellung",
+    "confirmCancel": "diese sitzung wirklich abbrechen?",
+    "confirmCancelCta": "ja, abbrechen",
+    "keepGoing": "weitermachen"
   },
   "notifications": {
     "title": "benachrichtigungen",
