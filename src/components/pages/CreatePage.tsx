@@ -5,6 +5,7 @@ import { Switch } from '@/components/ui/switch'
 import { CaretDown, Lock } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { GenerationLoadingOverlay } from '@/components/GenerationLoadingOverlay'
 import { SessionPreviewScreen } from '@/components/SessionPreviewScreen'
 import { ScriptEditorModal } from '@/components/ScriptEditorModal'
@@ -53,26 +54,26 @@ const TEMPLATE_SUGGESTIONS = [
 ] as const
 
 const VOICE_OPTIONS = [
-  { id: 'en-US-AnaNeural', label: 'calm female', pro: false },
-  { id: 'en-US-GuyNeural', label: 'deep male', pro: false },
-  { id: 'en-US-AriaNeural', label: 'soft whisper', pro: true },
-  { id: 'en-GB-SoniaNeural', label: 'gentle british', pro: true },
-  { id: 'en-AU-NatashaNeural', label: 'warm australian', pro: true },
-  { id: 'en-US-DavisNeural', label: 'steady guide', pro: true },
+  { id: 'en-US-AnaNeural', labelKey: 'create.voices.calmFemale', pro: false },
+  { id: 'en-US-GuyNeural', labelKey: 'create.voices.deepMale', pro: false },
+  { id: 'en-US-AriaNeural', labelKey: 'create.voices.softWhisper', pro: true },
+  { id: 'en-GB-SoniaNeural', labelKey: 'create.voices.gentleBritish', pro: true },
+  { id: 'en-AU-NatashaNeural', labelKey: 'create.voices.warmAustralian', pro: true },
+  { id: 'en-US-DavisNeural', labelKey: 'create.voices.steadyGuide', pro: true },
 ] as const
 
 const BACKGROUND_SOUNDS = [
-  { id: 'silence', label: 'silence' },
-  { id: 'rain', label: 'rain' },
-  { id: 'ocean', label: 'ocean' },
-  { id: 'forest', label: 'forest' },
-  { id: 'wind', label: 'wind' },
+  { id: 'silence', labelKey: 'create.backgrounds.silence' },
+  { id: 'rain', labelKey: 'create.backgrounds.rain' },
+  { id: 'ocean', labelKey: 'create.backgrounds.ocean' },
+  { id: 'forest', labelKey: 'create.backgrounds.forest' },
+  { id: 'wind', labelKey: 'create.backgrounds.wind' },
 ] as const
 
 const INDUCTION_STYLES = [
-  { id: 'progressive', label: 'progressive' },
-  { id: 'countdown', label: 'countdown' },
-  { id: 'body-scan', label: 'body scan' },
+  { id: 'progressive', labelKey: 'create.inductions.progressive' },
+  { id: 'countdown', labelKey: 'create.inductions.countdown' },
+  { id: 'body-scan', labelKey: null as null | string, fallback: 'body scan' },
 ] as const
 
 type DepthLevel = 'light' | 'medium' | 'deep'
@@ -118,6 +119,7 @@ function inferCategory(prompt: string): string {
 }
 
 export function CreatePage() {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const isPro = user?.plan === 'pro'
   const qc = useQueryClient()
@@ -527,10 +529,10 @@ export function CreatePage() {
           {/* === HEADER === */}
           <header className="space-y-2">
             <h1 className="font-fraunces italic lowercase text-4xl text-[var(--ls-text)]">
-              what do you need tonight?
+              {t('create.promptLabel')}
             </h1>
             <p className="text-sm text-[var(--ls-text-muted)]">
-              describe it in your own words. one paragraph, no rules.
+              {t('create.subtitle')}
             </p>
           </header>
 
@@ -566,7 +568,7 @@ export function CreatePage() {
             {/* Char counter — only when typing, sand for warning, never alarmist */}
             <div className="flex justify-between items-center text-xs">
               <div className="text-[var(--ls-text-subtle)]">
-                {isTooShort && !isEmpty && <span>a little more, please</span>}
+                {isTooShort && !isEmpty && <span>{t('create.errorTooShort')}</span>}
               </div>
               <div
                 className={
@@ -600,7 +602,7 @@ export function CreatePage() {
           {/* === LENGTH (2 buttons, free user sees 10 locked) === */}
           <section className="space-y-3">
             <h2 className="font-fraunces italic lowercase text-lg text-[var(--ls-text)]">
-              length
+              {t('create.lengthLabel')}
             </h2>
             <div className="flex gap-3">
               {LENGTH_OPTIONS.map((min) => {
@@ -626,7 +628,7 @@ export function CreatePage() {
                     ].join(' ')}
                   >
                     <span className="font-fraunces italic text-xl lowercase">
-                      {min} min
+                      {min === 5 ? t('create.length5') : min === 10 ? t('create.length10') : `${min} min`}
                     </span>
                     {isLocked && (
                       <Lock
@@ -649,7 +651,7 @@ export function CreatePage() {
           {/* === VOICE === */}
           <section className="space-y-3">
             <h2 className="font-fraunces italic lowercase text-lg text-[var(--ls-text)]">
-              voice
+              {t('create.voiceLabel')}
             </h2>
             <div className="flex flex-wrap gap-2">
               {VOICE_OPTIONS.map((voice) => {
@@ -667,7 +669,7 @@ export function CreatePage() {
                         : 'border-[var(--ls-border-strong)] text-[var(--ls-text-muted)] hover:border-[var(--ls-sand-dim)] hover:text-[var(--ls-text)]',
                     ].join(' ')}
                   >
-                    <span>{voice.label}</span>
+                    <span>{t(voice.labelKey)}</span>
                     {isLocked && (
                       <Lock
                         size={12}
@@ -695,7 +697,7 @@ export function CreatePage() {
                   isAdvancedOpen ? 'rotate-180' : ''
                 }`}
               />
-              <span>{isAdvancedOpen ? 'hide options' : 'more options'}</span>
+              <span>{isAdvancedOpen ? 'hide options' : t('create.advancedLabel')}</span>
             </button>
 
             <AnimatePresence initial={false}>
@@ -712,7 +714,7 @@ export function CreatePage() {
                     {/* Background sound — text-only chips */}
                     <div className="space-y-2">
                       <h3 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
-                        background
+                        {t('create.backgroundLabel')}
                       </h3>
                       <div className="flex flex-wrap gap-2">
                         {BACKGROUND_SOUNDS.map((s) => {
@@ -729,7 +731,7 @@ export function CreatePage() {
                                   : 'border-[var(--ls-border-strong)] text-[var(--ls-text-muted)] hover:text-[var(--ls-text)]',
                               ].join(' ')}
                             >
-                              {s.label}
+                              {t(s.labelKey)}
                             </button>
                           )
                         })}
@@ -739,7 +741,7 @@ export function CreatePage() {
                     {/* Induction style */}
                     <div className="space-y-2">
                       <h3 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
-                        induction
+                        {t('create.inductionLabel')}
                       </h3>
                       <div className="flex flex-wrap gap-2">
                         {INDUCTION_STYLES.map((style) => {
@@ -756,7 +758,7 @@ export function CreatePage() {
                                   : 'border-[var(--ls-border-strong)] text-[var(--ls-text-muted)] hover:text-[var(--ls-text)]',
                               ].join(' ')}
                             >
-                              {style.label}
+                              {style.labelKey ? t(style.labelKey) : style.fallback}
                             </button>
                           )
                         })}
@@ -766,7 +768,7 @@ export function CreatePage() {
                     {/* Depth level */}
                     <div className="space-y-2">
                       <h3 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
-                        depth
+                        {t('create.depthLabel')}
                       </h3>
                       <div className="flex gap-2">
                         {(['light', 'medium', 'deep'] as const).map((d) => {
@@ -783,7 +785,7 @@ export function CreatePage() {
                                   : 'border-[var(--ls-border-strong)] text-[var(--ls-text-muted)] hover:text-[var(--ls-text)]',
                               ].join(' ')}
                             >
-                              {d}
+                              {t(`create.depths.${d}`)}
                             </button>
                           )
                         })}
@@ -794,7 +796,7 @@ export function CreatePage() {
                     <div className="flex items-center justify-between pt-2 border-t border-[var(--ls-border)]">
                       <div>
                         <h3 className="text-sm text-[var(--ls-text)]">
-                          wake-up ending
+                          {t('create.wakeUpLabel')}
                         </h3>
                         <p className="text-xs text-[var(--ls-text-subtle)] mt-0.5">
                           bring me back gently at the end
@@ -824,7 +826,7 @@ export function CreatePage() {
               'disabled:bg-[var(--ls-border-strong)] disabled:text-[var(--ls-text-subtle)] disabled:cursor-not-allowed',
             ].join(' ')}
           >
-            {isGenerating ? 'generating…' : 'create session'}
+            {isGenerating ? t('create.generating') : t('create.generateCta')}
           </button>
 
         </div>

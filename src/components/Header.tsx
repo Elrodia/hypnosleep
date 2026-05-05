@@ -73,7 +73,7 @@ export function Header() {
         <div className="flex items-center gap-2.5">
           <Logo variant="mark" size={28} className="rounded-md" alt="" />
           <h1 className="font-fraunces italic lowercase text-lg text-[var(--ls-text)]">
-            hypnosleep
+            {t('home.brand')}
           </h1>
         </div>
 

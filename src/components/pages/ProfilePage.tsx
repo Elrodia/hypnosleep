@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { PencilSimple, CaretRight, SignOut } from '@phosphor-icons/react'
+import { useTranslation } from 'react-i18next'
 import { PreferencesPage } from './PreferencesPage'
 import { AccountPage } from './AccountPage'
 import { ProUpgradePage } from './ProUpgradePage'
@@ -38,6 +39,7 @@ const STYLES = `
 `
 
 export function ProfilePage() {
+  const { t } = useTranslation()
   const { user, logout } = useAuth()
   const [showPreferences, setShowPreferences] = useState(false)
   const [showAccount, setShowAccount] = useState(false)
@@ -93,11 +95,11 @@ export function ProfilePage() {
   }, [])
 
   const settingsCategories = [
-    { id: 'preferences', label: 'Preferences' },
-    { id: 'account', label: 'Account' },
-    { id: 'subscription', label: 'Subscription' },
-    { id: 'help', label: 'Help & Support' },
-    { id: 'about', label: 'About' },
+    { id: 'preferences', labelKey: 'profile.menu.preferences' },
+    { id: 'account', labelKey: 'profile.menu.account' },
+    { id: 'subscription', labelKey: 'profile.menu.subscription' },
+    { id: 'help', labelKey: 'profile.menu.help' },
+    { id: 'about', labelKey: 'profile.menu.about' },
   ] as const
 
   const handleCategoryClick = (categoryId: string) => {
@@ -151,7 +153,7 @@ export function ProfilePage() {
               type="button"
               onClick={() => setShowEdit(true)}
               className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[var(--ls-bg-elevated)] border border-[var(--ls-border-strong)] flex items-center justify-center hover:border-[var(--ls-sand-dim)] active:border-[var(--ls-sand)] active:scale-95 transition-[border-color,transform]"
-              aria-label="edit profile"
+              aria-label={t('profile.ariaEdit')}
             >
               <PencilSimple className="w-3.5 h-3.5 text-[var(--ls-text-muted)]" weight="regular" />
             </button>
@@ -165,7 +167,7 @@ export function ProfilePage() {
               {safeProfile.email}
             </p>
             <p className="text-xs text-[var(--ls-text-subtle)] pt-1">
-              member since {formatMemberSince(safeProfile.memberSince).toLowerCase()}
+              {t('profile.memberSince', { date: formatMemberSince(safeProfile.memberSince).toLowerCase() })}
             </p>
           </div>
         </header>
@@ -177,7 +179,7 @@ export function ProfilePage() {
               {safeTotalSessions}
             </span>
             <span className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
-              sessions
+              {t('profile.stats.sessions')}
             </span>
           </div>
           <div className="flex flex-col items-center gap-1 py-2 border-x border-[var(--ls-border)]">
@@ -185,7 +187,7 @@ export function ProfilePage() {
               {formatListenedTime(safeTotalListened)}
             </span>
             <span className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
-              listened
+              {t('profile.stats.listened')}
             </span>
           </div>
           <div className="flex flex-col items-center gap-1 py-2">
@@ -193,7 +195,7 @@ export function ProfilePage() {
               {safeCurrentStreak}
             </span>
             <span className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
-              day streak
+              {t('profile.stats.dayStreak')}
             </span>
           </div>
         </section>
@@ -210,7 +212,7 @@ export function ProfilePage() {
                 className="w-full flex items-center justify-between py-4 border-b border-[var(--ls-border)] hover:bg-[var(--ls-bg-elevated)]/40 active:bg-[var(--ls-bg-elevated)]/70 transition-colors group"
               >
                 <span className="text-base text-[var(--ls-text)] lowercase">
-                  {category.label.toLowerCase()}
+                  {t(category.labelKey)}
                 </span>
                 <div className="flex items-center gap-3 text-[var(--ls-text-muted)] group-hover:text-[var(--ls-text)] group-active:text-[var(--ls-text)] transition-colors">
                   {isSubscription && (
@@ -221,7 +223,7 @@ export function ProfilePage() {
                           : 'text-xs lowercase text-[var(--ls-sand-dim)]'
                       }
                     >
-                      {planLabel}
+                      {isPro ? t('profile.subscriptionPro') : t('profile.subscriptionFree')}
                     </span>
                   )}
                   <CaretRight className="w-4 h-4" weight="regular" />
@@ -243,7 +245,7 @@ export function ProfilePage() {
             className="w-full flex items-center justify-between py-4 border-b border-[var(--ls-border)] hover:bg-[var(--ls-bg-elevated)]/40 active:bg-[var(--ls-bg-elevated)]/70 transition-colors group"
           >
             <span className="text-base text-[var(--ls-text-muted)] group-hover:text-[var(--ls-text)] group-active:text-[var(--ls-text)] lowercase transition-colors">
-              sign out
+              {t('profile.menu.signOut')}
             </span>
             <SignOut
               className="w-4 h-4 text-[var(--ls-text-muted)] group-hover:text-[var(--ls-text)] group-active:text-[var(--ls-text)] transition-colors"
@@ -254,7 +256,7 @@ export function ProfilePage() {
 
         {/* === FOOTER: brand line === */}
         <footer className="pt-10 flex flex-col items-center gap-1 text-xs text-[var(--ls-text-subtle)]">
-          <p className="lowercase">made in belgium</p>
+          <p className="lowercase">{t('profile.footerMadeIn')}</p>
         </footer>
 
       </div>

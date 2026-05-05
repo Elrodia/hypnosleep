@@ -205,7 +205,7 @@ export function SessionCardLiminal({
       <div className="ls-card__row">
         <button
           type="button"
-          aria-label={isFavorited ? 'remove from favorites' : 'add to favorites'}
+          aria-label={isFavorited ? t('library.actionUnfavorite') : t('library.actionFavorite')}
           aria-pressed={isFavorited}
           data-active={isFavorited ? 'true' : 'false'}
           className="ls-card__heart"
