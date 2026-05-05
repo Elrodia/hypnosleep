@@ -37,10 +37,12 @@ test.describe('landing page', () => {
     await heroCta.click()
 
     // After clicking the CTA, the app should swap the landing page for the
-    // login screen. We assert on stable, role/text-based locators rather
-    // than CSS classes so the test survives styling churn.
-    await expect(page.getByRole('heading', { name: /welcome to hypnosleep/i })).toBeVisible()
+    // login screen. The current Liminal copy uses a lowercase `welcome.`
+    // heading; we anchor on the OAuth provider buttons (whose copy is
+    // stable across landing/login redesigns) to confirm we landed on the
+    // login screen rather than asserting on the heading text.
     await expect(page.getByRole('button', { name: /continue with google/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /continue with github/i })).toBeVisible()
   })
 
   test('navigation Log In link opens the login page', async ({ page }) => {
@@ -50,7 +52,9 @@ test.describe('landing page', () => {
     // The desktop nav uses a <button>; we just need at least one to work.
     await loginButtons.first().click()
 
-    await expect(page.getByRole('heading', { name: /welcome to hypnosleep/i })).toBeVisible()
+    // Same anchoring rationale as above — the OAuth buttons are the
+    // most stable signal that we are on the login screen.
+    await expect(page.getByRole('button', { name: /continue with google/i })).toBeVisible()
   })
 
   test('major visible CTA buttons on the landing page are not dead', async ({ page }) => {

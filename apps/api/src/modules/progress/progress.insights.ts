@@ -1,4 +1,4 @@
-import { sql, eq, and, gte, inArray } from 'drizzle-orm';
+import { eq, and, gte, inArray } from 'drizzle-orm';
 import { pgDb } from '../../db/postgres/client.js';
 import { mysqlDb } from '../../db/mysql/client.js';
 import { events } from '../../db/postgres/schema/events.js';
