@@ -83,9 +83,9 @@ export function AccountPage({ onBack }: AccountPageProps) {
       link.click()
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
-      toast.success('Data exported successfully')
+      toast.success(t('account.toastExportSuccess'))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not export your data.')
+      toast.error(err instanceof Error ? err.message : t('account.toastExportError'))
     } finally {
       setBusy(null)
     }
@@ -95,13 +95,13 @@ export function AccountPage({ onBack }: AccountPageProps) {
     setBusy('delete')
     try {
       await deleteProfile()
-      toast.success("Account deleted. We're sorry to see you go.")
+      toast.success(t('account.toastDeleted'))
       setShowDeleteConfirm(false)
       // `deleteProfile` invalidates the session on the backend; ensure
       // local state is cleared and the user is returned to the landing.
       await logout()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not delete account.')
+      toast.error(err instanceof Error ? err.message : t('account.toastDeleteError'))
     } finally {
       setBusy(null)
     }
@@ -118,7 +118,7 @@ export function AccountPage({ onBack }: AccountPageProps) {
       const { url } = await createPortalSession()
       window.location.assign(url)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not open billing portal.')
+      toast.error(err instanceof Error ? err.message : t('account.toastBillingError'))
     } finally {
       setBusy(null)
     }
@@ -129,10 +129,10 @@ export function AccountPage({ onBack }: AccountPageProps) {
     try {
       await cancelSubscription()
       await refresh()
-      toast.success('Your subscription will end at the current period.')
+      toast.success(t('account.toastCancelSuccess'))
       setShowCancelConfirm(false)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not cancel subscription.')
+      toast.error(err instanceof Error ? err.message : t('account.toastCancelError'))
     } finally {
       setBusy(null)
     }

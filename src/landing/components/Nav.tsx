@@ -86,15 +86,20 @@ export function Nav({ onCtaClick, onLogin }: NavProps) {
             <Button size="md" onClick={() => onCtaClick('nav')}>{t('nav.startFreeTrial')}</Button>
           </div>
 
-          <button
-            type="button"
-            className="md:hidden inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--ls-border-strong)] text-[var(--ls-text)]"
-            aria-label={drawerOpen ? t('nav.closeMenu') : t('nav.openMenu')}
-            aria-expanded={drawerOpen}
-            onClick={() => setDrawerOpen((o) => !o)}
-          >
-            {drawerOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+          <div className="md:hidden flex items-center gap-2">
+            {/* Always-visible language picker so visitors on mobile can
+                switch language without first opening the drawer. */}
+            <LanguageSwitcher variant="compact" />
+            <button
+              type="button"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--ls-border-strong)] text-[var(--ls-text)]"
+              aria-label={drawerOpen ? t('nav.closeMenu') : t('nav.openMenu')}
+              aria-expanded={drawerOpen}
+              onClick={() => setDrawerOpen((o) => !o)}
+            >
+              {drawerOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
         </div>
       </header>
 

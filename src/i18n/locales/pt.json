@@ -323,7 +323,19 @@
       "medium": "média",
       "deep": "profunda"
     },
-    "lockedPro": "Pro"
+    "lockedPro": "Pro",
+    "toastGenerationFailedFallback": "não foi possível gerar a sessão.",
+    "toastGenerationFailed": "falha na geração",
+    "toastGenerationCancelled": "geração de sessão cancelada",
+    "toastScriptSaved": "roteiro salvo",
+    "toastScriptError": "não foi possível salvar o roteiro.",
+    "toastRegenStarted": "regenerando áudio…",
+    "toastRegenAudioError": "não foi possível regenerar o áudio.",
+    "toastLoadFailed": "não foi possível carregar a sessão.",
+    "toastEditOpenFailed": "não foi possível abrir a sessão para edição.",
+    "toastRegenError": "não foi possível regenerar.",
+    "toastSessionDeleted": "sessão excluída",
+    "toastDeleteError": "não foi possível excluir a sessão."
   },
   "tonight": {
     "greeting": "esta noite, {{name}}.",
@@ -427,7 +439,14 @@
     "deleteConfirmBody": "todas as sessões, favoritos, progresso e a própria conta serão removidos. isso não pode ser desfeito.",
     "deleteKeep": "manter conta",
     "deleteDoIt": "sim, excluir",
-    "deleting": "excluindo…"
+    "deleting": "excluindo…",
+    "toastExportSuccess": "dados exportados com sucesso",
+    "toastExportError": "não foi possível exportar seus dados.",
+    "toastDeleted": "conta excluída. sentimos sua partida.",
+    "toastDeleteError": "não foi possível excluir a conta.",
+    "toastBillingError": "não foi possível abrir o portal de cobrança.",
+    "toastCancelSuccess": "sua assinatura terminará ao fim do período atual.",
+    "toastCancelError": "não foi possível cancelar a assinatura."
   },
   "help": {
     "title": "ajuda",
@@ -507,7 +526,22 @@
     "createdLabel": "criada",
     "playCount": "ouvida {{count}} vezes",
     "playCountOne": "ouvida uma vez",
-    "playCountZero": "ainda não ouvida"
+    "playCountZero": "ainda não ouvida",
+    "toastScriptSaved": "roteiro salvo",
+    "toastScriptPro": "edição de roteiro é um recurso pro.",
+    "toastScriptError": "não foi possível salvar o roteiro.",
+    "toastRegenStarted": "regenerando áudio…",
+    "toastRegenPro": "regeneração é um recurso pro.",
+    "toastRegenError": "não foi possível regenerar.",
+    "toastLinkCopied": "link copiado para a área de transferência!",
+    "toastLinkError": "não foi possível copiar o link.",
+    "scriptUnavailable": "o roteiro ainda não está disponível para esta sessão.",
+    "regenerating": "regenerando…",
+    "regenerateCta": "regenerar áudio",
+    "deleting": "excluindo…",
+    "deleteSessionCta": "excluir sessão",
+    "deleteConfirm": "excluir esta sessão? isso não pode ser desfeito.",
+    "preparingAudio": "preparando áudio…"
   },
   "quiz": {
     "stepOf": "passo {{current}} de {{total}}",
@@ -583,5 +617,39 @@
     "minutes": "{{count}} min",
     "statusGenerating": "gerando…",
     "statusFailed": "falhou"
+  },
+  "profileEdit": {
+    "title": "editar perfil",
+    "description": "atualize como seu nome e avatar aparecem no hypnosleep.",
+    "nameLabel": "nome de exibição",
+    "namePlaceholder": "seu nome",
+    "avatarLabel": "url do avatar (opcional)",
+    "avatarPlaceholder": "https://…",
+    "avatarHelper": "cole uma url de imagem pública. ainda não hospedamos avatares.",
+    "cancel": "cancelar",
+    "save": "salvar",
+    "saving": "salvando…",
+    "toastNameRequired": "o nome não pode ficar vazio",
+    "toastSaved": "perfil atualizado",
+    "toastError": "não foi possível atualizar o perfil"
+  },
+  "scriptEditor": {
+    "ariaLabel": "editar roteiro",
+    "proLabel": "pro",
+    "title": "editar roteiro",
+    "cancel": "cancelar",
+    "save": "salvar",
+    "wordCount_one": "{{count}} palavra",
+    "wordCount_other": "{{count}} palavras",
+    "selectHint": "selecione o texto e depois regenere",
+    "regenerating": "regenerando…",
+    "ariaRegenerate": "regenerar texto selecionado",
+    "confirmUnsaved": "você tem alterações não salvas. tem certeza de que deseja cancelar?",
+    "toastRegenRequiresSession": "a regeneração por ia requer uma sessão salva.",
+    "toastSelectText": "selecione o texto dentro de um parágrafo para regenerar",
+    "toastRegenStarted": "regeneração iniciada. atualizaremos o áudio quando estiver pronto.",
+    "toastRegenPro": "a regeneração por ia é um recurso pro.",
+    "toastRegenFailed": "falha ao regenerar o parágrafo",
+    "toastSaved": "roteiro salvo!"
   }
 }

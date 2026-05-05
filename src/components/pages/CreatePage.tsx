@@ -337,14 +337,14 @@ export function CreatePage() {
           toast.error(
             reason
               ? `${err.message} (${reason})`
-              : err.message || 'Could not generate session.',
+              : err.message || t('create.toastGenerationFailedFallback'),
           )
           return
         }
-        toast.error(err.message || 'Could not generate session.')
+        toast.error(err.message || t('create.toastGenerationFailedFallback'))
         return
       }
-      toast.error(err instanceof Error ? err.message : 'Generation failed')
+      toast.error(err instanceof Error ? err.message : t('create.toastGenerationFailed'))
     }
   }
 
@@ -362,7 +362,7 @@ export function CreatePage() {
       })
     }
     activeSessionIdRef.current = null
-    toast.info('Session generation cancelled')
+    toast.info(t('create.toastGenerationCancelled'))
   }
 
   const handleListenNow = () => {
@@ -397,14 +397,14 @@ export function CreatePage() {
       // the new text without an extra round-trip.
       setGeneratedSession({ ...generatedSession, scriptText: edited })
       qc.invalidateQueries({ queryKey: ['sessions'] })
-      toast.success('Script saved')
+      toast.success(t('create.toastScriptSaved'))
     } catch (err) {
       if (err instanceof ApiError && err.status === 402) {
         setPaywallTrigger('premium-voice')
         setShowPaywall(true)
         return
       }
-      toast.error(err instanceof Error ? err.message : 'Could not save script.')
+      toast.error(err instanceof Error ? err.message : t('create.toastScriptError'))
       return
     }
     setShowScriptEditor(false)
@@ -420,7 +420,7 @@ export function CreatePage() {
     if (!generatedSession) return
     try {
       await regenerateSessionAudio(generatedSession.id)
-      toast.success('Regenerating audio…')
+      toast.success(t('create.toastRegenStarted'))
       setShowPreview(false)
       qc.invalidateQueries({ queryKey: ['sessions'] })
     } catch (err) {
@@ -429,7 +429,7 @@ export function CreatePage() {
         setShowPaywall(true)
         return
       }
-      toast.error('Could not regenerate audio.')
+      toast.error(t('create.toastRegenAudioError'))
     }
   }
 
@@ -471,7 +471,7 @@ export function CreatePage() {
         duration: detail.durationSec,
       })
     } catch {
-      toast.error('Could not load session.')
+      toast.error(t('create.toastLoadFailed'))
     }
   }
 
@@ -485,17 +485,17 @@ export function CreatePage() {
       setShowPreview(false)
       setShowScriptEditor(true)
     } catch {
-      toast.error('Could not open session for editing.')
+      toast.error(t('create.toastEditOpenFailed'))
     }
   }
 
   const handleRegenerateAudio = async (sessionId: string) => {
     try {
       await regenerateSessionAudio(sessionId)
-      toast.success('Regenerating audio…')
+      toast.success(t('create.toastRegenStarted'))
       qc.invalidateQueries({ queryKey: ['sessions'] })
     } catch {
-      toast.error('Could not regenerate.')
+      toast.error(t('create.toastRegenError'))
     }
   }
 
@@ -503,9 +503,9 @@ export function CreatePage() {
     try {
       await deleteSession(sessionId)
       qc.invalidateQueries({ queryKey: ['sessions'] })
-      toast.success('Session deleted')
+      toast.success(t('create.toastSessionDeleted'))
     } catch {
-      toast.error('Could not delete session.')
+      toast.error(t('create.toastDeleteError'))
     }
   }
 

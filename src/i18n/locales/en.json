@@ -323,7 +323,19 @@
       "medium": "medium",
       "deep": "deep"
     },
-    "lockedPro": "Pro"
+    "lockedPro": "Pro",
+    "toastGenerationFailedFallback": "could not generate session.",
+    "toastGenerationFailed": "generation failed",
+    "toastGenerationCancelled": "session generation cancelled",
+    "toastScriptSaved": "script saved",
+    "toastScriptError": "could not save script.",
+    "toastRegenStarted": "regenerating audio…",
+    "toastRegenAudioError": "could not regenerate audio.",
+    "toastLoadFailed": "could not load session.",
+    "toastEditOpenFailed": "could not open session for editing.",
+    "toastRegenError": "could not regenerate.",
+    "toastSessionDeleted": "session deleted",
+    "toastDeleteError": "could not delete session."
   },
   "tonight": {
     "greeting": "tonight, {{name}}.",
@@ -427,7 +439,14 @@
     "deleteConfirmBody": "all sessions, favorites, progress, and the account itself will be removed. this cannot be undone.",
     "deleteKeep": "keep account",
     "deleteDoIt": "yes, delete",
-    "deleting": "deleting…"
+    "deleting": "deleting…",
+    "toastExportSuccess": "data exported successfully",
+    "toastExportError": "could not export your data.",
+    "toastDeleted": "account deleted. we're sorry to see you go.",
+    "toastDeleteError": "could not delete account.",
+    "toastBillingError": "could not open billing portal.",
+    "toastCancelSuccess": "your subscription will end at the current period.",
+    "toastCancelError": "could not cancel subscription."
   },
   "help": {
     "title": "help",
@@ -507,7 +526,22 @@
     "createdLabel": "created",
     "playCount": "played {{count}} times",
     "playCountOne": "played once",
-    "playCountZero": "not played yet"
+    "playCountZero": "not played yet",
+    "toastScriptSaved": "script saved",
+    "toastScriptPro": "script editing is a pro feature.",
+    "toastScriptError": "could not save script.",
+    "toastRegenStarted": "regenerating audio…",
+    "toastRegenPro": "regeneration is a pro feature.",
+    "toastRegenError": "could not regenerate.",
+    "toastLinkCopied": "link copied to clipboard!",
+    "toastLinkError": "could not copy link.",
+    "scriptUnavailable": "script is not yet available for this session.",
+    "regenerating": "regenerating…",
+    "regenerateCta": "regenerate audio",
+    "deleting": "deleting…",
+    "deleteSessionCta": "delete session",
+    "deleteConfirm": "delete this session? this cannot be undone.",
+    "preparingAudio": "preparing audio…"
   },
   "quiz": {
     "stepOf": "step {{current}} of {{total}}",
@@ -584,5 +618,39 @@
     "minutes": "{{count}} min",
     "statusGenerating": "generating…",
     "statusFailed": "failed"
+  },
+  "profileEdit": {
+    "title": "edit profile",
+    "description": "update how your name and avatar appear across hypnosleep.",
+    "nameLabel": "display name",
+    "namePlaceholder": "your name",
+    "avatarLabel": "avatar url (optional)",
+    "avatarPlaceholder": "https://…",
+    "avatarHelper": "paste a public image url. we don't host avatars yet.",
+    "cancel": "cancel",
+    "save": "save",
+    "saving": "saving…",
+    "toastNameRequired": "name cannot be empty",
+    "toastSaved": "profile updated",
+    "toastError": "could not update profile"
+  },
+  "scriptEditor": {
+    "ariaLabel": "edit script",
+    "proLabel": "pro",
+    "title": "edit script",
+    "cancel": "cancel",
+    "save": "save",
+    "wordCount_one": "{{count}} word",
+    "wordCount_other": "{{count}} words",
+    "selectHint": "select text, then regenerate",
+    "regenerating": "regenerating…",
+    "ariaRegenerate": "regenerate selected script text",
+    "confirmUnsaved": "you have unsaved changes. are you sure you want to cancel?",
+    "toastRegenRequiresSession": "ai regeneration requires a saved session.",
+    "toastSelectText": "please select text within a paragraph to regenerate",
+    "toastRegenStarted": "regeneration started. we'll update the audio when it's ready.",
+    "toastRegenPro": "ai regeneration is a pro feature.",
+    "toastRegenFailed": "failed to regenerate paragraph",
+    "toastSaved": "script saved!"
   }
 }

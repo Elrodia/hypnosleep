@@ -323,7 +323,19 @@
       "medium": "media",
       "deep": "profonda"
     },
-    "lockedPro": "Pro"
+    "lockedPro": "Pro",
+    "toastGenerationFailedFallback": "impossibile generare la sessione.",
+    "toastGenerationFailed": "generazione non riuscita",
+    "toastGenerationCancelled": "generazione sessione annullata",
+    "toastScriptSaved": "script salvato",
+    "toastScriptError": "impossibile salvare lo script.",
+    "toastRegenStarted": "rigenerazione audio…",
+    "toastRegenAudioError": "impossibile rigenerare l'audio.",
+    "toastLoadFailed": "impossibile caricare la sessione.",
+    "toastEditOpenFailed": "impossibile aprire la sessione per la modifica.",
+    "toastRegenError": "impossibile rigenerare.",
+    "toastSessionDeleted": "sessione eliminata",
+    "toastDeleteError": "impossibile eliminare la sessione."
   },
   "tonight": {
     "greeting": "stanotte, {{name}}.",
@@ -427,7 +439,14 @@
     "deleteConfirmBody": "tutte le sessioni, i preferiti, i progressi e l'account stesso verranno rimossi. questa azione non può essere annullata.",
     "deleteKeep": "tieni l'account",
     "deleteDoIt": "sì, elimina",
-    "deleting": "eliminazione…"
+    "deleting": "eliminazione…",
+    "toastExportSuccess": "dati esportati correttamente",
+    "toastExportError": "impossibile esportare i tuoi dati.",
+    "toastDeleted": "account eliminato. ci dispiace vederti andare.",
+    "toastDeleteError": "impossibile eliminare l'account.",
+    "toastBillingError": "impossibile aprire il portale di fatturazione.",
+    "toastCancelSuccess": "il tuo abbonamento terminerà al termine del periodo corrente.",
+    "toastCancelError": "impossibile annullare l'abbonamento."
   },
   "help": {
     "title": "aiuto",
@@ -507,7 +526,22 @@
     "createdLabel": "creata",
     "playCount": "ascoltata {{count}} volte",
     "playCountOne": "ascoltata una volta",
-    "playCountZero": "non ancora ascoltata"
+    "playCountZero": "non ancora ascoltata",
+    "toastScriptSaved": "script salvato",
+    "toastScriptPro": "la modifica dello script è una funzione pro.",
+    "toastScriptError": "impossibile salvare lo script.",
+    "toastRegenStarted": "rigenerazione audio…",
+    "toastRegenPro": "la rigenerazione è una funzione pro.",
+    "toastRegenError": "impossibile rigenerare.",
+    "toastLinkCopied": "link copiato negli appunti!",
+    "toastLinkError": "impossibile copiare il link.",
+    "scriptUnavailable": "lo script non è ancora disponibile per questa sessione.",
+    "regenerating": "rigenerazione…",
+    "regenerateCta": "rigenera audio",
+    "deleting": "eliminazione…",
+    "deleteSessionCta": "elimina sessione",
+    "deleteConfirm": "eliminare questa sessione? questa azione non può essere annullata.",
+    "preparingAudio": "preparazione audio…"
   },
   "quiz": {
     "stepOf": "passo {{current}} di {{total}}",
@@ -583,5 +617,39 @@
     "minutes": "{{count}} min",
     "statusGenerating": "generazione…",
     "statusFailed": "fallita"
+  },
+  "profileEdit": {
+    "title": "modifica profilo",
+    "description": "aggiorna come il tuo nome e avatar appaiono in hypnosleep.",
+    "nameLabel": "nome visualizzato",
+    "namePlaceholder": "il tuo nome",
+    "avatarLabel": "url dell'avatar (facoltativo)",
+    "avatarPlaceholder": "https://…",
+    "avatarHelper": "incolla un url di immagine pubblica. non ospitiamo ancora gli avatar.",
+    "cancel": "annulla",
+    "save": "salva",
+    "saving": "salvataggio…",
+    "toastNameRequired": "il nome non può essere vuoto",
+    "toastSaved": "profilo aggiornato",
+    "toastError": "impossibile aggiornare il profilo"
+  },
+  "scriptEditor": {
+    "ariaLabel": "modifica script",
+    "proLabel": "pro",
+    "title": "modifica script",
+    "cancel": "annulla",
+    "save": "salva",
+    "wordCount_one": "{{count}} parola",
+    "wordCount_other": "{{count}} parole",
+    "selectHint": "seleziona del testo, poi rigenera",
+    "regenerating": "rigenerazione…",
+    "ariaRegenerate": "rigenera il testo selezionato",
+    "confirmUnsaved": "hai modifiche non salvate. vuoi davvero annullare?",
+    "toastRegenRequiresSession": "la rigenerazione ia richiede una sessione salvata.",
+    "toastSelectText": "seleziona del testo in un paragrafo per rigenerarlo",
+    "toastRegenStarted": "rigenerazione avviata. aggiorneremo l'audio quando sarà pronto.",
+    "toastRegenPro": "la rigenerazione ia è una funzione pro.",
+    "toastRegenFailed": "rigenerazione del paragrafo non riuscita",
+    "toastSaved": "script salvato!"
   }
 }

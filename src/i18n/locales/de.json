@@ -323,7 +323,19 @@
       "medium": "mittel",
       "deep": "tief"
     },
-    "lockedPro": "Pro"
+    "lockedPro": "Pro",
+    "toastGenerationFailedFallback": "sitzung konnte nicht generiert werden.",
+    "toastGenerationFailed": "generierung fehlgeschlagen",
+    "toastGenerationCancelled": "sitzungserstellung abgebrochen",
+    "toastScriptSaved": "skript gespeichert",
+    "toastScriptError": "skript konnte nicht gespeichert werden.",
+    "toastRegenStarted": "audio wird neu generiert…",
+    "toastRegenAudioError": "audio konnte nicht neu generiert werden.",
+    "toastLoadFailed": "sitzung konnte nicht geladen werden.",
+    "toastEditOpenFailed": "sitzung konnte nicht zum bearbeiten geöffnet werden.",
+    "toastRegenError": "neugenerierung fehlgeschlagen.",
+    "toastSessionDeleted": "sitzung gelöscht",
+    "toastDeleteError": "sitzung konnte nicht gelöscht werden."
   },
   "tonight": {
     "greeting": "heute nacht, {{name}}.",
@@ -427,7 +439,14 @@
     "deleteConfirmBody": "alle sitzungen, favoriten, fortschritte und das konto selbst werden entfernt. dies kann nicht rückgängig gemacht werden.",
     "deleteKeep": "konto behalten",
     "deleteDoIt": "ja, löschen",
-    "deleting": "wird gelöscht …"
+    "deleting": "wird gelöscht …",
+    "toastExportSuccess": "daten erfolgreich exportiert",
+    "toastExportError": "deine daten konnten nicht exportiert werden.",
+    "toastDeleted": "konto gelöscht. schade, dass du gehst.",
+    "toastDeleteError": "konto konnte nicht gelöscht werden.",
+    "toastBillingError": "das abrechnungsportal konnte nicht geöffnet werden.",
+    "toastCancelSuccess": "dein abonnement endet zum ende des aktuellen zeitraums.",
+    "toastCancelError": "abonnement konnte nicht gekündigt werden."
   },
   "help": {
     "title": "hilfe",
@@ -507,7 +526,22 @@
     "createdLabel": "erstellt",
     "playCount": "{{count}}-mal abgespielt",
     "playCountOne": "einmal abgespielt",
-    "playCountZero": "noch nicht abgespielt"
+    "playCountZero": "noch nicht abgespielt",
+    "toastScriptSaved": "skript gespeichert",
+    "toastScriptPro": "skriptbearbeitung ist eine pro-funktion.",
+    "toastScriptError": "skript konnte nicht gespeichert werden.",
+    "toastRegenStarted": "audio wird neu generiert…",
+    "toastRegenPro": "neugenerierung ist eine pro-funktion.",
+    "toastRegenError": "neugenerierung fehlgeschlagen.",
+    "toastLinkCopied": "link in die zwischenablage kopiert!",
+    "toastLinkError": "link konnte nicht kopiert werden.",
+    "scriptUnavailable": "das skript ist für diese sitzung noch nicht verfügbar.",
+    "regenerating": "wird neu generiert…",
+    "regenerateCta": "audio neu generieren",
+    "deleting": "wird gelöscht…",
+    "deleteSessionCta": "sitzung löschen",
+    "deleteConfirm": "diese sitzung löschen? dies kann nicht rückgängig gemacht werden.",
+    "preparingAudio": "audio wird vorbereitet…"
   },
   "quiz": {
     "stepOf": "schritt {{current}} von {{total}}",
@@ -583,5 +617,39 @@
     "minutes": "{{count}} min",
     "statusGenerating": "wird erstellt …",
     "statusFailed": "fehlgeschlagen"
+  },
+  "profileEdit": {
+    "title": "profil bearbeiten",
+    "description": "aktualisiere, wie dein name und avatar in hypnosleep angezeigt werden.",
+    "nameLabel": "anzeigename",
+    "namePlaceholder": "dein name",
+    "avatarLabel": "avatar-url (optional)",
+    "avatarPlaceholder": "https://…",
+    "avatarHelper": "füge eine öffentliche bild-url ein. wir hosten avatare noch nicht selbst.",
+    "cancel": "abbrechen",
+    "save": "speichern",
+    "saving": "speichern…",
+    "toastNameRequired": "der name darf nicht leer sein",
+    "toastSaved": "profil aktualisiert",
+    "toastError": "profil konnte nicht aktualisiert werden"
+  },
+  "scriptEditor": {
+    "ariaLabel": "skript bearbeiten",
+    "proLabel": "pro",
+    "title": "skript bearbeiten",
+    "cancel": "abbrechen",
+    "save": "speichern",
+    "wordCount_one": "{{count}} wort",
+    "wordCount_other": "{{count}} wörter",
+    "selectHint": "text auswählen, dann neu generieren",
+    "regenerating": "wird neu generiert…",
+    "ariaRegenerate": "ausgewählten text neu generieren",
+    "confirmUnsaved": "du hast nicht gespeicherte änderungen. willst du wirklich abbrechen?",
+    "toastRegenRequiresSession": "ki-regenerierung benötigt eine gespeicherte sitzung.",
+    "toastSelectText": "bitte text innerhalb eines absatzes auswählen, um ihn neu zu generieren",
+    "toastRegenStarted": "neugenerierung gestartet. wir aktualisieren das audio, sobald es fertig ist.",
+    "toastRegenPro": "ki-regenerierung ist eine pro-funktion.",
+    "toastRegenFailed": "absatz konnte nicht neu generiert werden",
+    "toastSaved": "skript gespeichert!"
   }
 }
