@@ -1,0 +1,587 @@
+{
+  "common": {
+    "language": "Sprache",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "continue": "Weiter",
+    "loading": "Lädt",
+    "error": "Etwas ist schiefgelaufen"
+  },
+  "languageSwitcher": {
+    "label": "Sprache ändern",
+    "ariaButton": "Sprachmenü öffnen"
+  },
+  "nav": {
+    "features": "Funktionen",
+    "howItWorks": "So funktioniert's",
+    "pricing": "Preise",
+    "faq": "Fragen",
+    "logIn": "Anmelden",
+    "startFreeTrial": "Kostenlos testen",
+    "openMenu": "Menü öffnen",
+    "closeMenu": "Menü schließen"
+  },
+  "hero": {
+    "eyebrow": "ki-erstellte hypnose, für dich gemacht",
+    "titleLine1": "programmiere deinen geist neu",
+    "titleLine2": "während du schläfst",
+    "subtitle": "personalisierte hypnosesitzungen, geschrieben für das ziel, das du beschreibst, in etwa 30 sekunden. besser schlafen, selbstvertrauen aufbauen, gewohnheiten ändern.",
+    "ctaPrimary": "kostenlos testen",
+    "samplePlay": "probe anhören",
+    "samplePause": "probe pausieren",
+    "ariaSamplePlay": "15-sekunden-probe anhören",
+    "ariaSamplePause": "probe pausieren",
+    "errorRetry": "{{error}} — bitte später noch einmal versuchen.",
+    "trialBullets": "7 tage kostenlos · keine kreditkarte · jederzeit kündbar",
+    "ariaOrb": "hypnotische orb-animation"
+  },
+  "problemSolution": {
+    "eyebrow": "Warum es das gibt",
+    "title": "Generische Aufnahmen passen nicht zu deiner Nacht.",
+    "body": "Die meisten Hypnose-Apps geben dir die gleichen fünfzig vorgefertigten Aufnahmen wie allen anderen. Wir schreiben jedes Mal eine neue, rund um das Ziel, das du wirklich hast — heute Nacht."
+  },
+  "howItWorks": {
+    "eyebrow": "So funktioniert's",
+    "title": "Von „ich will mich verändern\" zu eingeschlafen in drei Minuten",
+    "subtitle": "Keine langen Fragebögen. Keine Abos für vier Apps. Nur ein Ziel, eine KI, eine Sitzung — heute Nacht.",
+    "step1Title": "Sag uns, woran du arbeiten willst",
+    "step1Caption": "Woran willst du arbeiten?",
+    "step1Tag1": "Schlaf",
+    "step1Tag2": "20 Min.",
+    "step1Tag3": "Ruhige Stimme",
+    "step1Sample": "Schneller einschlafen unter der Woche",
+    "step2Title": "Die KI erstellt dein persönliches Hypnoseskript",
+    "step2Caption": "Deine Sitzung wird erstellt …",
+    "step2Sub": "Induktion · Vertiefung · Suggestionen",
+    "step3Title": "Hör es vor dem Schlafen — wach verändert auf",
+    "step3SessionTitle": "In den Tiefschlaf gleiten",
+    "step3SessionMeta": "Schlaf · 18:24"
+  },
+  "featuresGrid": {
+    "eyebrow": "Funktionen",
+    "title": "Alles, was ein guter Hypnotherapeut dir geben würde, ohne die 90 € Eigenanteil",
+    "personalizedTitle": "Personalisierte KI-Skripte",
+    "personalizedDesc": "Jede Sitzung einzigartig, auf deine Ziele zugeschnitten.",
+    "voicesTitle": "6 beruhigende Stimmen",
+    "voicesDesc": "Finde die Stimme, die dich wegträgt.",
+    "soundsTitle": "Hintergrundgeräusche",
+    "soundsDesc": "Regen, Ozean, Wald, Wind oder Stille.",
+    "privateTitle": "Privat by Design",
+    "privateDesc": "Deine Sitzungen verlassen nie dein Konto."
+  },
+  "useCases": {
+    "eyebrow": "Anwendungsfälle",
+    "title": "Was willst du verändern?",
+    "tryFreeButton": "Kostenlose {{label}}-Sitzung testen",
+    "items": {
+      "sleep": {
+        "label": "Schlaf",
+        "description": "Hypnotische Induktionen, abgestimmt auf deine Abendroutine und deine bevorzugte Stimme. Die meisten schlafen vor der 12-Minuten-Marke ein."
+      },
+      "confidence": {
+        "label": "Selbstvertrauen",
+        "description": "Tägliche Affirmationen rund um deine echten Ziele — das Gespräch, das Bewerbungsgespräch, das Ding, das du immer wieder aufschiebst."
+      },
+      "smoking": {
+        "label": "Rauchstopp",
+        "description": "Gezielte Skripte zu Verlangen und Identität. Kontextgesteuert („nach dem Essen\", „mit dem Kaffee\"), damit die richtige Sitzung einen Tipp entfernt ist."
+      },
+      "anxiety": {
+        "label": "Angst",
+        "description": "Erdungs- und Regulationssitzungen, die du in 10 Minuten machen kannst. Keine lange Therapie, keine Warteliste."
+      },
+      "focus": {
+        "label": "Konzentration",
+        "description": "Kurze Vorbereitungen vor der Arbeit, die helfen, das Ding anzufangen — nicht nur zu planen, es anzufangen."
+      }
+    }
+  },
+  "pricing": {
+    "eyebrow": "Preise",
+    "title": "kostenlos zum starten. pro, wenn du es ernst meinst.",
+    "subtitle": "Sieben Tage Pro auf uns. Mit einem Tipp kündbar, wenn es nichts für dich ist.",
+    "billingMonthly": "Monatlich",
+    "billingYearly": "Jährlich",
+    "saveBadge": "Spare {{percent}} %",
+    "freeTitle": "Kostenlos",
+    "freeTagline": "Zum Reinschnuppern.",
+    "freePrice": "0 $",
+    "freePeriod": "/für immer",
+    "freeBullet1": "2 Sitzungen insgesamt",
+    "freeBullet2": "5-minütige Sitzungen",
+    "freeBullet3": "1 Stimme",
+    "freeBullet4": "Stille oder Regen",
+    "freeCta": "Kostenlos starten",
+    "proTitle": "Pro",
+    "proTagline": "Alles, unbegrenzt, immer.",
+    "proPeriodMonth": "/Monat",
+    "proPeriodYear": "/Jahr",
+    "proBullet1": "8 Sitzungen pro Monat",
+    "proBullet2": "Sitzungen von 3 bis 12 Minuten",
+    "proBullet3": "Alle 6 Stimmen",
+    "proBullet4": "Alle 5 Hintergrundgeräusche",
+    "proCta": "7-Tage-Test starten",
+    "proDisclaimer": "Keine Abbuchung bis zum Ende des Tests. Jederzeit kündbar.",
+    "yearlySaveBadge": "Spare ${{amount}}/Jahr",
+    "mostPopular": "Am beliebtesten",
+    "ariaBilling": "Abrechnungszeitraum"
+  },
+  "faq": {
+    "eyebrow": "Fragen",
+    "title": "Häufig gestellte Fragen",
+    "items": {
+      "different": {
+        "question": "Was unterscheidet HypnoSleep von anderen Hypnose-Apps?",
+        "answer": "HypnoSleep schreibt für jedes Ziel, das du beschreibst, ein neues Hypnoseskript — bei jeder Sitzung. Wähle eine Stimme und eine Länge, und du hast in etwa 30 Sekunden eine personalisierte Audiodatei."
+      },
+      "works": {
+        "question": "Funktioniert KI-Hypnose wirklich?",
+        "answer": "Hypnose ist im Wesentlichen fokussierte Aufmerksamkeit plus Suggestion. Die KI schreibt das Skript nach der Struktur, die klinische Hypnotherapeuten verwenden — Induktion, Vertiefung, Suggestion, Ausleitung — und eine ruhige Stimme liest es dir vor."
+      },
+      "safe": {
+        "question": "Ist es sicher?",
+        "answer": "Ja. Höre an einem ruhigen Ort, an dem du dich sicher entspannen kannst. Nicht beim Autofahren oder beim Bedienen von Maschinen hören. Bei einer Vorgeschichte von Psychosen, Anfällen oder PTBS sprich vor der Nutzung eines Hypnoseprodukts mit einer qualifizierten Fachperson."
+      },
+      "speed": {
+        "question": "Wie lange dauert es, eine Sitzung zu erstellen?",
+        "answer": "Normalerweise 30 bis 60 Sekunden insgesamt: ein paar Sekunden für das Skript, der Rest für die Sprachsynthese."
+      },
+      "cancel": {
+        "question": "Kann ich jederzeit kündigen?",
+        "answer": "Ja. Ein Tipp in Einstellungen → Abonnement. Deine Pro-Vorteile bleiben bis zum Ende der Abrechnungsperiode aktiv, ohne Nachfragen."
+      },
+      "refund": {
+        "question": "Bietet ihr Rückerstattungen an?",
+        "answer": "Wenn die App für dich nicht funktioniert hat, schreib uns innerhalb von 30 Tagen nach deiner ersten Pro-Abbuchung und wir schauen uns deinen Fall an. Wir sind ein kleines Team und wollen, dass du zufrieden bist."
+      },
+      "privacy": {
+        "question": "Sind meine Daten privat?",
+        "answer": "Deine Ziele, Skripte und dein Hörverlauf sind verschlüsselt und ausschließlich an dein Konto gebunden. Wir verkaufen niemals Daten, wir trainieren niemals Modelle Dritter mit deinen Inhalten, und du kannst alles mit einem Tipp exportieren oder löschen."
+      },
+      "languages": {
+        "question": "Welche Sprachen werden unterstützt?",
+        "answer": "Sitzungen werden zum Start auf Englisch generiert. Die App-Oberfläche ist auf Englisch, Französisch, Portugiesisch, Spanisch, Deutsch und Italienisch verfügbar. Weitere Sitzungssprachen folgen, sobald wir die Qualität sicherstellen können."
+      }
+    }
+  },
+  "finalCta": {
+    "title": "deine veränderung beginnt heute nacht",
+    "subtitle": "7-tage-test. keine kreditkarte. jederzeit kündbar.",
+    "button": "kostenlos testen"
+  },
+  "footer": {
+    "product": "Produkt",
+    "company": "Unternehmen",
+    "resources": "Ressourcen",
+    "legal": "Rechtliches",
+    "links": {
+      "features": "Funktionen",
+      "pricing": "Preise",
+      "templates": "Vorlagen",
+      "roadmap": "Roadmap",
+      "about": "Über uns",
+      "blog": "Blog",
+      "pressKit": "Pressekit",
+      "contact": "Kontakt",
+      "helpCenter": "Hilfe-Center",
+      "api": "API",
+      "affiliates": "Partnerprogramm",
+      "sitemap": "Sitemap",
+      "terms": "AGB",
+      "privacy": "Datenschutz",
+      "cookies": "Cookies",
+      "gdpr": "DSGVO"
+    },
+    "madeIn": "© {{year}} HypnoSleep. Gemacht mit",
+    "inBelgium": "in Belgien."
+  },
+  "exitIntent": {
+    "title": "warte, bevor du gehst",
+    "subtitle": "probier eine sitzung, kostenlos, ohne karte.",
+    "ctaPrimary": "kostenlosen test starten",
+    "ctaDismiss": "nein danke",
+    "ariaClose": "Schließen"
+  },
+  "login": {
+    "title": "willkommen.",
+    "subtitle": "melde dich an, um zu beginnen.",
+    "google": "weiter mit google",
+    "github": "weiter mit github",
+    "microsoft": "weiter mit microsoft",
+    "footerTerms": "indem du fortfährst, akzeptierst du unsere agb und datenschutzerklärung.",
+    "errorCookies": "die oauth-anmeldung benötigt cookies und browser-speicher. erlaube cookies und deaktiviere strikten anti-tracking-schutz, dann versuche es erneut."
+  },
+  "authCallback": {
+    "title": "anmeldung läuft.",
+    "subtitleOk": "fast fertig, einen moment.",
+    "subtitleChecking": "deine sitzung wird geprüft — einen moment."
+  },
+  "authError": {
+    "title": "Anmeldung fehlgeschlagen",
+    "subtitle": "Wir konnten deine Anmeldung nicht abschließen. Das ist passiert:",
+    "tryAgain": "Erneut versuchen",
+    "backToHome": "Zurück zur Startseite",
+    "errors": {
+      "oauth_failed": "Der Anmeldedienst hat einen Fehler zurückgegeben. Bitte erneut versuchen.",
+      "oauth_cancelled": "Du hast die Anmeldung abgebrochen. Kein Problem — versuche es jederzeit erneut.",
+      "invalid_state": "Die Sitzung ist während der Anmeldung abgelaufen. Bitte erneut versuchen.",
+      "network": "Wir konnten den Anmeldedienst nicht erreichen. Prüfe deine Verbindung.",
+      "unknown": "Ein unerwarteter Fehler ist aufgetreten. Erneut versuchen oder den Support kontaktieren."
+    }
+  },
+  "splash": {
+    "wordmark": "hypnosleep",
+    "tagline": "programmiere deinen geist neu, während du schläfst."
+  },
+  "timeOfDay": {
+    "morning": "heute morgen",
+    "afternoon": "heute nachmittag",
+    "evening": "heute nacht"
+  },
+  "home": {
+    "brand": "hypnosleep",
+    "question": "was brauchst du {{phrase}}, {{name}}?",
+    "questionAnonymous": "was brauchst du {{phrase}}?",
+    "create": "erstellen",
+    "recently": "zuletzt",
+    "ariaCreate": "neue sitzung erstellen",
+    "ariaResume": "letzte sitzung fortsetzen"
+  },
+  "tabBar": {
+    "home": "start",
+    "library": "bibliothek",
+    "create": "erstellen",
+    "tonight": "heute nacht",
+    "profile": "profil"
+  },
+  "library": {
+    "title": "deine sitzungen",
+    "empty": "noch keine sitzungen.",
+    "emptyHint": "erstelle deine erste sitzung, um sie hier zu sehen.",
+    "createFirst": "sitzung erstellen",
+    "filterAll": "alle",
+    "filterFavorites": "favoriten",
+    "search": "sitzungen suchen",
+    "session": "sitzung",
+    "sessions": "sitzungen",
+    "minLabel": "min",
+    "deleteConfirm": "diese sitzung löschen?",
+    "deleteCancel": "behalten",
+    "deleteConfirmCta": "ja, löschen",
+    "actionPlay": "abspielen",
+    "actionFavorite": "favorit",
+    "actionUnfavorite": "favorit entfernen",
+    "actionDelete": "löschen",
+    "loadingError": "deine bibliothek konnte nicht geladen werden.",
+    "deleteError": "diese sitzung konnte nicht gelöscht werden.",
+    "deleteSuccess": "sitzung gelöscht.",
+    "favoriteError": "favorit konnte nicht aktualisiert werden."
+  },
+  "create": {
+    "title": "sitzung erstellen",
+    "subtitle": "sag uns, woran du arbeiten willst.",
+    "promptLabel": "was beschäftigt dich?",
+    "promptPlaceholder": "z. b. ich will unter der woche schneller einschlafen",
+    "lengthLabel": "dauer",
+    "length5": "5 min",
+    "length10": "10 min",
+    "voiceLabel": "stimme",
+    "advancedLabel": "erweitert",
+    "backgroundLabel": "hintergrundgeräusch",
+    "inductionLabel": "induktionsstil",
+    "depthLabel": "tiefe",
+    "wakeUpLabel": "am ende aufwachen",
+    "generateCta": "sitzung erstellen",
+    "generating": "wird erstellt …",
+    "errorEmpty": "sag uns zuerst, woran du arbeiten willst.",
+    "errorTooShort": "ein paar wörter mehr helfen dem skript besser zu treffen.",
+    "errorRateLimit": "du hast dein kostenloses limit erreicht. upgrade, um weiterzumachen.",
+    "errorGeneric": "die sitzung konnte nicht gestartet werden. erneut versuchen.",
+    "voices": {
+      "calmFemale": "ruhige weibliche",
+      "deepMale": "tiefe männliche",
+      "softWhisper": "sanftes flüstern",
+      "gentleBritish": "sanfte britische",
+      "warmAustralian": "warme australische",
+      "steadyGuide": "ruhiger guide"
+    },
+    "backgrounds": {
+      "silence": "stille",
+      "rain": "regen",
+      "ocean": "ozean",
+      "forest": "wald",
+      "wind": "wind"
+    },
+    "inductions": {
+      "progressive": "progressive entspannung",
+      "breath": "atemgeführt",
+      "imagery": "geführte imagination",
+      "countdown": "countdown"
+    },
+    "depths": {
+      "light": "leicht",
+      "medium": "mittel",
+      "deep": "tief"
+    },
+    "lockedPro": "Pro"
+  },
+  "tonight": {
+    "greeting": "heute nacht, {{name}}.",
+    "greetingAnonymous": "heute nacht.",
+    "subtitle": "basierend auf deinen letzten sitzungen.",
+    "heroTitle": "deine empfehlung",
+    "heroPlay": "beginnen",
+    "heroEmpty": "noch keine empfehlung. erstelle eine sitzung zum starten.",
+    "againTitle": "noch einmal hören",
+    "againEmpty": "deine bisherigen sitzungen erscheinen hier.",
+    "createCta": "neue sitzung erstellen"
+  },
+  "header": {
+    "ariaNotifications": "Benachrichtigungen",
+    "ariaNotificationsUnread": "Benachrichtigungen ({{count}} ungelesen)"
+  },
+  "miniPlayer": {
+    "ariaPlay": "abspielen",
+    "ariaPause": "pausieren",
+    "ariaExpand": "vollständigen player öffnen",
+    "ariaClose": "player schließen"
+  },
+  "fullPlayer": {
+    "ariaCollapse": "player minimieren",
+    "ariaPlay": "abspielen",
+    "ariaPause": "pausieren",
+    "ariaSeekBack": "15 sekunden zurück",
+    "ariaSeekForward": "15 sekunden vor",
+    "ariaFavorite": "favorit",
+    "ariaUnfavorite": "favorit entfernen",
+    "ariaShare": "teilen",
+    "ariaSleepTimer": "schlaf-timer",
+    "sleepTimerLabel": "schlaf-timer",
+    "sleepTimerOff": "aus",
+    "sleepTimer5": "5 min",
+    "sleepTimer10": "10 min",
+    "sleepTimer15": "15 min",
+    "sleepTimer30": "30 min",
+    "sleepTimerEndOfTrack": "ende des tracks",
+    "loadingAudio": "audio wird geladen …",
+    "audioError": "audio konnte nicht abgespielt werden."
+  },
+  "profile": {
+    "memberSince": "mitglied seit {{date}}",
+    "stats": {
+      "sessions": "sitzungen",
+      "listened": "gehört",
+      "dayStreak": "tage am stück"
+    },
+    "menu": {
+      "preferences": "einstellungen",
+      "account": "konto",
+      "subscription": "abonnement",
+      "help": "hilfe & support",
+      "about": "über uns",
+      "signOut": "abmelden"
+    },
+    "subscriptionFree": "kostenlos",
+    "subscriptionPro": "pro",
+    "footerMadeIn": "gemacht in belgien",
+    "ariaEdit": "profil bearbeiten"
+  },
+  "preferences": {
+    "title": "einstellungen",
+    "dailyReminder": "tägliche erinnerung",
+    "reminderTime": "erinnerungszeit",
+    "defaultLength": "standarddauer",
+    "defaultVoice": "standardstimme",
+    "background": "hintergrund",
+    "language": "sprache",
+    "theme": "design",
+    "themeDark": "dunkel",
+    "themeLight": "hell"
+  },
+  "account": {
+    "title": "konto",
+    "subscriptionHeader": "abonnement",
+    "manageLabel": "verwalten",
+    "manageStripe": "verwalten",
+    "manageExternal": "extern verwaltet",
+    "upgrade": "upgrade",
+    "freePlanDesc": "kostenloser plan · upgrade für unbegrenzte generierungen",
+    "proExternalDesc": "pro-plan · außerhalb von stripe bereitgestellt",
+    "proTrialingDesc": "pro-plan · in testphase",
+    "proActiveDesc": "pro-plan · aktiv",
+    "proCancelledDesc": "pro-plan · gekündigt, endet zum periodenende",
+    "proPlanDesc": "pro-plan",
+    "cancel": "kündigen",
+    "cancelDesc": "wiederkehrende abrechnung am ende der periode stoppen",
+    "cancelConfirmTitle": "abonnement kündigen?",
+    "cancelConfirmBody": "du behältst pro-zugang bis zum ende der aktuellen abrechnungsperiode.",
+    "cancelKeep": "pro behalten",
+    "cancelDoIt": "kündigen",
+    "cancelling": "wird gekündigt …",
+    "dataHeader": "daten",
+    "exportLabel": "meine daten exportieren",
+    "exportPreparing": "wird vorbereitet …",
+    "exportDesc": "lade deine kontodaten als json herunter",
+    "deleteLabel": "konto löschen",
+    "deleteConfirmTitle": "dein konto endgültig löschen?",
+    "deleteConfirmBody": "alle sitzungen, favoriten, fortschritte und das konto selbst werden entfernt. dies kann nicht rückgängig gemacht werden.",
+    "deleteKeep": "konto behalten",
+    "deleteDoIt": "ja, löschen",
+    "deleting": "wird gelöscht …"
+  },
+  "help": {
+    "title": "hilfe",
+    "questionsHeader": "fragen",
+    "contactHeader": "kontakt",
+    "contactBody": "noch immer hängen geblieben? schreib uns und ein mensch antwortet innerhalb eines werktags.",
+    "items": {
+      "sessions": {
+        "q": "wie viele sitzungen kann ich erstellen?",
+        "a": "Kostenlose Konten haben ein kleines monatliches Kontingent zum Ausprobieren der App. Pro hebt das Limit auf, schaltet alle Premium-Stimmen frei und ermöglicht längere Sitzungen."
+      },
+      "audio": {
+        "q": "das audio spielt nicht ab.",
+        "a": "Die meisten Wiedergabeprobleme kommen von Autoplay-Regeln des Browsers. Tippe explizit auf den Play-Button (nicht auf automatische Wiederaufnahme verlassen), prüfe, ob dein Gerät nicht stumm ist, und ob dein Netzwerk keine Medien-CDNs blockiert."
+      },
+      "data": {
+        "q": "wo werden meine daten gespeichert?",
+        "a": "Verschlüsselt auf unseren Servern, ausschließlich an dein Konto gebunden. Du kannst alles als JSON in Konto exportieren oder mit einem Tipp alles löschen."
+      },
+      "billing": {
+        "q": "ich wurde unerwartet abgebucht.",
+        "a": "Schreib uns innerhalb von 30 Tagen und wir schauen uns deinen Fall an. Wir sind ein kleines Team und wollen, dass du zufrieden bist."
+      }
+    }
+  },
+  "about": {
+    "title": "über uns",
+    "version": "version {{version}}",
+    "pitch1": "hypnosleep generiert personalisierte hypnosesitzungen auf abruf. beschreibe, wobei du hilfe willst, wähle eine stimme und eine länge, und wir synthetisieren eine geführte aufnahme, die du noch in derselben nacht hören kannst.",
+    "pitch2": "mit sorgfalt gemacht von einem kleinen team, das die app jeden tag nutzt.",
+    "legalHeader": "rechtliches",
+    "legalPrivacy": "datenschutzerklärung",
+    "legalTerms": "agb",
+    "legalContact": "kontakt",
+    "ackHeader": "danksagungen",
+    "ackBody": "stimmen von elevenlabs. hintergrundgeräusche sind lizenzfreie feldaufnahmen. sitzungsskripte werden von großen sprachmodellen mit auf hypnoseinhalt abgestimmten sicherheitsfiltern erzeugt.",
+    "copyright": "© {{year}} hypnosleep"
+  },
+  "proUpgrade": {
+    "title": "pro freischalten.",
+    "subtitle": "alles, unbegrenzt, immer.",
+    "feature1": "8 sitzungen pro monat",
+    "feature2": "sitzungen von 3 bis 12 minuten",
+    "feature3": "alle 6 stimmen",
+    "feature4": "alle 5 hintergrundgeräusche",
+    "monthly": "monatlich",
+    "yearly": "jährlich",
+    "yearlySave": "spare {{percent}} %",
+    "ctaTrial": "7-tage-test starten",
+    "ctaUpgrade": "jetzt upgraden",
+    "disclaimer": "keine abbuchung bis zum ende des tests. jederzeit kündbar.",
+    "loadingCheckout": "checkout wird vorbereitet …",
+    "checkoutError": "checkout konnte nicht geöffnet werden. erneut versuchen."
+  },
+  "results": {
+    "title": "deine sitzung ist bereit",
+    "subtitle": "{{category}} · {{duration}} min",
+    "playCta": "jetzt anhören",
+    "saveLibrary": "in deiner bibliothek gespeichert",
+    "scriptHeader": "skript-vorschau",
+    "editScript": "skript bearbeiten",
+    "regenerate": "neu erstellen",
+    "ariaClose": "vorschau schließen"
+  },
+  "sessionDetail": {
+    "ariaBack": "zurück",
+    "playCta": "sitzung abspielen",
+    "favoriteCta": "favorit",
+    "unfavoriteCta": "favorit entfernen",
+    "deleteCta": "löschen",
+    "shareCta": "teilen",
+    "scriptHeader": "skript",
+    "categoryLabel": "kategorie",
+    "voiceLabel": "stimme",
+    "backgroundLabel": "hintergrund",
+    "durationLabel": "dauer",
+    "createdLabel": "erstellt",
+    "playCount": "{{count}}-mal abgespielt",
+    "playCountOne": "einmal abgespielt",
+    "playCountZero": "noch nicht abgespielt"
+  },
+  "quiz": {
+    "stepOf": "schritt {{current}} von {{total}}",
+    "step1Title": "woran möchtest du arbeiten?",
+    "step1Subtitle": "wähle alles, was zutrifft.",
+    "step2Title": "wann hörst du am liebsten?",
+    "step3Title": "wie lang sollen sitzungen sein?",
+    "step3Subtitle": "du kannst das später in den einstellungen ändern.",
+    "continue": "weiter",
+    "begin": "beginnen",
+    "minutes": "minuten",
+    "recommended": "empfohlen",
+    "goals": {
+      "confidence": "selbstvertrauen",
+      "sleep": "besser schlafen",
+      "smoking": "rauchstopp",
+      "anxiety": "ängste reduzieren",
+      "fears": "ängste überwinden",
+      "focus": "konzentration verbessern",
+      "weight": "gewichtsverlust",
+      "custom": "etwas anderes"
+    },
+    "times": {
+      "before-sleep": "vor dem schlafen",
+      "morning": "morgenroutine",
+      "breaks": "in pausen",
+      "anytime": "jederzeit"
+    }
+  },
+  "onboarding": {
+    "skip": "überspringen",
+    "begin": "beginnen",
+    "ariaPrev": "vorherige folie",
+    "ariaNext": "nächste folie",
+    "ariaBegin": "beginnen",
+    "ariaSlide": "zu folie {{n}} gehen",
+    "slide1Title": "sitzungen, geschrieben für dich.",
+    "slide1Body": "sag uns, woran du arbeiten willst. eine ki schreibt ein neues hypnoseskript für genau dieses ziel — keine vorgefertigten tracks.",
+    "slide2Title": "eine ruhige stimme, jede nacht.",
+    "slide2Body": "wähle aus sechs stimmen und einem hintergrundgeräusch. höre vor dem schlafen, in der pause, oder wenn du zehn minuten hast.",
+    "slide3Title": "kleine veränderungen, wiederholt.",
+    "slide3Body": "hypnose wirkt durch wiederholung. deine bibliothek behält jede sitzung, sodass du zu denen zurückkehren kannst, die wirken."
+  },
+  "sessionPreview": {
+    "eyebrow": "deine sitzung ist bereit",
+    "savedLibrary": "in deiner bibliothek gespeichert",
+    "listenCta": "jetzt anhören",
+    "editScript": "skript bearbeiten",
+    "regenerate": "neu erstellen",
+    "scriptHeader": "skript-vorschau"
+  },
+  "generationLoading": {
+    "writing": "dein skript wird geschrieben …",
+    "synthesizing": "stimme wird synthetisiert …",
+    "finalizing": "fast fertig …",
+    "ariaClose": "generierung abbrechen"
+  },
+  "notifications": {
+    "title": "benachrichtigungen",
+    "empty": "noch keine benachrichtigungen.",
+    "markAllRead": "alle als gelesen markieren",
+    "loading": "lädt …",
+    "error": "benachrichtigungen konnten nicht geladen werden.",
+    "sessionReadyTitle": "deine sitzung ist bereit",
+    "sessionReadyBody": "tippe zum anhören.",
+    "subscriptionRenewedTitle": "pro verlängert",
+    "subscriptionRenewedBody": "danke, dass du dabei bleibst.",
+    "trialEndingTitle": "test endet bald",
+    "trialEndingBody": "dein kostenloser test endet in {{days}} tagen."
+  },
+  "sessionCard": {
+    "ariaPlay": "{{title}} abspielen",
+    "minutes": "{{count}} min",
+    "statusGenerating": "wird erstellt …",
+    "statusFailed": "fehlgeschlagen"
+  }
+}
