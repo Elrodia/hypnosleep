@@ -562,6 +562,7 @@
   "generationLoading": {
     "writing": "writing your script…",
     "synthesizing": "synthesising the voice…",
+    "addingBackground": "adding background sounds…",
     "finalizing": "almost there…",
     "ariaClose": "cancel generation"
   },

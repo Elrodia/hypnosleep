@@ -68,7 +68,7 @@ export function GenerationLoadingOverlay({
   const baseSteps: Omit<GenerationStep, 'status'>[] = [
     { id: 1, label: t('generationLoading.writing'), icon: <PenNib weight="regular" /> },
     { id: 2, label: t('generationLoading.synthesizing'), icon: <Waveform weight="regular" /> },
-    { id: 3, label: 'adding background sounds...', icon: <MusicNote weight="regular" /> },
+    { id: 3, label: t('generationLoading.addingBackground'), icon: <MusicNote weight="regular" /> },
     { id: 4, label: t('generationLoading.finalizing'), icon: <Sparkle weight="regular" /> },
   ]
 
