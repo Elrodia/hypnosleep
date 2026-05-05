@@ -38,3 +38,7 @@ pids
 /test-results/
 /playwright-report/
 /playwright/.cache/
+
+# Generated background ambient loops — built at deploy time by
+# apps/api/scripts/generate-backgrounds.sh, never committed.
+apps/api/assets/backgrounds/*.mp3

@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 #
-# Generate the two background loops we DON'T source manually:
+# Generate every background loop the FFmpeg mixer needs:
 #
+#   rain.mp3        — high-passed white noise (steady rainfall hiss)
+#   ocean.mp3       — brown noise modulated by a slow LFO (wave swell)
+#   forest.mp3      — low-passed pink noise with gentle tremolo (breeze)
+#   wind.mp3        — low-passed brown noise with slower tremolo (gust)
 #   white_noise.mp3 — pink noise (warmer than pure white)
 #   silence.mp3     — pure digital silence
 #
-# Both are produced from FFmpeg's `lavfi` synthetic sources, so the
+# All six are produced from FFmpeg's `lavfi` synthetic sources, so the
 # output is deterministic and reproducible — anyone can re-run this
-# script and verify the file's origin against the source command.
-#
-# The remaining 4 loops (rain, ocean, forest, wind) are sourced
-# manually from CC0 / royalty-free libraries and tracked in
-# apps/api/assets/backgrounds/LICENSES.md. This script does NOT
-# attempt to fetch them.
+# script and verify each file's origin against the source command. The
+# output of `lavfi` filters is public domain (no copyrightable input),
+# so we can ship these loops without any external sourcing or CDN.
 #
 # Output spec (matches assets/backgrounds/README.md):
 #   - exactly 300 s
@@ -73,9 +74,34 @@ render_loop "white_noise" \
 render_loop "silence" \
   "anullsrc=channel_layout=stereo:sample_rate=${SR}"
 
+# Rain — steady high-frequency hiss. White noise high-passed at 1 kHz
+# and rolled off above 8 kHz approximates the spectrum of light, even
+# rainfall. A very slow tremolo adds barely-perceptible variation so
+# the loop doesn't read as flat machine noise.
+render_loop "rain" \
+  "anoisesrc=color=white:sample_rate=${SR}:duration=${DURATION},highpass=f=1000,lowpass=f=8000,tremolo=f=0.3:d=0.15"
+
+# Ocean — slow wave swell. Brown noise gives the low-frequency rumble
+# of surf; a 0.12 Hz tremolo (one cycle ~8 s) modulates amplitude to
+# mimic waves rolling in and out. Lowpass keeps the spectrum below
+# the splash range for a calm, deep-water feel.
+render_loop "ocean" \
+  "anoisesrc=color=brown:sample_rate=${SR}:duration=${DURATION},lowpass=f=2000,tremolo=f=0.12:d=0.7"
+
+# Forest — soft outdoor bed. Pink noise low-passed to ~1.5 kHz removes
+# the harshness of open white noise; a very slow tremolo evokes a
+# distant breeze through leaves. (No bird calls — synthetic chirps
+# read as artificial; better to ship a clean breeze than a fake aviary.)
+render_loop "forest" \
+  "anoisesrc=color=pink:sample_rate=${SR}:duration=${DURATION},lowpass=f=1500,tremolo=f=0.1:d=0.25"
+
+# Wind — sustained gusts. Brown noise heavily low-passed (≤400 Hz)
+# carries only the body of a moving air mass; a 0.1 Hz tremolo with
+# stronger depth reads as gusts swelling and falling.
+render_loop "wind" \
+  "anoisesrc=color=brown:sample_rate=${SR}:duration=${DURATION},lowpass=f=400,tremolo=f=0.1:d=0.5"
+
 echo
 echo "done — generated:"
-ls -la "${DEST}/white_noise.mp3" "${DEST}/silence.mp3"
-echo
-echo "Note: rain/ocean/forest/wind must be sourced manually (CC0)."
-echo "      See apps/api/assets/backgrounds/LICENSES.md."
+ls -la "${DEST}/rain.mp3" "${DEST}/ocean.mp3" "${DEST}/forest.mp3" \
+       "${DEST}/wind.mp3" "${DEST}/white_noise.mp3" "${DEST}/silence.mp3"
