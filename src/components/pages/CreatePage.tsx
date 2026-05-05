@@ -70,11 +70,11 @@ const BACKGROUND_SOUNDS = [
   { id: 'wind', labelKey: 'create.backgrounds.wind' },
 ] as const
 
-const INDUCTION_STYLES = [
+const INDUCTION_STYLES: ReadonlyArray<{ id: string; labelKey: string | null; fallback?: string }> = [
   { id: 'progressive', labelKey: 'create.inductions.progressive' },
   { id: 'countdown', labelKey: 'create.inductions.countdown' },
-  { id: 'body-scan', labelKey: null as null | string, fallback: 'body scan' },
-] as const
+  { id: 'body-scan', labelKey: null, fallback: 'body scan' },
+]
 
 type DepthLevel = 'light' | 'medium' | 'deep'
 

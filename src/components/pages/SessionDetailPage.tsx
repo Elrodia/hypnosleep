@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft,
   ShareNetwork,
@@ -64,6 +65,7 @@ export function SessionDetailPage({
   onPlay,
   onDeleted,
 }: SessionDetailPageProps) {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const isProUser = user?.plan === 'pro'
   const qc = useQueryClient()
@@ -80,18 +82,18 @@ export function SessionDetailPage({
       qc.invalidateQueries({ queryKey: ['session', sessionId] })
       qc.invalidateQueries({ queryKey: ['sessions'] })
     },
-    onError: () => toast.error('Could not update favorite.'),
+    onError: () => toast.error(t('library.favoriteError')),
   })
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteSession(sessionId),
     onSuccess: () => {
-      toast.success('Session deleted')
+      toast.success(t('library.deleteSuccess'))
       qc.invalidateQueries({ queryKey: ['sessions'] })
       onDeleted?.()
       setTimeout(onBack, 200)
     },
-    onError: () => toast.error('Could not delete session.'),
+    onError: () => toast.error(t('library.deleteError')),
   })
 
   const editMutation = useMutation({
@@ -238,7 +240,7 @@ export function SessionDetailPage({
             <button
               type="button"
               onClick={onBack}
-              aria-label="back"
+              aria-label={t('sessionDetail.ariaBack')}
               className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--ls-border)] bg-[var(--ls-bg-elevated)] text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)]"
             >
               <ArrowLeft size={18} weight="regular" />
@@ -248,7 +250,7 @@ export function SessionDetailPage({
               <button
                 type="button"
                 onClick={handleShare}
-                aria-label="share"
+                aria-label={t('sessionDetail.shareCta')}
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--ls-border)] bg-[var(--ls-bg-elevated)] text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)]"
               >
                 <ShareNetwork size={18} weight="regular" />
@@ -258,7 +260,7 @@ export function SessionDetailPage({
                 type="button"
                 onClick={() => favoriteMutation.mutate()}
                 disabled={favoriteMutation.isPending}
-                aria-label={session.favorited ? 'unfavorite' : 'favorite'}
+                aria-label={session.favorited ? t('sessionDetail.unfavoriteCta') : t('sessionDetail.favoriteCta')}
                 aria-pressed={session.favorited}
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--ls-border)] bg-[var(--ls-bg-elevated)] text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)] disabled:opacity-60"
               >
@@ -310,7 +312,7 @@ export function SessionDetailPage({
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-xs uppercase tracking-[0.2em] text-[var(--ls-text-subtle)]">
-                script
+                {t('sessionDetail.scriptHeader')}
               </h2>
               {isProUser && scriptText && (
                 <button
@@ -451,7 +453,7 @@ export function SessionDetailPage({
             className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md border border-[var(--ls-sand-dim)] bg-[var(--ls-sand)]/10 text-sm lowercase tracking-wide text-[var(--ls-sand)] transition-colors hover:bg-[var(--ls-sand)]/15 disabled:cursor-not-allowed disabled:border-[var(--ls-border)] disabled:bg-transparent disabled:text-[var(--ls-text-subtle)]"
           >
             <Play size={16} weight={isReady ? 'fill' : 'regular'} />
-            {isReady ? 'play session' : 'preparing audio…'}
+            {isReady ? t('sessionDetail.playCta') : 'preparing audio…'}
           </button>
         </div>
       </div>

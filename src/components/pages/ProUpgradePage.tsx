@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CaretLeft, Check, CircleNotch } from '@phosphor-icons/react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { createCheckoutSession } from '@/lib/api-endpoints'
 import { PRICING } from '@/config/pricing'
 
@@ -64,6 +65,7 @@ const STYLES = `
 `
 
 export function ProUpgradePage({ onBack }: ProUpgradePageProps) {
+  const { t } = useTranslation()
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('yearly')
   const [isLoading, setIsLoading] = useState(false)
 
@@ -85,7 +87,7 @@ export function ProUpgradePage({ onBack }: ProUpgradePageProps) {
     } catch (err) {
       setIsLoading(false)
       toast.error(
-        err instanceof Error ? err.message : 'Could not start checkout. Please try again.',
+        err instanceof Error ? err.message : t('proUpgrade.checkoutError'),
       )
     }
   }
@@ -113,13 +115,13 @@ export function ProUpgradePage({ onBack }: ProUpgradePageProps) {
           onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ls-text-muted)')}
         >
           <CaretLeft size={18} weight="regular" />
-          <span>back</span>
+          <span>{t('sessionDetail.ariaBack')}</span>
         </button>
         <h2
           className="ls-display"
           style={{ fontSize: '1.25rem', color: 'var(--ls-text)' }}
         >
-          pro
+          {t('profile.subscriptionPro')}
         </h2>
         <div style={{ width: '48px' }} />
       </div>
@@ -176,7 +178,7 @@ export function ProUpgradePage({ onBack }: ProUpgradePageProps) {
                     : '1px solid var(--ls-border-strong)',
                 }}
               >
-                {cycle}
+                {cycle === 'monthly' ? t('proUpgrade.monthly') : t('proUpgrade.yearly')}
               </button>
             )
           })}
@@ -227,16 +229,16 @@ export function ProUpgradePage({ onBack }: ProUpgradePageProps) {
           {isLoading ? (
             <>
               <CircleNotch size={20} className="mr-2 animate-spin" />
-              redirecting…
+              {t('proUpgrade.loadingCheckout')}
             </>
           ) : (
-            `start ${PRICING.trialDays}-day trial`
+            t('proUpgrade.ctaTrial')
           )}
         </button>
 
         <div className="mt-4 space-y-1.5 text-center">
           <p className="text-xs" style={{ color: 'var(--ls-text-subtle)' }}>
-            cancel anytime · no charge until trial ends
+            {t('proUpgrade.disclaimer')}
           </p>
           <p className="text-xs" style={{ color: 'var(--ls-text-subtle)' }}>
             by continuing, you agree to our{' '}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Moon, Clock, Sparkle } from '@phosphor-icons/react'
+import { useTranslation } from 'react-i18next'
 
 interface ResultsPageProps {
   selectedGoals: string[]
@@ -18,24 +19,6 @@ interface AmbientMote {
   opacity: number
   delay: number
   duration: number
-}
-
-const goalLabels: Record<string, string> = {
-  confidence: 'confidence',
-  sleep: 'better sleep',
-  smoking: 'quit smoking',
-  anxiety: 'reduce anxiety',
-  fears: 'overcome fears',
-  focus: 'improve focus',
-  weight: 'weight loss',
-  custom: 'custom goal',
-}
-
-const timeLabels: Record<string, string> = {
-  'before-sleep': 'before sleep',
-  morning: 'morning routine',
-  breaks: 'during breaks',
-  anytime: 'anytime',
 }
 
 const STYLES = `
@@ -65,6 +48,7 @@ export function ResultsPage({
   onStartSession,
   onSkip,
 }: ResultsPageProps) {
+  const { t } = useTranslation()
   const [motes, setMotes] = useState<AmbientMote[]>([])
 
   useEffect(() => {
@@ -86,8 +70,14 @@ export function ResultsPage({
   }, [])
 
   const visibleGoals = selectedGoals.length > 0 ? selectedGoals : ['sleep']
-  const firstGoalLabel = goalLabels[visibleGoals[0]] ?? visibleGoals[0]
-  const preferredTimeLabel = timeLabels[preferredTime] ?? preferredTime
+  const goalLabel = (id: string) => {
+    const k = `quiz.goals.${id}`
+    const out = t(k)
+    return out === k ? id : out
+  }
+  const firstGoalLabel = goalLabel(visibleGoals[0])
+  const timeKey = `quiz.times.${preferredTime}`
+  const preferredTimeLabel = t(timeKey) === timeKey ? preferredTime : t(timeKey)
 
   return (
     <motion.div
@@ -176,7 +166,7 @@ export function ResultsPage({
                   key={goalId}
                   className="rounded-full border border-[var(--ls-sand-dim)] bg-[var(--ls-sand)]/8 px-3 py-1.5 text-sm lowercase text-[var(--ls-text)]"
                 >
-                  {goalLabels[goalId] ?? goalId}
+                  {goalLabel(goalId)}
                 </span>
               ))}
             </div>

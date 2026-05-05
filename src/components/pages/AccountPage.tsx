@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CaretLeft, CaretRight } from '@phosphor-icons/react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth-context'
 import {
   createCheckoutSession,
@@ -37,6 +38,7 @@ const STYLES = `
 `
 
 export function AccountPage({ onBack }: AccountPageProps) {
+  const { t } = useTranslation()
   const { user, refresh, logout } = useAuth()
 
   const { data: subStatus } = useQuery({
@@ -55,13 +57,12 @@ export function AccountPage({ onBack }: AccountPageProps) {
   const hasStripeSub = Boolean(subStatus?.status)
 
   const planDescription = (() => {
-    if (!isPro) return 'free plan · upgrade for unlimited generations'
-    if (!hasStripeSub) return 'pro plan · provisioned outside stripe'
-    if (subStatus?.status === 'trialing') return 'pro plan · in trial'
-    if (subStatus?.status === 'active') return 'pro plan · active'
-    if (subStatus?.cancelAtPeriodEnd)
-      return 'pro plan · cancelled, ends at period end'
-    return 'pro plan'
+    if (!isPro) return t('account.freePlanDesc')
+    if (!hasStripeSub) return t('account.proExternalDesc')
+    if (subStatus?.status === 'trialing') return t('account.proTrialingDesc')
+    if (subStatus?.status === 'active') return t('account.proActiveDesc')
+    if (subStatus?.cancelAtPeriodEnd) return t('account.proCancelledDesc')
+    return t('account.proPlanDesc')
   })()
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -147,12 +148,12 @@ export function AccountPage({ onBack }: AccountPageProps) {
             type="button"
             onClick={onBack}
             className="w-9 h-9 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
-            aria-label="back"
+            aria-label={t('sessionDetail.ariaBack')}
           >
             <CaretLeft className="w-5 h-5" weight="regular" />
           </button>
           <h1 className="font-fraunces italic lowercase text-xl text-[var(--ls-text)]">
-            account
+            {t('account.title')}
           </h1>
         </div>
       </header>
@@ -172,12 +173,12 @@ export function AccountPage({ onBack }: AccountPageProps) {
           {/* Subscription block */}
           <section className="space-y-1">
             <h2 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)] mb-3">
-              subscription
+              {t('account.subscriptionHeader')}
             </h2>
 
             <div className="flex items-center justify-between py-4 border-b border-[var(--ls-border)] gap-4">
               <div className="space-y-1 min-w-0">
-                <p className="text-base text-[var(--ls-text)] lowercase">manage</p>
+                <p className="text-base text-[var(--ls-text)] lowercase">{t('account.manageLabel')}</p>
                 <p className="text-xs text-[var(--ls-text-subtle)]">
                   {planDescription}
                 </p>
@@ -189,7 +190,7 @@ export function AccountPage({ onBack }: AccountPageProps) {
                   disabled={busy === 'subscription'}
                   className="px-4 h-9 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 transition-colors text-sm lowercase disabled:opacity-50"
                 >
-                  {busy === 'subscription' ? '…' : 'upgrade'}
+                  {busy === 'subscription' ? '…' : t('account.upgrade')}
                 </button>
               )}
               {isPro && hasStripeSub && (
@@ -199,12 +200,12 @@ export function AccountPage({ onBack }: AccountPageProps) {
                   disabled={busy === 'subscription'}
                   className="px-4 h-9 rounded-md border border-[var(--ls-border-strong)] hover:border-[var(--ls-sand-dim)] text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors lowercase disabled:opacity-50"
                 >
-                  {busy === 'subscription' ? '…' : 'manage'}
+                  {busy === 'subscription' ? '…' : t('account.manageStripe')}
                 </button>
               )}
               {isPro && !hasStripeSub && (
                 <span className="text-xs text-[var(--ls-text-subtle)] lowercase whitespace-nowrap">
-                  managed externally
+                  {t('account.manageExternal')}
                 </span>
               )}
             </div>
@@ -216,9 +217,9 @@ export function AccountPage({ onBack }: AccountPageProps) {
                 className="w-full flex items-center justify-between py-4 border-b border-[var(--ls-border)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors text-left"
               >
                 <div className="space-y-1">
-                  <p className="text-base text-[var(--ls-text)] lowercase">cancel</p>
+                  <p className="text-base text-[var(--ls-text)] lowercase">{t('account.cancel')}</p>
                   <p className="text-xs text-[var(--ls-text-subtle)]">
-                    stop recurring billing at the end of the period
+                    {t('account.cancelDesc')}
                   </p>
                 </div>
                 <CaretRight
@@ -231,10 +232,10 @@ export function AccountPage({ onBack }: AccountPageProps) {
             {showCancelConfirm && (
               <div className="space-y-3 py-3">
                 <p className="text-sm text-[var(--ls-text)] lowercase">
-                  cancel subscription?
+                  {t('account.cancelConfirmTitle')}
                 </p>
                 <p className="text-xs text-[var(--ls-text-muted)]">
-                  you'll keep pro access until the end of the current billing period.
+                  {t('account.cancelConfirmBody')}
                 </p>
                 <div className="flex gap-3 pt-2">
                   <button
@@ -242,7 +243,7 @@ export function AccountPage({ onBack }: AccountPageProps) {
                     onClick={() => setShowCancelConfirm(false)}
                     className="flex-1 h-10 rounded-md border border-[var(--ls-border-strong)] text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-sand-dim)] transition-colors lowercase"
                   >
-                    keep pro
+                    {t('account.cancelKeep')}
                   </button>
                   <button
                     type="button"
@@ -250,7 +251,7 @@ export function AccountPage({ onBack }: AccountPageProps) {
                     disabled={busy === 'cancel'}
                     className="flex-1 h-10 rounded-md border border-[var(--ls-border-strong)] text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-text-muted)] transition-colors lowercase disabled:opacity-50"
                   >
-                    {busy === 'cancel' ? 'cancelling…' : 'cancel'}
+                    {busy === 'cancel' ? t('account.cancelling') : t('account.cancelDoIt')}
                   </button>
                 </div>
               </div>
@@ -260,7 +261,7 @@ export function AccountPage({ onBack }: AccountPageProps) {
           {/* Data block */}
           <section className="space-y-1">
             <h2 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)] mb-3">
-              data
+              {t('account.dataHeader')}
             </h2>
 
             <button
@@ -271,10 +272,10 @@ export function AccountPage({ onBack }: AccountPageProps) {
             >
               <div className="space-y-1">
                 <p className="text-base text-[var(--ls-text)] lowercase">
-                  {busy === 'export' ? 'preparing…' : 'export my data'}
+                  {busy === 'export' ? t('account.exportPreparing') : t('account.exportLabel')}
                 </p>
                 <p className="text-xs text-[var(--ls-text-subtle)]">
-                  download your account data as json
+                  {t('account.exportDesc')}
                 </p>
               </div>
               <CaretRight
@@ -292,15 +293,15 @@ export function AccountPage({ onBack }: AccountPageProps) {
                 onClick={() => setShowDeleteConfirm(true)}
                 className="w-full text-left py-3 text-sm text-[var(--ls-text-subtle)] hover:text-[var(--ls-text-muted)] underline-offset-4 hover:underline transition-colors lowercase"
               >
-                delete account
+                {t('account.deleteLabel')}
               </button>
             ) : (
               <div className="space-y-3 py-3">
                 <p className="text-sm text-[var(--ls-text)] lowercase">
-                  delete your account permanently?
+                  {t('account.deleteConfirmTitle')}
                 </p>
                 <p className="text-xs text-[var(--ls-text-muted)]">
-                  all sessions, favorites, progress, and the account itself will be removed. this cannot be undone.
+                  {t('account.deleteConfirmBody')}
                 </p>
                 <div className="flex gap-3 pt-2">
                   <button
@@ -308,7 +309,7 @@ export function AccountPage({ onBack }: AccountPageProps) {
                     onClick={() => setShowDeleteConfirm(false)}
                     className="flex-1 h-10 rounded-md border border-[var(--ls-border-strong)] text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-sand-dim)] transition-colors lowercase"
                   >
-                    keep account
+                    {t('account.deleteKeep')}
                   </button>
                   <button
                     type="button"
@@ -316,7 +317,7 @@ export function AccountPage({ onBack }: AccountPageProps) {
                     disabled={busy === 'delete'}
                     className="flex-1 h-10 rounded-md border border-[var(--ls-border-strong)] text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-text-muted)] transition-colors lowercase disabled:opacity-50"
                   >
-                    {busy === 'delete' ? 'deleting…' : 'yes, delete'}
+                    {busy === 'delete' ? t('account.deleting') : t('account.deleteDoIt')}
                   </button>
                 </div>
               </div>
