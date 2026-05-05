@@ -56,9 +56,9 @@ const TEMPLATE_SUGGESTIONS = [
 const VOICE_OPTIONS = [
   { id: 'en-US-AnaNeural', labelKey: 'create.voices.calmFemale', pro: false },
   { id: 'en-US-GuyNeural', labelKey: 'create.voices.deepMale', pro: false },
-  { id: 'en-US-AriaNeural', labelKey: 'create.voices.softWhisper', pro: true },
+  { id: 'en-US-AriaNeural', labelKey: 'create.voices.softWhisper', pro: false },
+  { id: 'en-AU-NatashaNeural', labelKey: 'create.voices.warmAustralian', pro: false },
   { id: 'en-GB-SoniaNeural', labelKey: 'create.voices.gentleBritish', pro: true },
-  { id: 'en-AU-NatashaNeural', labelKey: 'create.voices.warmAustralian', pro: true },
   { id: 'en-US-DavisNeural', labelKey: 'create.voices.steadyGuide', pro: true },
 ] as const
 

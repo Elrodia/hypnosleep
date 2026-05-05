@@ -76,11 +76,13 @@ export async function synthesizeVoice(opts: TtsOptions): Promise<string> {
   // Read ElevenLabs config directly from process.env: the env validator
   // (`apps/api/src/config/env.ts`) does not yet declare these vars. They
   // will be added in a follow-up step; until then, narrow here.
+  // The default model is `eleven_turbo_v2_5` to match the cost
+  // calibration in `config/constants.ts` (0.5 credit/char).
   const apiKey: string | undefined = process.env.ELEVENLABS_API_KEY;
   const modelId: string =
     process.env.ELEVENLABS_MODEL && process.env.ELEVENLABS_MODEL.length > 0
       ? process.env.ELEVENLABS_MODEL
-      : 'eleven_multilingual_v2';
+      : 'eleven_turbo_v2_5';
 
   if (!apiKey || apiKey.length === 0) {
     throw new AppError(
