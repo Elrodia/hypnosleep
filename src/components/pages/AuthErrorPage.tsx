@@ -100,7 +100,6 @@ export function AuthErrorPage({
   onRetry,
   error,
   reason,
-  message: _message,
   requestId,
 }: AuthErrorPageProps) {
   const { t } = useTranslation()
