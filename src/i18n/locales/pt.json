@@ -606,7 +606,9 @@
     "progressLabel": "progresso da geração",
     "confirmCancel": "cancelar e descartar esta sessão?",
     "confirmCancelCta": "sim, cancelar",
-    "keepGoing": "continuar"
+    "keepGoing": "continuar",
+    "estimatedRemaining": "cerca de {{time}} restantes",
+    "calculatingEta": "estimando o tempo restante…"
   },
   "notifications": {
     "title": "notificações",

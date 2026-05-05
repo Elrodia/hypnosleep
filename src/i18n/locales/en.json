@@ -606,7 +606,9 @@
     "progressLabel": "session generation progress",
     "confirmCancel": "cancel and discard this session?",
     "confirmCancelCta": "yes, cancel",
-    "keepGoing": "keep going"
+    "keepGoing": "keep going",
+    "estimatedRemaining": "about {{time}} remaining",
+    "calculatingEta": "estimating time remaining…"
   },
   "notifications": {
     "title": "notifications",

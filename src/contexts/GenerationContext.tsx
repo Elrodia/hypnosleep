@@ -46,6 +46,19 @@ export interface GenerationState {
   step: string
   percent: number
   message: string
+  /**
+   * Wall-clock timestamp (ms since epoch) of when the current run was
+   * kicked off. Used by the overlay to compute the estimated remaining
+   * time. `null` when nothing is running.
+   */
+  startedAt: number | null
+  /**
+   * Heuristic total expected duration in seconds for the current run
+   * (depends on selected `durationMin`). Used together with
+   * `startedAt` to derive a remaining-time hint while the bar is far
+   * from 100%. `null` when nothing is running.
+   */
+  estimatedTotalSec: number | null
 }
 
 interface GenerationContextType extends GenerationState {
@@ -67,10 +80,63 @@ const GenerationContext = createContext<GenerationContextType | null>(null)
 
 const INITIAL_STATE: GenerationState = {
   isGenerating: false,
-  step: 'queued',
+  // Treat the very first frame as already in the `script` phase so the
+  // overlay's "writing your script" row is visually active from the
+  // instant the user taps generate. The script is generated
+  // *synchronously* inside `POST /api/sessions/generate` (see
+  // `createGenerationSession`), so without this seed the user would
+  // sit on the "queued" row at 0% for the entire script-generation
+  // window — which is exactly the "step 1 is endless" bug.
+  step: 'script',
   percent: 0,
-  message: 'Waiting in queue...',
+  message: 'Writing your script...',
+  startedAt: null,
+  estimatedTotalSec: null,
 }
+
+/**
+ * Rough total wall-clock time (in seconds) we expect a generation run
+ * to take, keyed by the requested session duration in minutes. These
+ * numbers are deliberately generous — overestimating makes the
+ * remaining-time hint trustworthy ("~2m 10s" sticking around for an
+ * extra few seconds at the very end is far less alarming than a "~5s"
+ * hint that lingers for a minute). Values were chosen from observed
+ * production p95 generation times.
+ */
+const ESTIMATED_TOTAL_SEC_BY_MIN: Record<number, number> = {
+  5: 90,
+  10: 150,
+}
+const FALLBACK_ESTIMATED_TOTAL_SEC = 120
+
+/**
+ * Soft auto-advance of the progress bar during the *script* phase.
+ *
+ * The backend does not emit any progress events while it's calling
+ * Gemini synchronously inside the POST handler — the first real event
+ * the SSE stream sees is `script @ 10%` from the worker. Without a
+ * client-side creep the bar would freeze at 0% for the entire
+ * script-generation window (commonly 20–40s) and feel hung.
+ *
+ * The creep:
+ *  - only runs while `step === 'script'`
+ *  - stops the moment `percent >= 9` (so it never overshoots the real
+ *    backend's first emission at 10%)
+ *  - is instantly overridden by any incoming SSE `progress` event
+ */
+const SCRIPT_CREEP_TICK_MS = 600
+const SCRIPT_CREEP_CAP = 9
+const SCRIPT_CREEP_INCREMENT = 0.4
+
+/**
+ * Polling cadence for the safety-net fallback that watches the
+ * session row directly via `GET /api/sessions/:id`. This catches the
+ * "SSE silently died but the worker is still finishing" failure mode
+ * that previously left users stranded on the loading screen until
+ * they refreshed and discovered the session in the library minutes
+ * later.
+ */
+const SESSION_POLL_INTERVAL_MS = 5_000
 
 export function GenerationProvider({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
@@ -82,28 +148,83 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
   // Tracks the in-flight session id so `cancel()` can POST to the
   // server-side cancel endpoint, not just close the SSE.
   const activeSessionIdRef = useRef<string | null>(null)
+  // Soft script-phase progress creep. See SCRIPT_CREEP_* constants.
+  const scriptCreepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Safety-net polling on `GET /api/sessions/:id`. Closes the overlay
+  // when the backend marks the session ready / failed even if the SSE
+  // stream silently dropped (e.g. proxy idle timeout, client-side
+  // network blip).
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const stopScriptCreep = useCallback(() => {
+    if (scriptCreepIntervalRef.current) {
+      clearInterval(scriptCreepIntervalRef.current)
+      scriptCreepIntervalRef.current = null
+    }
+  }, [])
+
+  const stopSessionPoll = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current)
+      pollIntervalRef.current = null
+    }
+  }, [])
 
   // Defensive cleanup: if the provider ever unmounts (only happens on
-  // a full app teardown) make sure no SSE is left dangling.
+  // a full app teardown) make sure no SSE / interval is left dangling.
   useEffect(() => {
     return () => {
       eventSourceRef.current?.close()
       eventSourceRef.current = null
+      stopScriptCreep()
+      stopSessionPoll()
     }
-  }, [])
+  }, [stopScriptCreep, stopSessionPoll])
 
-  const resetProgress = useCallback(() => {
-    setState({
-      isGenerating: true,
-      step: 'queued',
-      percent: 0,
-      message: 'Waiting in queue...',
-    })
-  }, [])
+  const startScriptCreep = useCallback(() => {
+    stopScriptCreep()
+    scriptCreepIntervalRef.current = setInterval(() => {
+      setState((prev) => {
+        // Only advance during the script phase, never past the cap, and
+        // never when nothing is running.
+        if (!prev.isGenerating || prev.step !== 'script' || prev.percent >= SCRIPT_CREEP_CAP) {
+          return prev
+        }
+        const next = Math.min(SCRIPT_CREEP_CAP, prev.percent + SCRIPT_CREEP_INCREMENT)
+        return { ...prev, percent: next }
+      })
+    }, SCRIPT_CREEP_TICK_MS)
+  }, [stopScriptCreep])
+
+  const resetProgress = useCallback(
+    (durationMin: number) => {
+      const total =
+        ESTIMATED_TOTAL_SEC_BY_MIN[durationMin] ?? FALLBACK_ESTIMATED_TOTAL_SEC
+      setState({
+        isGenerating: true,
+        // See INITIAL_STATE comment — starting in `script` (not
+        // `queued`) is what makes the overlay's first row light up
+        // immediately, eliminating the "step 1 is endless" feel.
+        step: 'script',
+        percent: 0,
+        message: 'Writing your script...',
+        startedAt: Date.now(),
+        estimatedTotalSec: total,
+      })
+    },
+    [],
+  )
 
   const closeOverlay = useCallback(() => {
-    setState((s) => ({ ...s, isGenerating: false }))
-  }, [])
+    stopScriptCreep()
+    stopSessionPoll()
+    setState((s) => ({
+      ...s,
+      isGenerating: false,
+      startedAt: null,
+      estimatedTotalSec: null,
+    }))
+  }, [stopScriptCreep, stopSessionPoll])
 
   const subscribe = useCallback(
     (sessionId: string) =>
@@ -131,8 +252,35 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
           settled = true
           es.close()
           if (eventSourceRef.current === es) eventSourceRef.current = null
+          stopScriptCreep()
+          stopSessionPoll()
           fn()
         }
+
+        // Safety-net poller: every few seconds, ask the API for the
+        // session row directly. If the worker has flipped the row to
+        // `ready` / `failed` but our SSE somehow missed the terminal
+        // event (proxy idle timeout, mobile background tab, etc.) we
+        // still settle the run cleanly instead of leaving the overlay
+        // open until the user manually refreshes.
+        pollIntervalRef.current = setInterval(() => {
+          if (settled) return
+          getSession(sessionId)
+            .then((detail) => {
+              if (settled) return
+              if (detail.status === 'ready') {
+                done(() => resolve(detail))
+              } else if (detail.status === 'failed') {
+                done(() => reject(new Error('Generation failed')))
+              }
+              // 'generating' / 'draft' → keep waiting on SSE.
+            })
+            .catch(() => {
+              // Transient API errors are non-fatal — the next tick will
+              // try again. We never want a failed poll to abort an
+              // otherwise-healthy run.
+            })
+        }, SESSION_POLL_INTERVAL_MS)
 
         es.addEventListener('progress', (ev) => {
           let payload: {
@@ -148,14 +296,34 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
             return
           }
 
-          setState((prev) => ({
-            isGenerating: true,
-            step: typeof payload.step === 'string' ? payload.step : prev.step,
-            percent:
-              typeof payload.progress === 'number' ? payload.progress : prev.percent,
-            message:
-              typeof payload.message === 'string' ? payload.message : prev.message,
-          }))
+          setState((prev) => {
+            const nextStep =
+              typeof payload.step === 'string' ? payload.step : prev.step
+            // Once we've left the script phase the soft creep must
+            // stop — real backend percentages take over.
+            if (nextStep !== 'script' && scriptCreepIntervalRef.current) {
+              stopScriptCreep()
+            }
+            // Never let the bar go *backwards*: the backend's first
+            // tick is `script @ 10%` but our local creep may already
+            // have nudged us to ~8%, which is fine; what we want to
+            // avoid is e.g. a stale `queued @ 0%` event clobbering an
+            // 8% creep value.
+            const incomingPercent =
+              typeof payload.progress === 'number' ? payload.progress : prev.percent
+            const nextPercent =
+              nextStep === prev.step
+                ? Math.max(prev.percent, incomingPercent)
+                : incomingPercent
+            return {
+              ...prev,
+              isGenerating: true,
+              step: nextStep,
+              percent: nextPercent,
+              message:
+                typeof payload.message === 'string' ? payload.message : prev.message,
+            }
+          })
 
           if (payload.step === 'done') {
             done(async () => {
@@ -176,10 +344,28 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         })
 
         es.onerror = () => {
-          done(() => reject(new Error('Lost connection to generation stream')))
+          // Don't reject on transient connection blips — `EventSource`
+          // auto-reconnects with backoff while `readyState` is
+          // CONNECTING, and the safety-net poller above will still
+          // settle the run if the worker finishes during a reconnect.
+          // Only treat a fully-closed stream (server returned a
+          // non-2xx, etc.) as terminal here; even then we *don't*
+          // reject — we keep the overlay open and rely entirely on the
+          // poller to detect ready/failed. This matches the user's
+          // observation that "the session appears in the library a
+          // few minutes later" even after the streaming connection
+          // dies.
+          if (es.readyState === EventSource.CLOSED) {
+            // Drop the dead EventSource so we don't leak it, but keep
+            // the run alive — `pollIntervalRef` will resolve/reject
+            // once the backend writes a terminal status.
+            if (eventSourceRef.current === es) {
+              eventSourceRef.current = null
+            }
+          }
         }
       }),
-    [],
+    [stopScriptCreep, stopSessionPoll],
   )
 
   const runGeneration = useCallback(
@@ -189,7 +375,12 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       if (eventSourceRef.current) {
         throw new Error('A generation is already in progress')
       }
-      resetProgress()
+      resetProgress(input.durationMin)
+      // Start the soft creep *before* awaiting the POST: script
+      // generation runs synchronously inside the POST handler, so
+      // this is precisely the window during which we have no real
+      // backend progress to display.
+      startScriptCreep()
       try {
         const { sessionId } = await generateSession(input)
         activeSessionIdRef.current = sessionId
@@ -205,7 +396,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
         throw err
       }
     },
-    [resetProgress, subscribe, closeOverlay],
+    [resetProgress, startScriptCreep, subscribe, closeOverlay],
   )
 
   const cancel = useCallback(() => {
