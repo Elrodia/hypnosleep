@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Play, Pause } from '@phosphor-icons/react'
+import { useTranslation } from 'react-i18next'
 import { useKV } from '@/hooks/use-kv'
 
 interface MiniPlayerProps {
@@ -37,6 +38,7 @@ export function MiniPlayer({
   onPlayPause,
   onExpand,
 }: MiniPlayerProps) {
+  const { t } = useTranslation()
   const [fadeOutEnabled] = useKV<boolean>('player-fadeout-enabled', false)
   const clampedProgress = Math.max(0, Math.min(100, Math.round(progress)))
 
@@ -61,7 +63,7 @@ export function MiniPlayer({
           }
         }}
         className="cursor-pointer overflow-hidden rounded-md border border-[var(--ls-border-strong)] bg-[var(--ls-bg-elevated)]/88 text-[var(--ls-text)] transition-colors hover:border-[var(--ls-sand-dim)] active:scale-[0.99] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
-        aria-label={`open player for ${sessionTitle}`}
+        aria-label={t('miniPlayer.ariaExpand')}
       >
         <div className="flex items-center gap-4 px-4 py-3">
           <div className="min-w-0 flex flex-1 items-center gap-2">
@@ -93,7 +95,7 @@ export function MiniPlayer({
               onPlayPause()
             }}
             className="relative shrink-0 rounded-full focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
-            aria-label={isPlaying ? 'pause session' : 'play session'}
+            aria-label={isPlaying ? t('miniPlayer.ariaPause') : t('miniPlayer.ariaPlay')}
             aria-pressed={isPlaying}
           >
             <CircularProgress progress={clampedProgress} />

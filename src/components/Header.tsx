@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { Bell } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/lib/auth-context'
 import {
   listNotifications,
@@ -27,6 +28,7 @@ import { NotificationsPanel } from './NotificationsPanel'
  */
 export function Header() {
   const { user } = useAuth()
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const qc = useQueryClient()
 
@@ -84,7 +86,7 @@ export function Header() {
             if (user) setOpen((v) => !v)
           }}
           className="relative p-2 -mr-2 text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)] rounded-md"
-          aria-label={user ? `Notifications${unread > 0 ? ` (${unread} unread)` : ''}` : 'Notifications'}
+          aria-label={user && unread > 0 ? t('header.ariaNotificationsUnread', { count: unread }) : t('header.ariaNotifications')}
           aria-haspopup="dialog"
           aria-expanded={open}
         >

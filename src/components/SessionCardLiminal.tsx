@@ -1,6 +1,7 @@
 import { Heart, Play } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import type { MouseEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export interface SessionCardLiminalProps {
   id: string
@@ -150,8 +151,8 @@ function formatRelativeDate(input: string | Date): string {
   return `${weeks} weeks ago`
 }
 
-function formatMin(sec: number): string {
-  return `${Math.max(1, Math.round(sec / 60))} min`
+function formatMin(sec: number): number {
+  return Math.max(1, Math.round(sec / 60))
 }
 
 export function SessionCardLiminal({
@@ -164,6 +165,7 @@ export function SessionCardLiminal({
   onToggleFavorite,
   onClick,
 }: SessionCardLiminalProps) {
+  const { t } = useTranslation()
   const stop = (event: MouseEvent) => {
     event.stopPropagation()
   }
@@ -197,7 +199,7 @@ export function SessionCardLiminal({
       <h3 className="ls-card__title">{title.toLowerCase()}</h3>
 
       <p className="ls-card__meta">
-        {category.toLowerCase()} · {formatMin(durationSec)} · {formatRelativeDate(createdAt)}
+        {category.toLowerCase()} · {t('sessionCard.minutes', { count: formatMin(durationSec) })} · {formatRelativeDate(createdAt)}
       </p>
 
       <div className="ls-card__row">
@@ -214,7 +216,7 @@ export function SessionCardLiminal({
 
         <button
           type="button"
-          aria-label="play session"
+          aria-label={t('sessionCard.ariaPlay', { title })}
           className="ls-card__play"
           onClick={handlePlay}
         >

@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import type { ReactNode } from 'react'
 import { X, PenNib, Waveform, MusicNote, Sparkle, Check } from '@phosphor-icons/react'
+import { useTranslation } from 'react-i18next'
 
 interface GenerationStep {
   id: number
@@ -63,11 +64,12 @@ export function GenerationLoadingOverlay({
   percent,
   message,
 }: GenerationLoadingOverlayProps) {
+  const { t } = useTranslation()
   const baseSteps: Omit<GenerationStep, 'status'>[] = [
-    { id: 1, label: 'crafting your script...', icon: <PenNib weight="regular" /> },
-    { id: 2, label: 'generating audio...', icon: <Waveform weight="regular" /> },
+    { id: 1, label: t('generationLoading.writing'), icon: <PenNib weight="regular" /> },
+    { id: 2, label: t('generationLoading.synthesizing'), icon: <Waveform weight="regular" /> },
     { id: 3, label: 'adding background sounds...', icon: <MusicNote weight="regular" /> },
-    { id: 4, label: 'finalizing session...', icon: <Sparkle weight="regular" /> },
+    { id: 4, label: t('generationLoading.finalizing'), icon: <Sparkle weight="regular" /> },
   ]
 
   const activeIdx = STEP_INDEX[step ?? 'queued'] ?? 0
@@ -288,7 +290,7 @@ export function GenerationLoadingOverlay({
               className="mx-auto mt-8 flex h-11 items-center justify-center gap-2 rounded-md border border-[var(--ls-border-strong)] px-5 text-sm lowercase text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-sand-dim)] hover:text-[var(--ls-text)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
             >
               <X size={16} weight="regular" />
-              <span>cancel generation</span>
+              <span>{t('generationLoading.ariaClose')}</span>
             </motion.button>
           </div>
         </motion.div>

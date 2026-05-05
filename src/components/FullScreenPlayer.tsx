@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Play, Pause, CaretDown, DotsThree, ArrowCounterClockwise, ArrowClockwise, Clock, Waves, Repeat, TrendDown, Speedometer, Check, Stop, Heart, ShareNetwork, Flag } from '@phosphor-icons/react'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +69,7 @@ export function FullScreenPlayer({
   onSeek,
   onStop,
 }: FullScreenPlayerProps) {
+  const { t } = useTranslation()
   const [isDragging, setIsDragging] = useState(false)
   const [localProgress, setLocalProgress] = useState(progress)
   const [showTimerModal, setShowTimerModal] = useState(false)
@@ -263,7 +265,7 @@ export function FullScreenPlayer({
                 type="button"
                 onClick={onClose}
                 className="w-10 h-10 flex items-center justify-center rounded-full border border-transparent text-[var(--ls-text-muted)] hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
-                aria-label="close player"
+                aria-label={t('fullPlayer.ariaCollapse')}
               >
                 <CaretDown weight="regular" className="w-5 h-5" />
               </button>
@@ -282,7 +284,7 @@ export function FullScreenPlayer({
                   type="button"
                   onClick={() => setShowTimerModal(true)}
                   className="relative w-10 h-10 flex items-center justify-center rounded-full border border-transparent text-[var(--ls-text-muted)] hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
-                  aria-label="sleep timer"
+                  aria-label={t('fullPlayer.ariaSleepTimer')}
                 >
                   <Clock weight="regular" className="w-5 h-5" />
                   {timerMinutes !== null && remainingSeconds !== null && (
@@ -430,7 +432,7 @@ export function FullScreenPlayer({
                           weight={favorited ? 'fill' : 'regular'}
                           className={`w-4 h-4 ${favorited ? 'text-[var(--ls-sand)]' : ''}`}
                         />
-                        <span>{favorited ? 'unfavorite' : 'favorite'}</span>
+                        <span>{favorited ? t('fullPlayer.ariaUnfavorite') : t('fullPlayer.ariaFavorite')}</span>
                       </div>
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -482,7 +484,7 @@ export function FullScreenPlayer({
                   type="button"
                   onClick={handleRewind}
                   className="w-12 h-12 flex items-center justify-center rounded-full border border-transparent text-[var(--ls-text-muted)] hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
-                  aria-label="rewind 15 seconds"
+                  aria-label={t('fullPlayer.ariaSeekBack')}
                 >
                   <ArrowCounterClockwise weight="regular" className="w-6 h-6" />
                 </button>
@@ -493,7 +495,7 @@ export function FullScreenPlayer({
                     type="button"
                     onClick={onPlayPause}
                     className="absolute inset-2 flex items-center justify-center rounded-full border border-[var(--ls-sand)] bg-[var(--ls-bg)] text-[var(--ls-sand)] hover:bg-[var(--ls-sand)]/8 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
-                    aria-label={isPlaying ? 'pause' : 'play'}
+                    aria-label={isPlaying ? t('fullPlayer.ariaPause') : t('fullPlayer.ariaPlay')}
                   >
                     {isPlaying ? (
                       <Pause weight="regular" className="w-8 h-8" />
@@ -507,7 +509,7 @@ export function FullScreenPlayer({
                   type="button"
                   onClick={handleForward}
                   className="w-12 h-12 flex items-center justify-center rounded-full border border-transparent text-[var(--ls-text-muted)] hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
-                  aria-label="forward 15 seconds"
+                  aria-label={t('fullPlayer.ariaSeekForward')}
                 >
                   <ArrowClockwise weight="regular" className="w-6 h-6" />
                 </button>

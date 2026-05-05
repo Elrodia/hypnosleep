@@ -1,5 +1,6 @@
 import { Moon, BookOpen, PlusCircle, Star, User } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 
 export type TabId = 'home' | 'library' | 'create' | 'tonight' | 'profile'
 
@@ -10,17 +11,16 @@ interface TabBarProps {
 
 interface TabConfig {
   id: TabId
-  label: string
   icon: typeof Moon
   isCenter?: boolean
 }
 
 const tabs: TabConfig[] = [
-  { id: 'home', label: 'home', icon: Moon },
-  { id: 'library', label: 'library', icon: BookOpen },
-  { id: 'create', label: 'create', icon: PlusCircle, isCenter: true },
-  { id: 'tonight', label: 'tonight', icon: Star },
-  { id: 'profile', label: 'profile', icon: User },
+  { id: 'home', icon: Moon },
+  { id: 'library', icon: BookOpen },
+  { id: 'create', icon: PlusCircle, isCenter: true },
+  { id: 'tonight', icon: Star },
+  { id: 'profile', icon: User },
 ]
 
 const STYLES = `
@@ -39,6 +39,7 @@ const STYLES = `
 `
 
 export function TabBar({ activeTab, onTabChange }: TabBarProps) {
+  const { t } = useTranslation()
   return (
     <nav
       className="ls-tabbar fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--ls-border)] bg-[var(--ls-bg)]"
@@ -51,13 +52,14 @@ export function TabBar({ activeTab, onTabChange }: TabBarProps) {
           const Icon = tab.icon
           const isActive = activeTab === tab.id
           const isCenter = tab.isCenter
+          const label = t(`tabBar.${tab.id}`)
 
           return (
             <button
               key={tab.id}
               type="button"
               onClick={() => onTabChange(tab.id)}
-              aria-label={tab.label}
+              aria-label={label}
               aria-current={isActive ? 'page' : undefined}
               className={`group flex min-w-[64px] flex-col items-center gap-1 px-3 py-3 transition-colors duration-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)] ${
                 isCenter ? '-mt-4' : ''
@@ -103,7 +105,7 @@ export function TabBar({ activeTab, onTabChange }: TabBarProps) {
                     : 'text-[var(--ls-text-muted)] group-hover:text-[var(--ls-text)]'
                 }`}
               >
-                {tab.label}
+                {label}
               </span>
             </button>
           )

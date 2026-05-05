@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { motion, AnimatePresence, PanInfo } from 'framer-motion'
 import {
   Sparkle,
@@ -7,6 +7,7 @@ import {
   CaretLeft,
   CaretRight,
 } from '@phosphor-icons/react'
+import { useTranslation } from 'react-i18next'
 
 interface OnboardingCarouselProps {
   onComplete: () => void
@@ -56,31 +57,25 @@ function BreathingGlyph({ icon: Icon }: { icon: typeof Sparkle }) {
   )
 }
 
-const slides: SlideContent[] = [
-  {
-    title: 'sessions written for you.',
-    subtitle:
-      'tell us what you want to work on. an ai writes a fresh hypnosis script for that exact goal — no pre-recorded tracks.',
-    visual: <BreathingGlyph icon={Sparkle} />,
-  },
-  {
-    title: 'a calm voice, every night.',
-    subtitle:
-      'pick from six voices and an ambient background. listen before sleep, on a break, or whenever you have ten minutes.',
-    visual: <BreathingGlyph icon={MoonStars} />,
-  },
-  {
-    title: 'small changes, repeated.',
-    subtitle:
-      'hypnosis works through repetition. your library keeps every session, so you can return to the ones that resonate.',
-    visual: <BreathingGlyph icon={WaveSine} />,
-  },
+const slides: Pick<SlideContent, 'visual'>[] = [
+  { visual: <BreathingGlyph icon={Sparkle} /> },
+  { visual: <BreathingGlyph icon={MoonStars} /> },
+  { visual: <BreathingGlyph icon={WaveSine} /> },
 ]
 
 export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
+  const { t } = useTranslation()
+  const slideContent = useMemo<SlideContent[]>(
+    () => [
+      { ...slides[0], title: t('onboarding.slide1Title'), subtitle: t('onboarding.slide1Body') },
+      { ...slides[1], title: t('onboarding.slide2Title'), subtitle: t('onboarding.slide2Body') },
+      { ...slides[2], title: t('onboarding.slide3Title'), subtitle: t('onboarding.slide3Body') },
+    ],
+    [t],
+  )
   const [currentSlide, setCurrentSlide] = useState(0)
   const [direction, setDirection] = useState(1)
-  const totalSlides = slides.length
+  const totalSlides = slideContent.length
   const isLast = currentSlide === totalSlides - 1
   const isFirst = currentSlide === 0
 
@@ -167,7 +162,7 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
     }),
   }
 
-  const slide = slides[currentSlide]
+  const slide = slideContent[currentSlide]
 
   return (
     <div className="ls-onboarding fixed inset-0 z-50 bg-[var(--ls-bg)] text-[var(--ls-text)] flex flex-col">
@@ -179,9 +174,9 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
           type="button"
           onClick={handleComplete}
           className="text-sm text-[var(--ls-text-subtle)] hover:text-[var(--ls-text-muted)] transition-colors px-3 py-1.5 lowercase focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)] rounded-md"
-          aria-label="Skip onboarding"
+          aria-label={t('onboarding.skip')}
         >
-          skip
+          {t('onboarding.skip')}
         </button>
       </div>
 
@@ -223,7 +218,7 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
                   onClick={handleComplete}
                   className="px-10 h-12 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 transition-colors text-sm lowercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
                 >
-                  begin
+                  {t('onboarding.begin')}
                 </button>
               </motion.div>
             )}
@@ -235,7 +230,7 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
           type="button"
           onClick={goPrev}
           disabled={isFirst}
-          aria-label="Previous slide"
+          aria-label={t('onboarding.ariaPrev')}
           className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full border border-[var(--ls-border-strong)] bg-transparent flex items-center justify-center text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-sand-dim)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:border-[var(--ls-border-strong)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
         >
           <CaretLeft size={20} weight="regular" />
@@ -245,7 +240,7 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
         <button
           type="button"
           onClick={isLast ? handleComplete : goNext}
-          aria-label={isLast ? 'Begin' : 'Next slide'}
+          aria-label={isLast ? t('onboarding.ariaBegin') : t('onboarding.ariaNext')}
           className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full border border-[var(--ls-border-strong)] bg-transparent flex items-center justify-center text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] hover:border-[var(--ls-sand-dim)] hover:bg-[var(--ls-bg-elevated)]/40 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
         >
           <CaretRight size={20} weight="regular" />
@@ -260,7 +255,7 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
             type="button"
             onClick={() => goTo(i)}
             className="transition-all duration-300 focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)] rounded-full p-1 -m-1"
-            aria-label={`Go to slide ${i + 1}`}
+            aria-label={t('onboarding.ariaSlide', { n: i + 1 })}
             aria-current={currentSlide === i ? 'true' : undefined}
           >
             <motion.div
