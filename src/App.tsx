@@ -62,6 +62,8 @@ import { FeedbackModal } from './components/FeedbackModal'
 import { DailyReminderScheduler } from './components/DailyReminderScheduler'
 import { PaymentSuccessScreen } from './components/PaymentSuccessScreen'
 import { AudioPlayerProvider, useAudioPlayer } from './contexts/AudioPlayerContext'
+import { GenerationProvider, useGeneration } from './contexts/GenerationContext'
+import { GenerationLoadingOverlay } from './components/GenerationLoadingOverlay'
 import { ToastProvider } from './contexts/ToastContext'
 import { toast } from 'sonner'
 import { useKV } from '@/hooks/use-kv'
@@ -154,6 +156,7 @@ function AppContent() {
   } | null>('quiz-data', null)
 
   const { player, togglePlayPause, setProgress, showFeedback, setShowFeedback, completedSession, stop } = useAudioPlayer()
+  const { isGenerating } = useGeneration()
 
   useEffect(() => {
     // Keep the splash screen visible until we know whether the user is
@@ -468,7 +471,7 @@ function AppContent() {
             onStop={stop}
           />
 
-          <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+          <TabBar activeTab={activeTab} onTabChange={setActiveTab} disabled={isGenerating} />
         </div>
       )}
 
@@ -488,9 +491,33 @@ function App() {
   return (
     <ToastProvider>
       <AudioPlayerProvider>
-        <AppContent />
+        <GenerationProvider>
+          <AppContent />
+          <GlobalGenerationOverlay />
+        </GenerationProvider>
       </AudioPlayerProvider>
     </ToastProvider>
+  )
+}
+
+/**
+ * Renders the session-generation loading overlay at the very top of
+ * the app tree so it survives in-app tab changes (which unmount the
+ * page that initiated the generation) and stays full-screen on both
+ * mobile and desktop. Kept as a tiny consumer component so the rest of
+ * the app can keep treating `useGeneration()` as the single source of
+ * truth for generation state.
+ */
+function GlobalGenerationOverlay() {
+  const generation = useGeneration()
+  return (
+    <GenerationLoadingOverlay
+      isOpen={generation.isGenerating}
+      onCancel={generation.cancel}
+      step={generation.step}
+      percent={generation.percent}
+      message={generation.message}
+    />
   )
 }
 

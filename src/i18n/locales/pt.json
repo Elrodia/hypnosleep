@@ -596,8 +596,17 @@
   "generationLoading": {
     "writing": "escrevendo seu script…",
     "synthesizing": "sintetizando a voz…",
+    "addingBackground": "adicionando sons de fundo…",
     "finalizing": "quase lá…",
-    "ariaClose": "cancelar geração"
+    "ariaClose": "cancelar geração",
+    "title": "criando sua sessão",
+    "subtitle": "mantenha esta tela aberta enquanto o hypnosleep prepara o áudio.",
+    "persistHint": "não feche esta tela",
+    "preparing": "preparando sua sessão…",
+    "progressLabel": "progresso da geração",
+    "confirmCancel": "cancelar e descartar esta sessão?",
+    "confirmCancelCta": "sim, cancelar",
+    "keepGoing": "continuar"
   },
   "notifications": {
     "title": "notificações",

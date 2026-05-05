@@ -7,6 +7,12 @@ export type TabId = 'home' | 'library' | 'create' | 'tonight' | 'profile'
 interface TabBarProps {
   activeTab: TabId
   onTabChange: (tab: TabId) => void
+  /**
+   * When true, every tab button is rendered as disabled. Used while a
+   * session generation is in flight so the loading overlay cannot be
+   * skipped by switching tabs.
+   */
+  disabled?: boolean
 }
 
 interface TabConfig {
@@ -38,12 +44,13 @@ const STYLES = `
 }
 `
 
-export function TabBar({ activeTab, onTabChange }: TabBarProps) {
+export function TabBar({ activeTab, onTabChange, disabled = false }: TabBarProps) {
   const { t } = useTranslation()
   return (
     <nav
       className="ls-tabbar fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--ls-border)] bg-[var(--ls-bg)]"
       aria-label="primary navigation"
+      aria-disabled={disabled || undefined}
     >
       <style>{STYLES}</style>
 
@@ -59,9 +66,10 @@ export function TabBar({ activeTab, onTabChange }: TabBarProps) {
               key={tab.id}
               type="button"
               onClick={() => onTabChange(tab.id)}
+              disabled={disabled}
               aria-label={label}
               aria-current={isActive ? 'page' : undefined}
-              className={`group flex min-w-[64px] flex-col items-center gap-1 px-3 py-3 transition-colors duration-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)] ${
+              className={`group flex min-w-[64px] flex-col items-center gap-1 px-3 py-3 transition-colors duration-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)] disabled:cursor-not-allowed disabled:opacity-50 ${
                 isCenter ? '-mt-4' : ''
               }`}
             >

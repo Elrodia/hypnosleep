@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import type { ReactNode } from 'react'
-import { X, PenNib, Waveform, MusicNote, Sparkle, Check } from '@phosphor-icons/react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { X, PenNib, Waveform, MusicNote, Sparkle, Check, Lock } from '@phosphor-icons/react'
 import { useTranslation } from 'react-i18next'
 
 interface GenerationStep {
@@ -49,11 +49,27 @@ const STYLES = `
   --ls-border: rgba(232, 230, 225, 0.08);
   --ls-border-strong: rgba(232, 230, 225, 0.16);
   font-family: 'Inter', system-ui, sans-serif;
+  /* Prevent the browser pull-to-refresh / overscroll from peeking
+     through the loading screen on mobile. */
+  overscroll-behavior: contain;
+  touch-action: none;
 }
 .ls-generation-overlay .font-fraunces {
   font-family: 'Fraunces', 'Cormorant Garamond', serif;
   font-weight: 400;
   letter-spacing: -0.01em;
+}
+.ls-generation-overlay .ls-generation-scroll {
+  /* The body content must be allowed to scroll on short mobile
+     viewports even though the overlay itself blocks touch
+     scrolling. */
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ls-generation-overlay [data-ls-ambient] {
+    animation: none !important;
+  }
 }
 `
 
@@ -65,6 +81,45 @@ export function GenerationLoadingOverlay({
   message,
 }: GenerationLoadingOverlayProps) {
   const { t } = useTranslation()
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
+
+  // Lock the document scroll while the overlay is open so the user
+  // can't accidentally scroll the underlying page on mobile via the
+  // address-bar reveal gesture. Restore the previous value on close.
+  useEffect(() => {
+    if (!isOpen) return
+    const { body } = document
+    const previousOverflow = body.style.overflow
+    const previousOverscroll = body.style.overscrollBehavior
+    body.style.overflow = 'hidden'
+    body.style.overscrollBehavior = 'contain'
+    return () => {
+      body.style.overflow = previousOverflow
+      body.style.overscrollBehavior = previousOverscroll
+    }
+  }, [isOpen])
+
+  // Reset the confirm-cancel mini-state whenever the overlay closes,
+  // so the next run starts fresh.
+  useEffect(() => {
+    if (!isOpen) setConfirmingCancel(false)
+  }, [isOpen])
+
+  // Swallow the Escape key while the overlay is open — the loading
+  // screen must not be skippable with a keystroke. Users can still
+  // cancel explicitly via the "cancel generation" button.
+  useEffect(() => {
+    if (!isOpen) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+    window.addEventListener('keydown', handler, { capture: true })
+    return () => window.removeEventListener('keydown', handler, { capture: true })
+  }, [isOpen])
+
   const baseSteps: Omit<GenerationStep, 'status'>[] = [
     { id: 1, label: t('generationLoading.writing'), icon: <PenNib weight="regular" /> },
     { id: 2, label: t('generationLoading.synthesizing'), icon: <Waveform weight="regular" /> },
@@ -96,11 +151,20 @@ export function GenerationLoadingOverlay({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.28, ease: 'easeOut' }}
-          className="ls-generation-overlay fixed inset-0 z-50 flex items-center justify-center bg-[var(--ls-bg)] text-[var(--ls-text)]"
+          className="ls-generation-overlay fixed inset-0 z-[100] flex items-stretch justify-center overflow-hidden bg-[var(--ls-bg)] text-[var(--ls-text)]"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="generation-overlay-title"
+          aria-describedby="generation-overlay-desc"
+          // Block clicks on the underlying page even if a child
+          // does something unexpected with pointer-events.
+          onClick={(e) => e.stopPropagation()}
         >
           <style>{STYLES}</style>
 
-          <div className="w-full max-w-md px-6 py-10">
+          <div
+            className="ls-generation-scroll relative flex h-full w-full max-w-md flex-col overflow-y-auto px-6 pt-[max(env(safe-area-inset-top),2.5rem)] pb-[max(env(safe-area-inset-bottom),2rem)]"
+          >
             <motion.div
               initial={{ y: 8, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -114,6 +178,7 @@ export function GenerationLoadingOverlay({
                 {[0, 1, 2].map((index) => (
                   <motion.div
                     key={index}
+                    data-ls-ambient
                     className="absolute rounded-full border border-[var(--ls-sand)]/30"
                     initial={{ width: 56, height: 56, opacity: 0.35 }}
                     animate={{
@@ -131,6 +196,7 @@ export function GenerationLoadingOverlay({
                 ))}
 
                 <motion.div
+                  data-ls-ambient
                   animate={{ scale: [1, 1.04, 1], opacity: [0.86, 1, 0.86] }}
                   transition={{ duration: 4.2, repeat: Infinity, ease: 'easeInOut' }}
                   className="relative flex h-20 w-20 items-center justify-center rounded-full border border-[var(--ls-border-strong)] bg-[var(--ls-bg-elevated)]"
@@ -143,13 +209,24 @@ export function GenerationLoadingOverlay({
                 </motion.div>
               </div>
 
-              <h2 className="font-fraunces italic lowercase text-3xl leading-tight text-[var(--ls-text)]">
-                building your session
+              <h2
+                id="generation-overlay-title"
+                className="font-fraunces italic lowercase text-3xl leading-tight text-[var(--ls-text)]"
+              >
+                {t('generationLoading.title')}
               </h2>
 
-              <p className="mt-3 max-w-xs text-sm leading-relaxed text-[var(--ls-text-muted)]">
-                keep this screen open while hypnosleep prepares the audio.
+              <p
+                id="generation-overlay-desc"
+                className="mt-3 max-w-xs text-sm leading-relaxed text-[var(--ls-text-muted)]"
+              >
+                {t('generationLoading.subtitle')}
               </p>
+
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[var(--ls-border)] bg-[var(--ls-bg-elevated)]/60 px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-[var(--ls-text-muted)]">
+                <Lock size={12} weight="regular" />
+                <span>{t('generationLoading.persistHint')}</span>
+              </div>
             </motion.div>
 
             <motion.div
@@ -227,6 +304,7 @@ export function GenerationLoadingOverlay({
                       {[0, 1, 2].map((i) => (
                         <motion.span
                           key={i}
+                          data-ls-ambient
                           animate={{ height: [4, 11, 4] }}
                           transition={{
                             duration: 1,
@@ -255,8 +333,8 @@ export function GenerationLoadingOverlay({
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={clampedPercent}
-                aria-valuetext={`${clampedPercent}% — ${message ?? 'Preparing your session...'}`}
-                aria-label="Session generation progress"
+                aria-valuetext={`${clampedPercent}% — ${message ?? t('generationLoading.preparing')}`}
+                aria-label={t('generationLoading.progressLabel')}
                 className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--ls-border-strong)]"
               >
                 <motion.div
@@ -272,7 +350,7 @@ export function GenerationLoadingOverlay({
                   aria-live="polite"
                   aria-atomic="true"
                 >
-                  {message ?? 'Preparing your session...'}
+                  {message ?? t('generationLoading.preparing')}
                 </span>
 
                 <span className="shrink-0 tabular-nums text-[var(--ls-text)]">
@@ -281,17 +359,49 @@ export function GenerationLoadingOverlay({
               </div>
             </motion.div>
 
-            <motion.button
-              type="button"
+            {/* Two-step cancel: tap once to confirm, tap again to abort.
+                Prevents accidental dismissal while still giving users a
+                deliberate way out. */}
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.44, duration: 0.35 }}
-              onClick={onCancel}
-              className="mx-auto mt-8 flex h-11 items-center justify-center gap-2 rounded-md border border-[var(--ls-border-strong)] px-5 text-sm lowercase text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-sand-dim)] hover:text-[var(--ls-text)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
+              className="mt-auto flex flex-col items-center pt-8"
             >
-              <X size={16} weight="regular" />
-              <span>{t('generationLoading.ariaClose')}</span>
-            </motion.button>
+              {confirmingCancel ? (
+                <div className="flex w-full max-w-xs flex-col items-center gap-2">
+                  <p className="text-center text-xs text-[var(--ls-text-muted)]">
+                    {t('generationLoading.confirmCancel')}
+                  </p>
+                  <div className="flex w-full gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingCancel(false)}
+                      className="flex h-11 flex-1 items-center justify-center rounded-md border border-[var(--ls-border-strong)] px-4 text-sm lowercase text-[var(--ls-text)] transition-colors hover:border-[var(--ls-sand-dim)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
+                    >
+                      {t('generationLoading.keepGoing')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onCancel}
+                      className="flex h-11 flex-1 items-center justify-center gap-2 rounded-md border border-[var(--ls-sand-dim)] bg-[var(--ls-sand)]/10 px-4 text-sm lowercase text-[var(--ls-sand)] transition-colors hover:bg-[var(--ls-sand)]/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
+                    >
+                      <X size={16} weight="regular" />
+                      {t('generationLoading.confirmCancelCta')}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingCancel(true)}
+                  className="flex h-11 items-center justify-center gap-2 rounded-md border border-[var(--ls-border-strong)] px-5 text-sm lowercase text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-sand-dim)] hover:text-[var(--ls-text)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
+                >
+                  <X size={16} weight="regular" />
+                  <span>{t('generationLoading.ariaClose')}</span>
+                </button>
+              )}
+            </motion.div>
           </div>
         </motion.div>
       )}
