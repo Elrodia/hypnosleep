@@ -225,14 +225,62 @@ function makePgDelete() {
   });
 }
 
-vi.mock('@/db/postgres/client', () => ({
-  pgDb: {
+// `insert(...).onConflictDoNothing(...)` is used inside the streak
+// transaction. The base fake `insert.values()` commits the row
+// immediately, so for `onConflictDoNothing` we snapshot the prior
+// state and roll back the write if a row with the same primary key
+// already existed.
+function makePgInsertWithConflict() {
+  const baseInsert = makePgInsert();
+  return (t: { __name: string }) => {
+    const base = baseInsert(t) as { values: (v: unknown) => Promise<void> };
+    return {
+      values: (v: unknown) => {
+        const vals = Array.isArray(v) ? v : [v];
+        const priorStreaks: Array<[string, StreakRow | undefined]> = [];
+        if (t.__name === 'streaks') {
+          for (const row of vals) {
+            const userId = (row as { userId?: string }).userId;
+            if (typeof userId === 'string') {
+              priorStreaks.push([userId, state.streaks.get(userId)]);
+            }
+          }
+        }
+        const result = base.values(v) as Promise<void> & {
+          onConflictDoNothing?: () => Promise<void>;
+          catch: (fn: (e: unknown) => void) => Promise<void>;
+        };
+        result.onConflictDoNothing = () => {
+          // Roll back any insert that hit an existing row so this
+          // behaves like Postgres' DO NOTHING.
+          if (t.__name === 'streaks') {
+            for (const [userId, prior] of priorStreaks) {
+              if (prior) state.streaks.set(userId, prior);
+            }
+          }
+          return result;
+        };
+        return result;
+      },
+    };
+  };
+}
+
+vi.mock('@/db/postgres/client', () => {
+  const mock: Record<string, unknown> = {
     select: makePgSelect(),
-    insert: makePgInsert(),
+    insert: makePgInsertWithConflict(),
     update: makePgUpdate(),
     delete: makePgDelete(),
-  },
-}));
+  };
+  // `pgDb.transaction(fn)` runs `fn` with a tx handle that exposes the
+  // same query builder surface. Inline transactions don't need real
+  // isolation in unit tests — sequential calls against shared in-memory
+  // state are sufficient.
+  mock.transaction = async (fn: (tx: Record<string, unknown>) => Promise<unknown>) =>
+    fn(mock);
+  return { pgDb: mock };
+});
 
 vi.mock('@/db/postgres/schema/mood-logs', () => ({
   moodLogs: {
@@ -295,7 +343,12 @@ vi.mock('@/db/mysql/client', () => ({
           return resolve([{ totalSessions: rows.length, totalSec }]);
         }
         if (fields && 'category' in fields) {
-          return resolve(rows.map((r) => ({ category: r.category })));
+          // `progress.insights` selects `{ id, category }` so it can
+          // weight each category by play count via the
+          // `sessionPlayCounts` map. Returning only `category` would
+          // silently zero out the weighting and produce a `varied`
+          // top category in the prompt.
+          return resolve(rows.map((r) => ({ id: r.id, category: r.category })));
         }
         return resolve(rows);
       };

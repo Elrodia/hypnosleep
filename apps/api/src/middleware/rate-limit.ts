@@ -1,6 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
 import { rateLimitExceeded } from '../utils/errors.js';
-import { logger } from '../utils/logger.js';
 
 /**
  * Simple in-memory sliding window rate limiter.
