@@ -1,4 +1,5 @@
 import { Play, Pause } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from './shared/Button'
 import { useAudioPreview } from '../hooks/useAudioPreview'
 import { posthog } from '../lib/posthog'
@@ -8,6 +9,7 @@ interface HeroProps {
 }
 
 export function Hero({ onCtaClick }: HeroProps) {
+  const { t } = useTranslation()
   const { isPlaying, toggle, error } = useAudioPreview('/audio/sample.mp3', 15)
 
   const handleSample = () => {
@@ -23,48 +25,47 @@ export function Hero({ onCtaClick }: HeroProps) {
       <div className="relative mx-auto max-w-7xl px-5 sm:px-8 grid lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] gap-12 lg:gap-16 items-center">
         <div>
           <p className="mb-6 inline-flex items-center text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
-            ai-crafted hypnosis, made for you
+            {t('hero.eyebrow')}
           </p>
 
           <h1 className="font-fraunces italic lowercase text-4xl sm:text-5xl lg:text-6xl leading-[1.05] mb-6 text-[var(--ls-text)]">
-            rewire your mind
+            {t('hero.titleLine1')}
             <br />
-            while you sleep
+            {t('hero.titleLine2')}
           </h1>
 
           <p className="text-base sm:text-lg text-[var(--ls-text-muted)] max-w-xl leading-relaxed mb-8">
-            personalised hypnosis sessions, written for the goal you describe,
-            in about 30 seconds. sleep deeper, build confidence, break habits.
+            {t('hero.subtitle')}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 mb-6">
             <Button size="lg" onClick={() => onCtaClick('hero_primary')}>
-              start free trial
+              {t('hero.ctaPrimary')}
             </Button>
             <Button
               size="lg"
               variant="ghost"
               onClick={handleSample}
-              aria-label={isPlaying ? 'pause sample' : 'listen to 15 second sample'}
+              aria-label={isPlaying ? t('hero.ariaSamplePause') : t('hero.ariaSamplePlay')}
               leadingIcon={isPlaying ? <Pause size={16} /> : <Play size={16} />}
             >
-              {isPlaying ? 'pause sample' : 'listen to a sample'}
+              {isPlaying ? t('hero.samplePause') : t('hero.samplePlay')}
             </Button>
           </div>
 
           {error && (
             <p className="text-xs text-[var(--ls-text-muted)] mb-4" role="status">
-              {error} — please try again later.
+              {t('hero.errorRetry', { error })}
             </p>
           )}
 
           <p className="text-sm text-[var(--ls-text-subtle)]">
-            7-day free trial · no credit card · cancel anytime
+            {t('hero.trialBullets')}
           </p>
         </div>
 
         <div className="relative flex items-center justify-center lg:justify-end">
-          <div className="ls-orb" role="img" aria-label="hypnotic orb animation">
+          <div className="ls-orb" role="img" aria-label={t('hero.ariaOrb')}>
             <div className="ls-orb-glow" aria-hidden />
             <div className="ls-orb-inner" aria-hidden />
           </div>

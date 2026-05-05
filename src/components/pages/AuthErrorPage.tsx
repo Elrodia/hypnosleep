@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { WarningCircle, Copy, Check } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 
@@ -13,55 +14,79 @@ interface AuthErrorPageProps {
   requestId?: string | null
 }
 
-const normalize = (value?: string | null) => value?.trim().toLowerCase() ?? ''
-const REASON_MESSAGES: Record<string, string> = {
-  state_missing: 'Your sign-in session is missing required verification data. Please restart sign-in.',
-  state_mismatch: 'Your sign-in verification did not match this browser session. Please try again.',
-  provider_error: 'The sign-in provider returned an error before authentication completed. Please retry.',
-  email_provider_mismatch:
-    'This email is already linked to a different sign-in provider. Use the original provider for this account.',
-  rate_limited: 'Too many sign-in attempts were detected. Please wait a moment and try again.',
-  initiation_failed: 'We could not start the sign-in flow. Please retry in a moment.',
-  callback_failed: 'The sign-in callback failed unexpectedly. Please retry in a moment.',
-}
+const KNOWN_ERROR_CODES = [
+  'oauth_failed',
+  'oauth_cancelled',
+  'invalid_state',
+  'network',
+  'unknown',
+] as const
 
-function resolveAuthErrorMessage({
+type KnownErrorCode = (typeof KNOWN_ERROR_CODES)[number]
+
+const normalize = (value?: string | null) => value?.trim().toLowerCase() ?? ''
+
+/**
+ * Maps the heterogeneous `error`/`reason` strings produced by the
+ * OAuth backend onto the small, fixed set of i18n keys exposed under
+ * `authError.errors.*`. The mapping is intentionally narrow — when
+ * nothing matches we fall through to `unknown`, which renders a
+ * generic "please try again or contact support" message.
+ */
+function resolveErrorCode({
   error,
   reason,
-  message,
-}: Pick<AuthErrorPageProps, 'error' | 'reason' | 'message'>): string {
+}: Pick<AuthErrorPageProps, 'error' | 'reason'>): KnownErrorCode {
   const rawReason = normalize(reason)
   const rawError = normalize(error)
-  const rawMessage = message?.trim()
 
-  if (rawReason in REASON_MESSAGES) {
-    return REASON_MESSAGES[rawReason]
+  // Allow the backend to send a known code directly via either field.
+  if ((KNOWN_ERROR_CODES as readonly string[]).includes(rawReason)) {
+    return rawReason as KnownErrorCode
+  }
+  if ((KNOWN_ERROR_CODES as readonly string[]).includes(rawError)) {
+    return rawError as KnownErrorCode
   }
 
-  if (rawReason.includes('cookie') || rawError.includes('cookie')) {
-    return 'Your browser appears to be blocking sign-in cookies. Please allow cookies for this site and try again.'
-  }
   if (
-    rawReason.includes('session') ||
-    rawReason.includes('expired') ||
-    rawError.includes('session') ||
-    rawError.includes('expired')
+    rawReason.includes('cancel') ||
+    rawError.includes('cancel') ||
+    rawReason.includes('access_denied') ||
+    rawError.includes('access_denied')
   ) {
-    return 'Your sign-in session expired before completion. Please try signing in again.'
+    return 'oauth_cancelled'
   }
   if (
-    rawReason.includes('callback') ||
     rawReason.includes('state') ||
     rawReason.includes('nonce') ||
-    rawError.includes('callback') ||
+    rawReason.includes('expired') ||
+    rawReason.includes('session') ||
     rawError.includes('state') ||
-    rawError.includes('nonce')
+    rawError.includes('nonce') ||
+    rawError.includes('expired') ||
+    rawError.includes('session')
   ) {
-    return 'The sign-in callback was invalid or incomplete. Please restart the sign-in flow.'
+    return 'invalid_state'
   }
-  if (rawMessage) return rawMessage
-
-  return "We couldn't complete your sign-in. This can happen if the link expired or the browser blocked a cookie. Please try again."
+  if (
+    rawReason.includes('network') ||
+    rawError.includes('network') ||
+    rawReason.includes('rate') ||
+    rawError.includes('rate')
+  ) {
+    return 'network'
+  }
+  if (
+    rawReason.includes('provider') ||
+    rawReason.includes('callback') ||
+    rawReason.includes('oauth') ||
+    rawError.includes('provider') ||
+    rawError.includes('callback') ||
+    rawError.includes('oauth')
+  ) {
+    return 'oauth_failed'
+  }
+  return 'unknown'
 }
 
 /**
@@ -75,10 +100,11 @@ export function AuthErrorPage({
   onRetry,
   error,
   reason,
-  message,
   requestId,
 }: AuthErrorPageProps) {
-  const resolvedMessage = resolveAuthErrorMessage({ error, reason, message })
+  const { t } = useTranslation()
+  const errorCode = resolveErrorCode({ error, reason })
+  const resolvedMessage = t(`authError.errors.${errorCode}`)
   const [copied, setCopied] = useState(false)
 
   const handleCopyRequestId = async () => {
@@ -104,7 +130,7 @@ export function AuthErrorPage({
           <WarningCircle size={40} weight="fill" className="text-destructive" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-2xl font-serif font-semibold">Sign-in failed</h1>
+          <h1 className="text-2xl font-serif font-semibold">{t('authError.title')}</h1>
           <p className="text-sm text-muted-foreground">{resolvedMessage}</p>
           {requestId && (
             <div className="pt-1 flex flex-col items-center gap-1.5">
@@ -136,7 +162,7 @@ export function AuthErrorPage({
           )}
         </div>
         <Button onClick={onRetry} size="lg" className="w-full">
-          Try again
+          {t('authError.tryAgain')}
         </Button>
       </motion.div>
     </div>

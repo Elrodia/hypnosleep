@@ -2,8 +2,10 @@ import { Brain, Mic, CloudRain, Lock, type LucideIcon } from 'lucide-react'
 
 export interface Feature {
   icon: LucideIcon
-  title: string
-  description: string
+  /** i18n key fragment under `featuresGrid.*` for the title. */
+  titleKey: string
+  /** i18n key fragment under `featuresGrid.*` for the description. */
+  descriptionKey: string
 }
 
 /**
@@ -11,10 +13,15 @@ export interface Feature {
  * is actually shipped today. "Track Your Progress" was removed in
  * prompt 13 (Progress tab deleted). "Works Offline" has no
  * implementation (no service worker, no audio pre-cache).
+ *
+ * Title and description copy lives in `src/i18n/locales/<lang>.json`
+ * under `featuresGrid.*`; only icons + key references are stored
+ * here so the JSON file is the single source of truth for
+ * translatable copy.
  */
 export const features: Feature[] = [
-  { icon: Brain, title: 'Personalized AI Scripts', description: 'Every session unique to your goals.' },
-  { icon: Mic, title: '6 Soothing Voices', description: 'Find the voice that helps you drift away.' },
-  { icon: CloudRain, title: 'Background Sounds', description: 'Rain, ocean, forest, wind, or silence.' },
-  { icon: Lock, title: 'Private by Design', description: 'Your sessions never leave your account.' },
+  { icon: Brain, titleKey: 'personalizedTitle', descriptionKey: 'personalizedDesc' },
+  { icon: Mic, titleKey: 'voicesTitle', descriptionKey: 'voicesDesc' },
+  { icon: CloudRain, titleKey: 'soundsTitle', descriptionKey: 'soundsDesc' },
+  { icon: Lock, titleKey: 'privateTitle', descriptionKey: 'privateDesc' },
 ]

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { CircleNotch } from '@phosphor-icons/react'
 import { consumeOAuthCallback } from '@/lib/auth'
 import { useAuth } from '@/lib/auth-context'
@@ -21,6 +22,7 @@ import { useAuth } from '@/lib/auth-context'
  * pathname is `/auth/callback`.
  */
 export function AuthCallbackPage() {
+  const { t } = useTranslation()
   const { refresh } = useAuth()
   const [tokenOk] = useState(() => consumeOAuthCallback())
 
@@ -45,12 +47,12 @@ export function AuthCallbackPage() {
         />
         <div className="space-y-2">
           <h1 className="font-fraunces italic lowercase text-2xl text-[var(--ls-text)]">
-            signing you in…
+            {t('authCallback.title')}
           </h1>
           <p className="text-sm text-[var(--ls-text-muted)] lowercase">
             {tokenOk
-              ? 'finishing up, one moment.'
-              : 'checking your session — hold tight.'}
+              ? t('authCallback.subtitleOk')
+              : t('authCallback.subtitleChecking')}
           </p>
         </div>
       </motion.div>

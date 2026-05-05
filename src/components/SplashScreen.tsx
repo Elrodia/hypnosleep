@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { Logo } from './Logo'
 
 export function SplashScreen() {
+  const { t } = useTranslation()
   return (
     <motion.div
       className="ls-splash fixed inset-0 z-50 flex flex-col items-center justify-center bg-[var(--ls-bg)] text-[var(--ls-text)]"
@@ -50,7 +52,7 @@ export function SplashScreen() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.5, ease: 'easeOut' }}
       >
-        hypnosleep
+        {t('splash.wordmark')}
       </motion.h1>
 
       {/* ── Tagline ── */}
@@ -60,7 +62,7 @@ export function SplashScreen() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 1, ease: 'easeOut' }}
       >
-        rewire your mind while you sleep.
+        {t('splash.tagline')}
       </motion.p>
     </motion.div>
   )

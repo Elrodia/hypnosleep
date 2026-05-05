@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
-import { useCases } from '../data/useCases'
+import { useTranslation } from 'react-i18next'
+import { USE_CASE_IDS, type UseCaseId } from '../data/useCases'
 import { testimonials } from '../data/testimonials'
 import { GlassCard } from './shared/GlassCard'
 import { Button } from './shared/Button'
@@ -11,34 +12,36 @@ interface UseCasesProps {
 }
 
 export function UseCases({ onCtaClick }: UseCasesProps) {
-  const [active, setActive] = useState(useCases[0].id)
-  const current = useCases.find((u) => u.id === active)!
+  const { t } = useTranslation()
+  const [active, setActive] = useState<UseCaseId>(USE_CASE_IDS[0])
+  const currentLabel = t(`useCases.items.${active}.label`)
+  const currentDescription = t(`useCases.items.${active}.description`)
   const quotes = testimonials[active] ?? []
 
   return (
-    <section className="relative py-20 sm:py-28" aria-label="Use cases">
+    <section className="relative py-20 sm:py-28" aria-label={t('useCases.title')}>
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
         <header className="max-w-2xl mb-10">
-          <p className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)] mb-3">Use cases</p>
-          <h2 className="font-fraunces italic lowercase text-3xl sm:text-4xl mb-4 text-[var(--ls-text)]">what are you here to change?</h2>
+          <p className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)] mb-3">{t('useCases.eyebrow')}</p>
+          <h2 className="font-fraunces italic lowercase text-3xl sm:text-4xl mb-4 text-[var(--ls-text)]">{t('useCases.title')}</h2>
         </header>
 
         {/* Tab strip. Horizontally scrollable on mobile so touch targets stay big. */}
         <div
           role="tablist"
-          aria-label="Use cases"
+          aria-label={t('useCases.title')}
           className="flex gap-2 overflow-x-auto pb-2 -mx-5 px-5 sm:mx-0 sm:px-0 sm:flex-wrap"
         >
-          {useCases.map((u) => {
-            const selected = u.id === active
+          {USE_CASE_IDS.map((id) => {
+            const selected = id === active
             return (
               <button
-                key={u.id}
+                key={id}
                 role="tab"
                 aria-selected={selected}
-                aria-controls={`panel-${u.id}`}
-                id={`tab-${u.id}`}
-                onClick={() => setActive(u.id)}
+                aria-controls={`panel-${id}`}
+                id={`tab-${id}`}
+                onClick={() => setActive(id)}
                 className={
                   'shrink-0 rounded-full px-4 py-2 text-sm transition ' +
                   (selected
@@ -46,7 +49,7 @@ export function UseCases({ onCtaClick }: UseCasesProps) {
                     : 'border border-[var(--ls-border-strong)] text-[var(--ls-text-muted)] hover:text-[var(--ls-text)]')
                 }
               >
-                {u.label}
+                {t(`useCases.items.${id}.label`)}
               </button>
             )
           })}
@@ -70,16 +73,16 @@ export function UseCases({ onCtaClick }: UseCasesProps) {
               }
             >
               <GlassCard className="p-6 sm:p-7 bg-[var(--ls-bg-elevated)] border border-[var(--ls-border)] rounded-md">
-                <h3 className="ls-display text-2xl mb-3">{current.label}</h3>
+                <h3 className="ls-display text-2xl mb-3">{currentLabel}</h3>
                 <p className="text-[var(--ls-text-muted)] leading-relaxed mb-6">
-                  {current.description}
+                  {currentDescription}
                 </p>
                 <Button
                   variant="outline"
                   trailingIcon={<ArrowRight size={16} />}
-                  onClick={() => onCtaClick(`use_case_${current.id}`)}
+                  onClick={() => onCtaClick(`use_case_${active}`)}
                 >
-                  Try a {current.label} Session Free
+                  {t('useCases.tryFreeButton', { label: currentLabel.toLowerCase() })}
                 </Button>
               </GlassCard>
 

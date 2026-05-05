@@ -3,6 +3,7 @@ import { initReactI18next } from 'react-i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 
 import en from './locales/en.json'
+import fr from './locales/fr.json'
 
 /**
  * Supported UI languages. Each entry is the ISO 639-1 code.
@@ -16,12 +17,13 @@ import en from './locales/en.json'
  * This keeps the architecture honest about what we have validated
  * native-speaker support for.
  */
-export const SUPPORTED_LANGUAGES = ['en'] as const
+export const SUPPORTED_LANGUAGES = ['en', 'fr'] as const
 
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number]
 
 export const LANGUAGE_LABELS: Record<SupportedLanguage, { native: string; code: string }> = {
   en: { native: 'English', code: 'EN' },
+  fr: { native: 'Français', code: 'FR' },
 }
 
 const STORAGE_KEY = 'hypnosleep:lang'
@@ -32,6 +34,7 @@ void i18n
   .init({
     resources: {
       en: { translation: en },
+      fr: { translation: fr },
     },
     fallbackLng: 'en',
     supportedLngs: [...SUPPORTED_LANGUAGES],
