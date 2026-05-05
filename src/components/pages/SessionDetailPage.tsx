@@ -99,14 +99,14 @@ export function SessionDetailPage({
   const editMutation = useMutation({
     mutationFn: (scriptText: string) => editSessionScript(sessionId, scriptText),
     onSuccess: () => {
-      toast.success('Script saved')
+      toast.success(t('sessionDetail.toastScriptSaved'))
       qc.invalidateQueries({ queryKey: ['session', sessionId] })
     },
     onError: (err) => {
       if (err instanceof ApiError && err.status === 402) {
-        toast.error('Script editing is a Pro feature.')
+        toast.error(t('sessionDetail.toastScriptPro'))
       } else {
-        toast.error('Could not save script.')
+        toast.error(t('sessionDetail.toastScriptError'))
       }
     },
   })
@@ -114,14 +114,14 @@ export function SessionDetailPage({
   const regenerateMutation = useMutation({
     mutationFn: () => regenerateSessionAudio(sessionId),
     onSuccess: () => {
-      toast.success('Regenerating audio…')
+      toast.success(t('sessionDetail.toastRegenStarted'))
       qc.invalidateQueries({ queryKey: ['session', sessionId] })
     },
     onError: (err) => {
       if (err instanceof ApiError && err.status === 402) {
-        toast.error('Regeneration is a Pro feature.')
+        toast.error(t('sessionDetail.toastRegenPro'))
       } else {
-        toast.error('Could not regenerate.')
+        toast.error(t('sessionDetail.toastRegenError'))
       }
     },
   })
@@ -148,14 +148,14 @@ export function SessionDetailPage({
 
     try {
       await navigator.clipboard.writeText(url)
-      toast.success('Link copied to clipboard!')
+      toast.success(t('sessionDetail.toastLinkCopied'))
     } catch {
-      toast.error('Could not copy link.')
+      toast.error(t('sessionDetail.toastLinkError'))
     }
   }
 
   const handleDelete = () => {
-    if (!window.confirm('Delete this session? This cannot be undone.')) return
+    if (!window.confirm(t('sessionDetail.deleteConfirm'))) return
     deleteMutation.mutate()
   }
 
@@ -398,7 +398,7 @@ export function SessionDetailPage({
                 </div>
               ) : (
                 <p className="py-4 text-center text-sm text-[var(--ls-text-muted)]">
-                  script is not yet available for this session.
+                  {t('sessionDetail.scriptUnavailable')}
                 </p>
               )}
             </div>
@@ -416,12 +416,12 @@ export function SessionDetailPage({
                 {regenerateMutation.isPending ? (
                   <>
                     <Spinner size={14} className="animate-spin" />
-                    regenerating…
+                    {t('sessionDetail.regenerating')}
                   </>
                 ) : (
                   <>
                     <Waveform size={14} weight="regular" />
-                    regenerate audio
+                    {t('sessionDetail.regenerateCta')}
                   </>
                 )}
               </button>
@@ -437,7 +437,7 @@ export function SessionDetailPage({
               className="inline-flex w-full items-center justify-center gap-2 py-3 text-xs lowercase tracking-wide text-[var(--ls-text-subtle)] transition-colors hover:text-[var(--ls-danger)] disabled:opacity-50"
             >
               <Trash size={13} weight="regular" />
-              {deleteMutation.isPending ? 'deleting…' : 'delete session'}
+              {deleteMutation.isPending ? t('sessionDetail.deleting') : t('sessionDetail.deleteSessionCta')}
             </button>
           </section>
         </div>
@@ -453,7 +453,7 @@ export function SessionDetailPage({
             className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md border border-[var(--ls-sand-dim)] bg-[var(--ls-sand)]/10 text-sm lowercase tracking-wide text-[var(--ls-sand)] transition-colors hover:bg-[var(--ls-sand)]/15 disabled:cursor-not-allowed disabled:border-[var(--ls-border)] disabled:bg-transparent disabled:text-[var(--ls-text-subtle)]"
           >
             <Play size={16} weight={isReady ? 'fill' : 'regular'} />
-            {isReady ? t('sessionDetail.playCta') : 'preparing audio…'}
+            {isReady ? t('sessionDetail.playCta') : t('sessionDetail.preparingAudio')}
           </button>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, type ChangeEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkle } from '@phosphor-icons/react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { editSessionScript, regenerateSessionAudio } from '@/lib/api-endpoints'
 import { ApiError } from '@/lib/api'
 
@@ -45,6 +46,7 @@ export function ScriptEditorModal({
   sessionId,
   onSave,
 }: ScriptEditorModalProps) {
+  const { t } = useTranslation()
   const [script, setScript] = useState(initialScript)
   const [modifiedParagraphs, setModifiedParagraphs] = useState<Set<number>>(new Set())
   const [isRegenerating, setIsRegenerating] = useState(false)
@@ -85,13 +87,13 @@ export function ScriptEditorModal({
 
   const handleAISuggest = async () => {
     if (!sessionId) {
-      toast.error('AI regeneration requires a saved session.')
+      toast.error(t('scriptEditor.toastRegenRequiresSession'))
       return
     }
 
     const paragraphIndex = getSelectedParagraphIndex()
     if (paragraphIndex === null) {
-      toast.error('Please select text within a paragraph to regenerate')
+      toast.error(t('scriptEditor.toastSelectText'))
       return
     }
 
@@ -112,12 +114,12 @@ export function ScriptEditorModal({
         return next
       })
 
-      toast.success("Regeneration started. We'll update the audio when it's ready.")
+      toast.success(t('scriptEditor.toastRegenStarted'))
     } catch (error) {
       if (error instanceof ApiError && error.status === 402) {
-        toast.error('AI regeneration is a Pro feature.')
+        toast.error(t('scriptEditor.toastRegenPro'))
       } else {
-        toast.error(error instanceof Error ? error.message : 'Failed to regenerate paragraph')
+        toast.error(error instanceof Error ? error.message : t('scriptEditor.toastRegenFailed'))
       }
       console.error(error)
     } finally {
@@ -127,13 +129,13 @@ export function ScriptEditorModal({
 
   const handleSave = () => {
     onSave(script, modifiedParagraphs)
-    toast.success('Script saved!')
+    toast.success(t('scriptEditor.toastSaved'))
     onClose()
   }
 
   const handleCancel = () => {
     if (script !== initialScript) {
-      const confirmed = confirm('You have unsaved changes. Are you sure you want to cancel?')
+      const confirmed = confirm(t('scriptEditor.confirmUnsaved'))
       if (!confirmed) return
     }
 
@@ -188,7 +190,7 @@ export function ScriptEditorModal({
             className="fixed inset-0 z-50 flex flex-col bg-[var(--ls-bg)] text-[var(--ls-text)]"
             role="dialog"
             aria-modal="true"
-            aria-label="edit script"
+            aria-label={t('scriptEditor.ariaLabel')}
           >
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--ls-border)] bg-[var(--ls-bg)] px-4 py-3">
               <button
@@ -196,15 +198,15 @@ export function ScriptEditorModal({
                 onClick={handleCancel}
                 className="h-10 rounded-md border border-transparent px-3 text-sm lowercase text-[var(--ls-text-muted)] transition-colors hover:border-[var(--ls-border-strong)] hover:text-[var(--ls-text)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
               >
-                cancel
+                {t('scriptEditor.cancel')}
               </button>
 
               <div className="text-center">
                 <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--ls-text-subtle)]">
-                  pro
+                  {t('scriptEditor.proLabel')}
                 </p>
                 <h2 className="font-fraunces text-xl italic lowercase text-[var(--ls-text)]">
-                  edit script
+                  {t('scriptEditor.title')}
                 </h2>
               </div>
 
@@ -213,7 +215,7 @@ export function ScriptEditorModal({
                 onClick={handleSave}
                 className="h-10 rounded-md bg-[var(--ls-sand)] px-4 text-sm lowercase text-[var(--ls-bg)] transition-colors hover:bg-[var(--ls-sand)]/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
               >
-                save
+                {t('scriptEditor.save')}
               </button>
             </div>
 
@@ -242,11 +244,11 @@ export function ScriptEditorModal({
 
             <div className="sticky bottom-0 flex items-center justify-between border-t border-[var(--ls-border)] bg-[var(--ls-bg)] px-4 py-3">
               <div className="text-sm lowercase tabular-nums text-[var(--ls-text-muted)]">
-                {wordCount.toLocaleString()} words
+                {t('scriptEditor.wordCount', { count: wordCount })}
               </div>
 
               <div className="text-xs lowercase text-[var(--ls-text-subtle)]">
-                select text, then regenerate
+                {t('scriptEditor.selectHint')}
               </div>
             </div>
 
@@ -257,7 +259,7 @@ export function ScriptEditorModal({
               whileHover={{ scale: isRegenerating ? 1 : 1.03 }}
               whileTap={{ scale: isRegenerating ? 1 : 0.97 }}
               className="fixed bottom-20 right-6 z-20 flex items-center gap-2 rounded-full border border-[var(--ls-sand-dim)] bg-[var(--ls-sand)] px-4 py-4 text-[var(--ls-bg)] transition-colors hover:bg-[var(--ls-sand)]/90 disabled:cursor-not-allowed disabled:border-[var(--ls-border-strong)] disabled:bg-[var(--ls-bg-elevated)] disabled:text-[var(--ls-text-subtle)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
-              aria-label="regenerate selected script text"
+              aria-label={t('scriptEditor.ariaRegenerate')}
             >
               <Sparkle
                 size={23}
@@ -267,7 +269,7 @@ export function ScriptEditorModal({
 
               {isRegenerating && (
                 <span className="pr-1 text-sm lowercase">
-                  regenerating…
+                  {t('scriptEditor.regenerating')}
                 </span>
               )}
             </motion.button>

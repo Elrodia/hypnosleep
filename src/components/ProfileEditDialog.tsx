@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,6 +26,7 @@ interface ProfileEditDialogProps {
  * `/api/profile/avatar` route and S3 plumbing.
  */
 export function ProfileEditDialog({ isOpen, onClose }: ProfileEditDialogProps) {
+  const { t } = useTranslation()
   const { user, refresh } = useAuth()
   const [name, setName] = useState('')
   const [avatarUrl, setAvatarUrl] = useState('')
@@ -45,7 +47,7 @@ export function ProfileEditDialog({ isOpen, onClose }: ProfileEditDialogProps) {
 
   const handleSave = async () => {
     if (!trimmedName) {
-      toast.error('Name cannot be empty')
+      toast.error(t('profileEdit.toastNameRequired'))
       return
     }
     setBusy(true)
@@ -58,10 +60,10 @@ export function ProfileEditDialog({ isOpen, onClose }: ProfileEditDialogProps) {
       // place that derives initials / display name from `useAuth()`
       // re-renders.
       if (typeof refresh === 'function') await refresh()
-      toast.success('Profile updated')
+      toast.success(t('profileEdit.toastSaved'))
       onClose()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not update profile')
+      toast.error(err instanceof Error ? err.message : t('profileEdit.toastError'))
     } finally {
       setBusy(false)
     }
@@ -71,41 +73,41 @@ export function ProfileEditDialog({ isOpen, onClose }: ProfileEditDialogProps) {
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit profile</DialogTitle>
-          <DialogDescription>Update how your name and avatar appear across HypnoSleep.</DialogDescription>
+          <DialogTitle>{t('profileEdit.title')}</DialogTitle>
+          <DialogDescription>{t('profileEdit.description')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1">
-            <label htmlFor="profile-name" className="text-xs text-muted-foreground">Display name</label>
+            <label htmlFor="profile-name" className="text-xs text-muted-foreground">{t('profileEdit.nameLabel')}</label>
             <Input
               id="profile-name"
               value={name}
               onChange={(e) => setName(e.target.value.slice(0, 60))}
-              placeholder="Your name"
+              placeholder={t('profileEdit.namePlaceholder')}
               maxLength={60}
             />
           </div>
           <div className="space-y-1">
-            <label htmlFor="profile-avatar" className="text-xs text-muted-foreground">Avatar URL (optional)</label>
+            <label htmlFor="profile-avatar" className="text-xs text-muted-foreground">{t('profileEdit.avatarLabel')}</label>
             <Input
               id="profile-avatar"
               value={avatarUrl}
               onChange={(e) => setAvatarUrl(e.target.value.slice(0, 500))}
-              placeholder="https://…"
+              placeholder={t('profileEdit.avatarPlaceholder')}
               type="url"
               maxLength={500}
             />
             <p className="text-[10px] text-muted-foreground">
-              Paste a public image URL. We don't host avatars yet.
+              {t('profileEdit.avatarHelper')}
             </p>
           </div>
         </div>
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="outline" onClick={onClose} disabled={busy} className="w-full sm:w-auto">
-            Cancel
+            {t('profileEdit.cancel')}
           </Button>
           <Button onClick={handleSave} disabled={busy || !dirty} className="w-full sm:w-auto">
-            {busy ? 'Saving…' : 'Save'}
+            {busy ? t('profileEdit.saving') : t('profileEdit.save')}
           </Button>
         </DialogFooter>
       </DialogContent>
