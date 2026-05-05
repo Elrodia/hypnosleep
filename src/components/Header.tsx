@@ -12,6 +12,7 @@ import {
 } from '@/lib/api-endpoints'
 import { Logo } from './Logo'
 import { NotificationsPanel } from './NotificationsPanel'
+import { LanguageSwitcher } from './LanguageSwitcher'
 
 /**
  * App header with the in-app notifications bell.
@@ -77,31 +78,39 @@ export function Header() {
           </h1>
         </div>
 
-        <button
-          type="button"
-          onClick={(e) => {
-            // Stop propagation so the panel's outside-click handler
-            // doesn't immediately close the popover we just opened.
-            e.stopPropagation()
-            if (user) setOpen((v) => !v)
-          }}
-          className="relative p-2 -mr-2 text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)] rounded-md"
-          aria-label={user && unread > 0 ? t('header.ariaNotificationsUnread', { count: unread }) : t('header.ariaNotifications')}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-        >
-          <Bell size={22} weight="regular" />
-          {user && unread > 0 && (
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0 }}
-              className="absolute top-1 right-1 min-w-[16px] h-4 px-1 flex items-center justify-center bg-[var(--ls-sand)] text-[var(--ls-bg)] text-[10px] font-medium rounded-full"
-            >
-              {unread > 9 ? '9+' : unread}
-            </motion.span>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Language switcher — present on every major in-app page so
+              users can change locale without first navigating to
+              Preferences. Compact variant matches the bell's visual
+              weight in the 56px-tall header. */}
+          <LanguageSwitcher variant="compact" />
+
+          <button
+            type="button"
+            onClick={(e) => {
+              // Stop propagation so the panel's outside-click handler
+              // doesn't immediately close the popover we just opened.
+              e.stopPropagation()
+              if (user) setOpen((v) => !v)
+            }}
+            className="relative p-2 -mr-2 text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)] rounded-md"
+            aria-label={user && unread > 0 ? t('header.ariaNotificationsUnread', { count: unread }) : t('header.ariaNotifications')}
+            aria-haspopup="dialog"
+            aria-expanded={open}
+          >
+            <Bell size={22} weight="regular" />
+            {user && unread > 0 && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0 }}
+                className="absolute top-1 right-1 min-w-[16px] h-4 px-1 flex items-center justify-center bg-[var(--ls-sand)] text-[var(--ls-bg)] text-[10px] font-medium rounded-full"
+              >
+                {unread > 9 ? '9+' : unread}
+              </motion.span>
+            )}
+          </button>
+        </div>
 
         {user && (
           <NotificationsPanel

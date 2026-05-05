@@ -12,8 +12,9 @@ interface LanguageSwitcherProps {
 }
 
 /**
- * Language picker rendered in three places: the landing nav, the
- * login page, and the Preferences sub-page.
+ * Language picker rendered in four places: the landing nav, the
+ * login page, the global app `Header` (so it's available on every
+ * major in-app page), and the Preferences sub-page.
  *
  * - Anonymous: persists choice to localStorage only (handled by the
  *   `i18next-browser-languagedetector` cache).
