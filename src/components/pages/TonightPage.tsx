@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Play, ArrowRight } from '@phosphor-icons/react'
+import { useTranslation } from 'react-i18next'
 import { listSessions, type SessionSummary } from '@/lib/api-endpoints'
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
 import { useAuth } from '@/lib/auth-context'
@@ -65,6 +66,7 @@ type Recommendation =
     }
 
 export function TonightPage() {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const { play } = useAudioPlayer()
 
@@ -78,8 +80,8 @@ export function TonightPage() {
   const recommendation = useMemo<Recommendation>(() => {
     const now = new Date()
     const recent = recentEnvelope?.data ?? []
-    return pickRecommendation({ now, recentSessions: recent })
-  }, [recentEnvelope])
+    return pickRecommendation({ now, recentSessions: recent, t })
+  }, [recentEnvelope, t])
 
   const playAgain = useMemo<SessionSummary[]>(() => {
     const items = recentEnvelope?.data ?? []
@@ -90,7 +92,7 @@ export function TonightPage() {
 
   const isFirstNight = (recentEnvelope?.data ?? []).length === 0
 
-  const greeting = useMemo(() => greetingByHour(new Date().getHours()), [])
+  const firstName = user?.name?.split(' ')[0]?.toLowerCase()
 
   const handlePrimary = () => {
     if (recommendation.kind === 'create') {
@@ -120,11 +122,12 @@ export function TonightPage() {
         {/* === GREETING === */}
         <header className="space-y-2">
           <p className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
-            tonight
+            {t('tabBar.tonight')}
           </p>
           <h1 className="font-fraunces italic lowercase text-4xl text-[var(--ls-text)]">
-            {greeting}
-            {user?.name ? `, ${user.name.split(' ')[0].toLowerCase()}` : ''}
+            {firstName
+              ? t('tonight.greeting', { name: firstName })
+              : t('tonight.greetingAnonymous')}
           </h1>
         </header>
 
@@ -165,10 +168,10 @@ export function TonightPage() {
           <section className="space-y-6 py-8">
             <div className="space-y-2">
               <p className="font-fraunces italic text-2xl text-[var(--ls-text)] lowercase leading-snug">
-                your first session is one tap away.
+                {t('tonight.heroEmpty')}
               </p>
               <p className="text-sm text-[var(--ls-text-muted)]">
-                describe what you need. a session will be ready in 30 seconds.
+                {t('tonight.subtitle')}
               </p>
             </div>
             <button
@@ -181,7 +184,7 @@ export function TonightPage() {
               className="w-full h-14 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 active:bg-[var(--ls-sand)]/80 active:scale-[0.99] transition-[background-color,transform] font-fraunces italic lowercase text-lg flex items-center justify-center gap-3"
             >
               <ArrowRight weight="regular" className="w-5 h-5" />
-              create your first session
+              {t('tonight.createCta')}
             </button>
           </section>
         )}
@@ -190,7 +193,7 @@ export function TonightPage() {
         {playAgain.length > 0 && (
           <section className="space-y-4 pt-4 border-t border-[var(--ls-border)]">
             <h2 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
-              again
+              {t('tonight.againTitle')}
             </h2>
             <div className="space-y-px">
               {playAgain.map((session) => (
@@ -231,12 +234,7 @@ export function TonightPage() {
 
 // ───── helpers ─────
 
-function greetingByHour(hour: number): string {
-  if (hour >= 5 && hour < 12) return 'good morning'
-  if (hour >= 12 && hour < 18) return 'good afternoon'
-  if (hour >= 18 && hour < 22) return 'good evening'
-  return 'good night'
-}
+type TFunc = ReturnType<typeof useTranslation>['t']
 
 function pickTimeContext(
   hour: number,
@@ -246,17 +244,10 @@ function pickTimeContext(
   return 'wind-down'
 }
 
-function titleByContext(
-  ctx: 'wind-down' | 'fall-asleep' | 'back-to-sleep',
-): string {
-  if (ctx === 'fall-asleep') return 'time to fall asleep'
-  if (ctx === 'back-to-sleep') return 'back to sleep'
-  return 'wind down'
-}
-
 function pickRecommendation(opts: {
   now: Date
   recentSessions: SessionSummary[]
+  t: TFunc
 }): Recommendation {
   const hour = opts.now.getHours()
   const ctx = pickTimeContext(hour)
@@ -267,18 +258,18 @@ function pickRecommendation(opts: {
   if (match) {
     return {
       kind: 'time-based',
-      title: titleByContext(ctx),
+      title: opts.t('tonight.heroTitle'),
       subtitle: match.title.toLowerCase(),
       sessionId: match.id,
-      ctaLabel: 'play',
+      ctaLabel: opts.t('tonight.heroPlay'),
     }
   }
 
   return {
     kind: 'create',
-    title: titleByContext(ctx),
-    subtitle: 'create one for tonight',
+    title: opts.t('tonight.heroTitle'),
+    subtitle: opts.t('tonight.heroEmpty'),
     sessionId: null,
-    ctaLabel: 'create',
+    ctaLabel: opts.t('tonight.createCta'),
   }
 }

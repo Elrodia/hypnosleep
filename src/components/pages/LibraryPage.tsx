@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MagnifyingGlass, FunnelSimple, Check, Bell } from '@phosphor-icons/react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
 import { SessionCardLiminal } from '@/components/SessionCardLiminal'
 import { SessionDetailPage } from './SessionDetailPage'
@@ -72,6 +73,7 @@ function fireNavigateToCreate() {
 }
 
 export function LibraryPage() {
+  const { t } = useTranslation()
   const [activeFilter, setActiveFilter] = useState<Filter>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [activeSortOption, setActiveSortOption] = useState<SortOption>('newest')
@@ -147,7 +149,7 @@ export function LibraryPage() {
       qc.invalidateQueries({ queryKey: ['sessions'] })
       qc.invalidateQueries({ queryKey: ['sessions-counts'] })
     },
-    onError: () => toast.error('could not update favorite.'),
+    onError: () => toast.error(t('library.favoriteError')),
   })
 
   const deleteMutation = useMutation({
@@ -155,9 +157,9 @@ export function LibraryPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sessions'] })
       qc.invalidateQueries({ queryKey: ['sessions-counts'] })
-      toast.success('session deleted')
+      toast.success(t('library.deleteSuccess'))
     },
-    onError: () => toast.error('could not delete session.'),
+    onError: () => toast.error(t('library.deleteError')),
   })
   // deleteMutation is kept in scope so the cache-invalidation
   // contract (sessions + sessions-counts) survives any future wiring
@@ -212,7 +214,7 @@ export function LibraryPage() {
           transition={{ duration: 0.5 }}
           className="flex items-center justify-between px-6 h-14"
         >
-          <span className="ls-library__brand">hypnosleep</span>
+          <span className="ls-library__brand">{t('home.brand')}</span>
           <Bell size={18} weight="thin" aria-hidden="true" style={{ color: 'var(--ls-fg-muted)' }} />
         </motion.header>
 
@@ -223,7 +225,7 @@ export function LibraryPage() {
             transition={{ duration: 0.6 }}
             className="ls-library__title"
           >
-            library
+            {t('library.title')}
           </motion.h1>
 
           {sessions.length > 0 && (
@@ -233,7 +235,7 @@ export function LibraryPage() {
               transition={{ duration: 0.5, delay: 0.15 }}
               className="ls-library__meta mt-3"
             >
-              {sessions.length} sessions · {totalMinutes} min total
+              {sessions.length} {sessions.length === 1 ? t('library.session') : t('library.sessions')} · {totalMinutes} {t('library.minLabel')} total
             </motion.p>
           )}
 
@@ -247,11 +249,11 @@ export function LibraryPage() {
               <MagnifyingGlass size={16} weight="regular" className="ls-library__search-icon" />
               <input
                 type="text"
-                placeholder="search"
+                placeholder={t('library.search')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="ls-library__search-input"
-                aria-label="search sessions"
+                aria-label={t('library.search')}
               />
             </label>
             <div style={{ position: 'relative' }}>
@@ -318,7 +320,11 @@ export function LibraryPage() {
                     onClick={() => setActiveFilter(pill)}
                     className="ls-library__pill"
                   >
-                    {pill}
+                    {pill === 'all'
+                      ? t('library.filterAll')
+                      : pill === 'favorites'
+                      ? t('library.filterFavorites')
+                      : pill}
                     {isActive && (
                       <motion.span
                         layoutId="library-filter-underline"
@@ -341,7 +347,7 @@ export function LibraryPage() {
               </div>
             ) : isError ? (
               <div className="ls-library__empty">
-                <p className="ls-library__empty-line">couldn't load your library</p>
+                <p className="ls-library__empty-line">{t('library.loadingError')}</p>
                 <button
                   type="button"
                   onClick={() => void refetch()}
@@ -352,13 +358,13 @@ export function LibraryPage() {
               </div>
             ) : sessions.length === 0 ? (
               <div className="ls-library__empty">
-                <p className="ls-library__empty-line">nothing here yet</p>
+                <p className="ls-library__empty-line">{t('library.empty')}</p>
                 <button
                   type="button"
                   onClick={fireNavigateToCreate}
                   className="ls-library__link"
                 >
-                  create a session
+                  {t('library.createFirst')}
                 </button>
               </div>
             ) : (

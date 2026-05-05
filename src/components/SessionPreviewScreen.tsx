@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Play, PencilSimple, ArrowsClockwise, Check } from '@phosphor-icons/react'
 
@@ -24,6 +25,7 @@ export function SessionPreviewScreen({
   onEditScript,
   onRegenerate,
 }: SessionPreviewScreenProps) {
+  const { t } = useTranslation()
   return (
     <AnimatePresence>
       {isOpen && (
@@ -46,7 +48,7 @@ export function SessionPreviewScreen({
                   className="text-center pt-12"
                 >
                   <p className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)] mb-3">
-                    your session is ready
+                    {t('sessionPreview.eyebrow')}
                   </p>
                   <h1 className="font-fraunces italic lowercase text-3xl text-[var(--ls-text)]">
                     {sessionTitle.toLowerCase()}
@@ -67,7 +69,7 @@ export function SessionPreviewScreen({
                 >
                   <div className="px-5 py-3 border-b border-[var(--ls-border)]">
                     <h3 className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
-                      script preview
+                      {t('sessionPreview.scriptHeader')}
                     </h3>
                   </div>
                   <ScrollArea className="h-[280px] px-6 py-5">
@@ -85,7 +87,7 @@ export function SessionPreviewScreen({
                   className="flex items-center justify-center gap-2 text-xs text-[var(--ls-text-muted)] lowercase"
                 >
                   <Check weight="regular" size={14} className="text-[var(--ls-sand)]" />
-                  <span>saved to your library</span>
+                  <span>{t('sessionPreview.savedLibrary')}</span>
                 </motion.div>
 
                 {/* ── Primary action ── */}
@@ -101,7 +103,7 @@ export function SessionPreviewScreen({
                     className="w-full h-14 flex items-center justify-center gap-3 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 transition-colors text-base lowercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
                   >
                     <Play weight="fill" size={20} />
-                    listen now
+                    {t('sessionPreview.listenCta')}
                   </button>
                 </motion.div>
 
@@ -118,7 +120,7 @@ export function SessionPreviewScreen({
                     className="flex items-center gap-2 text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors lowercase focus:outline-none focus-visible:underline"
                   >
                     <PencilSimple size={16} weight="regular" />
-                    edit script
+                    {t('sessionPreview.editScript')}
                   </button>
                   <button
                     type="button"
@@ -126,7 +128,7 @@ export function SessionPreviewScreen({
                     className="flex items-center gap-2 text-sm text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors lowercase focus:outline-none focus-visible:underline"
                   >
                     <ArrowsClockwise size={16} weight="regular" />
-                    regenerate
+                    {t('sessionPreview.regenerate')}
                   </button>
                 </motion.div>
 

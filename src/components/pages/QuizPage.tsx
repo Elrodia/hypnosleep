@@ -1,41 +1,40 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Shield, Moon, Cigarette, Heart, Ghost, Target, Scales, Pencil, Check, SunHorizon, Coffee, Clock } from '@phosphor-icons/react'
+import { useTranslation } from 'react-i18next'
 
 interface GoalOption {
   id: string
-  label: string
   icon: React.ElementType
 }
 
 interface TimeOption {
   id: string
-  label: string
   icon: React.ElementType
   recommended?: boolean
 }
 
 const goalOptions: GoalOption[] = [
-  { id: 'confidence', label: 'confidence', icon: Shield },
-  { id: 'sleep', label: 'better sleep', icon: Moon },
-  { id: 'smoking', label: 'quit smoking', icon: Cigarette },
-  { id: 'anxiety', label: 'reduce anxiety', icon: Heart },
-  { id: 'fears', label: 'overcome fears', icon: Ghost },
-  { id: 'focus', label: 'improve focus', icon: Target },
-  { id: 'weight', label: 'weight loss', icon: Scales },
-  { id: 'custom', label: 'something else', icon: Pencil },
+  { id: 'confidence', icon: Shield },
+  { id: 'sleep', icon: Moon },
+  { id: 'smoking', icon: Cigarette },
+  { id: 'anxiety', icon: Heart },
+  { id: 'fears', icon: Ghost },
+  { id: 'focus', icon: Target },
+  { id: 'weight', icon: Scales },
+  { id: 'custom', icon: Pencil },
 ]
 
 const timeOptions: TimeOption[] = [
-  { id: 'before-sleep', label: 'before sleep', icon: Moon, recommended: true },
-  { id: 'morning', label: 'morning routine', icon: SunHorizon },
-  { id: 'breaks', label: 'during breaks', icon: Coffee },
-  { id: 'anytime', label: 'anytime', icon: Clock },
+  { id: 'before-sleep', icon: Moon, recommended: true },
+  { id: 'morning', icon: SunHorizon },
+  { id: 'breaks', icon: Coffee },
+  { id: 'anytime', icon: Clock },
 ]
 
 const durationOptions = [
-  { value: 5, label: '5 minutes' },
-  { value: 10, label: '10 minutes' },
+  { value: 5 },
+  { value: 10 },
 ] as const
 
 interface QuizPageProps {
@@ -47,6 +46,7 @@ interface QuizPageProps {
 }
 
 export function QuizPage({ onComplete }: QuizPageProps) {
+  const { t } = useTranslation()
   const [step, setStep] = useState(1)
   const [selectedGoals, setSelectedGoals] = useState<string[]>([])
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
@@ -91,7 +91,7 @@ export function QuizPage({ onComplete }: QuizPageProps) {
         <div className="mb-10">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
-              step {step} of 3
+              {t('quiz.stepOf', { current: step, total: 3 })}
             </span>
             <span className="text-xs text-[var(--ls-text-subtle)]">
               {progress}%
@@ -120,10 +120,10 @@ export function QuizPage({ onComplete }: QuizPageProps) {
             >
               <div className="mb-8">
                 <h1 className="font-fraunces italic lowercase text-3xl mb-2 text-[var(--ls-text)]">
-                  what would you like to work on?
+                  {t('quiz.step1Title')}
                 </h1>
                 <p className="text-sm text-[var(--ls-text-muted)] lowercase">
-                  pick all that apply.
+                  {t('quiz.step1Subtitle')}
                 </p>
               </div>
 
@@ -167,7 +167,7 @@ export function QuizPage({ onComplete }: QuizPageProps) {
                           isSelected ? 'text-[var(--ls-text)]' : 'text-[var(--ls-text-muted)]'
                         }`}
                       >
-                        {goal.label}
+                        {t(`quiz.goals.${goal.id}`)}
                       </span>
                     </motion.button>
                   )
@@ -180,7 +180,7 @@ export function QuizPage({ onComplete }: QuizPageProps) {
                 disabled={selectedGoals.length === 0}
                 className="w-full h-12 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 transition-colors text-sm lowercase disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
               >
-                continue
+                {t('quiz.continue')}
               </button>
             </motion.div>
           )}
@@ -196,7 +196,7 @@ export function QuizPage({ onComplete }: QuizPageProps) {
             >
               <div className="mb-8">
                 <h1 className="font-fraunces italic lowercase text-3xl mb-2 text-[var(--ls-text)]">
-                  when do you prefer to listen?
+                  {t('quiz.step2Title')}
                 </h1>
               </div>
 
@@ -231,11 +231,11 @@ export function QuizPage({ onComplete }: QuizPageProps) {
                           isSelected ? 'text-[var(--ls-text)]' : 'text-[var(--ls-text-muted)]'
                         }`}
                       >
-                        {option.label}
+                        {t(`quiz.times.${option.id}`)}
                       </span>
                       {option.recommended && (
                         <span className="text-[10px] uppercase tracking-widest text-[var(--ls-text-subtle)]">
-                          recommended
+                          {t('quiz.recommended')}
                         </span>
                       )}
                       {isSelected && (
@@ -258,7 +258,7 @@ export function QuizPage({ onComplete }: QuizPageProps) {
                 disabled={!selectedTime}
                 className="w-full h-12 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 transition-colors text-sm lowercase disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
               >
-                continue
+                {t('quiz.continue')}
               </button>
             </motion.div>
           )}
@@ -274,10 +274,10 @@ export function QuizPage({ onComplete }: QuizPageProps) {
             >
               <div className="mb-8">
                 <h1 className="font-fraunces italic lowercase text-3xl mb-2 text-[var(--ls-text)]">
-                  how long should sessions be?
+                  {t('quiz.step3Title')}
                 </h1>
                 <p className="text-sm text-[var(--ls-text-muted)] lowercase">
-                  you can change this later in preferences.
+                  {t('quiz.step3Subtitle')}
                 </p>
               </div>
 
@@ -303,7 +303,7 @@ export function QuizPage({ onComplete }: QuizPageProps) {
                         {opt.value}
                       </div>
                       <div className="text-xs uppercase tracking-widest text-[var(--ls-text-subtle)]">
-                        minutes
+                        {t('quiz.minutes')}
                       </div>
                     </motion.button>
                   )
@@ -315,7 +315,7 @@ export function QuizPage({ onComplete }: QuizPageProps) {
                 onClick={handleStep3Complete}
                 className="w-full h-12 rounded-md bg-[var(--ls-sand)] text-[var(--ls-bg)] hover:bg-[var(--ls-sand)]/90 transition-colors text-sm lowercase focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ls-sand-dim)]"
               >
-                begin
+                {t('quiz.begin')}
               </button>
             </motion.div>
           )}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Bell, Play, Sparkle } from '@phosphor-icons/react'
+import { useTranslation } from 'react-i18next'
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext'
 import { useAuth } from '@/lib/auth-context'
 
@@ -15,11 +16,13 @@ interface RecentSession {
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
 const LAST_SESSION_KEY = 'hypnosleep:lastSession'
 
-function getTimeOfDayPhrase(): string {
+type TimeOfDayKey = 'morning' | 'afternoon' | 'evening'
+
+function getTimeOfDayKey(): TimeOfDayKey {
   const hour = new Date().getHours()
-  if (hour < 12) return 'this morning'
-  if (hour < 18) return 'this afternoon'
-  return 'tonight'
+  if (hour < 12) return 'morning'
+  if (hour < 18) return 'afternoon'
+  return 'evening'
 }
 
 function readRecentSession(): RecentSession | null {
@@ -40,7 +43,7 @@ function readRecentSession(): RecentSession | null {
   }
 }
 
-const formatMinutes = (s: number) => `${Math.max(1, Math.round(s / 60))} min`
+const formatMinutes = (s: number) => Math.max(1, Math.round(s / 60))
 
 const STYLES = `
 .ls-home{--ls-bg-base:#0a0a0f;--ls-bg-deep:#050507;--ls-fg-primary:#e8e6e1;--ls-fg-muted:#6b6a6f;--ls-fg-faint:#2a2a30;--ls-accent:#c9b6a3;--ls-glow:rgba(201,182,163,0.08);background:var(--ls-bg-base);color:var(--ls-fg-primary);font-family:'Inter',system-ui,sans-serif;min-height:100vh;position:relative;overflow:hidden;}
@@ -67,10 +70,12 @@ const STYLES = `
 `
 
 export function HomePage() {
+  const { t } = useTranslation()
   const { play } = useAudioPlayer()
   const { user } = useAuth()
-  const firstName = user?.name?.split(' ')[0] || 'friend'
-  const phrase = useMemo(() => getTimeOfDayPhrase(), [])
+  const firstName = user?.name?.split(' ')[0]
+  const timeOfDayKey = useMemo(() => getTimeOfDayKey(), [])
+  const phrase = t(`timeOfDay.${timeOfDayKey}`)
   const [recent, setRecent] = useState<RecentSession | null>(null)
 
   useEffect(() => {
@@ -100,7 +105,7 @@ export function HomePage() {
           transition={{ duration: 0.6 }}
           className="flex items-center justify-between px-6 h-14"
         >
-          <span className="ls-home__brand">hypnosleep</span>
+          <span className="ls-home__brand">{t('home.brand')}</span>
           <Bell size={18} weight="thin" style={{ color: 'var(--ls-fg-muted)' }} />
         </motion.header>
 
@@ -112,7 +117,9 @@ export function HomePage() {
             className="ls-home__question text-center max-w-2xl"
             style={{ color: 'var(--ls-fg-primary)' }}
           >
-            what do you need {phrase}, {firstName}?
+            {firstName
+              ? t('home.question', { phrase, name: firstName })
+              : t('home.questionAnonymous', { phrase })}
           </motion.h1>
 
           <motion.div
@@ -121,10 +128,10 @@ export function HomePage() {
             transition={{ duration: 0.7, delay: 0.6 }}
             className="flex flex-col items-center gap-5"
           >
-            <button type="button" onClick={handleCreate} aria-label="create a new session" className="ls-home__create">
+            <button type="button" onClick={handleCreate} aria-label={t('home.ariaCreate')} className="ls-home__create">
               <span className="ls-home__glyph"><Sparkle size={28} weight="thin" /></span>
             </button>
-            <span className="ls-home__create-label">create</span>
+            <span className="ls-home__create-label">{t('home.create')}</span>
           </motion.div>
         </main>
 
@@ -136,12 +143,12 @@ export function HomePage() {
             className="px-6 pb-10"
           >
             <div className="ls-home__divider mb-5" />
-            <p className="ls-home__recently-label mb-2">recently</p>
+            <p className="ls-home__recently-label mb-2">{t('home.recently')}</p>
             <div className="flex items-center justify-between gap-4">
               <p className="ls-home__recently-title truncate">
-                {recent.title.toLowerCase()} · {formatMinutes(recent.durationSec)}
+                {recent.title.toLowerCase()} · {t('sessionCard.minutes', { count: formatMinutes(recent.durationSec) })}
               </p>
-              <button type="button" onClick={handleResume} aria-label="resume recent session" className="ls-home__play-btn">
+              <button type="button" onClick={handleResume} aria-label={t('home.ariaResume')} className="ls-home__play-btn">
                 <Play size={20} weight="fill" />
               </button>
             </div>

@@ -1,4 +1,5 @@
 import { CaretLeft } from '@phosphor-icons/react'
+import { useTranslation } from 'react-i18next'
 import { Switch } from '@/components/ui/switch'
 import {
   Select,
@@ -16,28 +17,28 @@ import { useKV } from '@/hooks/use-kv'
 // locking is enforced at the Create-page level; the Preferences page
 // just stores the user's preferred default.
 const VOICE_OPTIONS = [
-  { value: 'en-US-AnaNeural', label: 'calm female' },
-  { value: 'en-US-GuyNeural', label: 'deep male' },
-  { value: 'en-US-AriaNeural', label: 'soft whisper' },
-  { value: 'en-GB-SoniaNeural', label: 'gentle british' },
-  { value: 'en-AU-NatashaNeural', label: 'warm australian' },
-  { value: 'en-US-DavisNeural', label: 'steady guide' },
+  { value: 'en-US-AnaNeural', labelKey: 'create.voices.calmFemale' },
+  { value: 'en-US-GuyNeural', labelKey: 'create.voices.deepMale' },
+  { value: 'en-US-AriaNeural', labelKey: 'create.voices.softWhisper' },
+  { value: 'en-GB-SoniaNeural', labelKey: 'create.voices.gentleBritish' },
+  { value: 'en-AU-NatashaNeural', labelKey: 'create.voices.warmAustralian' },
+  { value: 'en-US-DavisNeural', labelKey: 'create.voices.steadyGuide' },
 ] as const
 
 const BACKGROUND_SOUND_OPTIONS = [
-  { value: 'silence', label: 'silence' },
-  { value: 'rain', label: 'rain' },
-  { value: 'ocean', label: 'ocean' },
-  { value: 'forest', label: 'forest' },
-  { value: 'wind', label: 'wind' },
+  { value: 'silence', labelKey: 'create.backgrounds.silence' },
+  { value: 'rain', labelKey: 'create.backgrounds.rain' },
+  { value: 'ocean', labelKey: 'create.backgrounds.ocean' },
+  { value: 'forest', labelKey: 'create.backgrounds.forest' },
+  { value: 'wind', labelKey: 'create.backgrounds.wind' },
 ] as const
 
 // Aligned with the system's real session caps.
 // Free users get 5 min only; Pro users get 3–12 min.
 // We surface the two values that work for everyone here.
 const SESSION_LENGTH_OPTIONS = [
-  { value: '5', label: '5 minutes' },
-  { value: '10', label: '10 minutes' },
+  { value: '5', labelKey: 'create.length5' },
+  { value: '10', labelKey: 'create.length10' },
 ] as const
 
 const STYLES = `
@@ -65,6 +66,7 @@ interface PreferencesPageProps {
 }
 
 export function PreferencesPage({ onBack }: PreferencesPageProps) {
+  const { t } = useTranslation()
   const [dailyReminderEnabled, setDailyReminderEnabled] = useKV<boolean>('daily-reminder-enabled', false)
   const [reminderTime, setReminderTime] = useKV<string>('reminder-time', '22:00')
   const [defaultSessionLength, setDefaultSessionLength] = useKV<string>('default-session-length', '5')
@@ -116,12 +118,12 @@ export function PreferencesPage({ onBack }: PreferencesPageProps) {
             type="button"
             onClick={onBack}
             className="w-9 h-9 flex items-center justify-center rounded-full text-[var(--ls-text-muted)] hover:text-[var(--ls-text)] transition-colors"
-            aria-label="back"
+            aria-label={t('sessionDetail.ariaBack')}
           >
             <CaretLeft className="w-5 h-5" weight="regular" />
           </button>
           <h1 className="font-fraunces italic lowercase text-xl text-[var(--ls-text)]">
-            preferences
+            {t('preferences.title')}
           </h1>
         </div>
       </header>
@@ -134,7 +136,7 @@ export function PreferencesPage({ onBack }: PreferencesPageProps) {
               htmlFor="daily-reminder"
               className="text-base text-[var(--ls-text)] lowercase cursor-pointer"
             >
-              daily reminder
+              {t('preferences.dailyReminder')}
             </label>
             <Switch
               id="daily-reminder"
@@ -151,7 +153,7 @@ export function PreferencesPage({ onBack }: PreferencesPageProps) {
                 htmlFor="reminder-time"
                 className="text-base text-[var(--ls-text)] lowercase cursor-pointer"
               >
-                reminder time
+                {t('preferences.reminderTime')}
               </label>
               <input
                 id="reminder-time"
@@ -167,7 +169,7 @@ export function PreferencesPage({ onBack }: PreferencesPageProps) {
               with the Create page's length picker */}
           <div className="flex items-center justify-between py-4 border-b border-[var(--ls-border)]">
             <span className="text-base text-[var(--ls-text)] lowercase">
-              default length
+              {t('preferences.defaultLength')}
             </span>
             <div className="flex gap-2">
               {SESSION_LENGTH_OPTIONS.map((option) => {
@@ -184,7 +186,7 @@ export function PreferencesPage({ onBack }: PreferencesPageProps) {
                         : 'border-[var(--ls-border-strong)] text-[var(--ls-text-muted)] hover:border-[var(--ls-sand-dim)] hover:text-[var(--ls-text)]',
                     ].join(' ')}
                   >
-                    {option.label}
+                    {t(option.labelKey)}
                   </button>
                 )
               })}
@@ -194,7 +196,7 @@ export function PreferencesPage({ onBack }: PreferencesPageProps) {
           {/* default voice */}
           <div className="flex items-center justify-between py-4 border-b border-[var(--ls-border)]">
             <span className="text-base text-[var(--ls-text)] lowercase">
-              default voice
+              {t('preferences.defaultVoice')}
             </span>
             <Select
               value={defaultVoice ?? 'en-US-AnaNeural'}
@@ -206,7 +208,7 @@ export function PreferencesPage({ onBack }: PreferencesPageProps) {
               <SelectContent className={selectContentClass}>
                 {VOICE_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                    {t(option.labelKey)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -219,7 +221,7 @@ export function PreferencesPage({ onBack }: PreferencesPageProps) {
               choice follows the user across devices. */}
           <div className="flex items-center justify-between py-4 border-b border-[var(--ls-border)]">
             <span className="text-base text-[var(--ls-text)] lowercase">
-              language
+              {t('preferences.language')}
             </span>
             <LanguageSwitcher variant="default" />
           </div>
@@ -227,7 +229,7 @@ export function PreferencesPage({ onBack }: PreferencesPageProps) {
           {/* background */}
           <div className="flex items-center justify-between py-4 border-b border-[var(--ls-border)]">
             <span className="text-base text-[var(--ls-text)] lowercase">
-              background
+              {t('preferences.background')}
             </span>
             <Select
               value={backgroundSound ?? 'silence'}
@@ -239,7 +241,7 @@ export function PreferencesPage({ onBack }: PreferencesPageProps) {
               <SelectContent className={selectContentClass}>
                 {BACKGROUND_SOUND_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                    {t(option.labelKey)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -252,7 +254,7 @@ export function PreferencesPage({ onBack }: PreferencesPageProps) {
               htmlFor="theme-toggle"
               className="text-base text-[var(--ls-text)] lowercase cursor-pointer"
             >
-              theme
+              {t('preferences.theme')}
             </label>
             <div className="flex items-center gap-3">
               <Switch
@@ -262,7 +264,7 @@ export function PreferencesPage({ onBack }: PreferencesPageProps) {
                 className="data-[state=checked]:bg-[var(--ls-sand)]"
               />
               <span className="text-sm text-[var(--ls-text-muted)] lowercase w-10">
-                {theme === 'light' ? 'light' : 'dark'}
+                {theme === 'light' ? t('preferences.themeLight') : t('preferences.themeDark')}
               </span>
             </div>
           </div>

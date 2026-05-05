@@ -232,5 +232,357 @@
   "splash": {
     "wordmark": "hypnosleep",
     "tagline": "rewire your mind while you sleep."
+  },
+  "timeOfDay": {
+    "morning": "this morning",
+    "afternoon": "this afternoon",
+    "evening": "tonight"
+  },
+  "home": {
+    "brand": "hypnosleep",
+    "question": "what do you need {{phrase}}, {{name}}?",
+    "questionAnonymous": "what do you need {{phrase}}?",
+    "create": "create",
+    "recently": "recently",
+    "ariaCreate": "create a new session",
+    "ariaResume": "resume recent session"
+  },
+  "tabBar": {
+    "home": "home",
+    "library": "library",
+    "create": "create",
+    "tonight": "tonight",
+    "profile": "profile"
+  },
+  "library": {
+    "title": "your sessions",
+    "empty": "no sessions yet.",
+    "emptyHint": "create your first session to see it here.",
+    "createFirst": "create a session",
+    "filterAll": "all",
+    "filterFavorites": "favorites",
+    "search": "search sessions",
+    "session": "session",
+    "sessions": "sessions",
+    "minLabel": "min",
+    "deleteConfirm": "delete this session?",
+    "deleteCancel": "keep it",
+    "deleteConfirmCta": "yes, delete",
+    "actionPlay": "play",
+    "actionFavorite": "favorite",
+    "actionUnfavorite": "unfavorite",
+    "actionDelete": "delete",
+    "loadingError": "could not load your library.",
+    "deleteError": "could not delete this session.",
+    "deleteSuccess": "session deleted.",
+    "favoriteError": "could not update favorite."
+  },
+  "create": {
+    "title": "create a session",
+    "subtitle": "tell us what you want to work on.",
+    "promptLabel": "what's on your mind?",
+    "promptPlaceholder": "e.g. I want to fall asleep faster on work nights",
+    "lengthLabel": "length",
+    "length5": "5 min",
+    "length10": "10 min",
+    "voiceLabel": "voice",
+    "advancedLabel": "advanced",
+    "backgroundLabel": "background sound",
+    "inductionLabel": "induction style",
+    "depthLabel": "depth",
+    "wakeUpLabel": "wake up at the end",
+    "generateCta": "generate session",
+    "generating": "generating…",
+    "errorEmpty": "tell us what you want to work on first.",
+    "errorTooShort": "a few more words helps the script land better.",
+    "errorRateLimit": "you've reached your free limit. upgrade to keep going.",
+    "errorGeneric": "could not start the session. try again.",
+    "voices": {
+      "calmFemale": "calm female",
+      "deepMale": "deep male",
+      "softWhisper": "soft whisper",
+      "gentleBritish": "gentle british",
+      "warmAustralian": "warm australian",
+      "steadyGuide": "steady guide"
+    },
+    "backgrounds": {
+      "silence": "silence",
+      "rain": "rain",
+      "ocean": "ocean",
+      "forest": "forest",
+      "wind": "wind"
+    },
+    "inductions": {
+      "progressive": "progressive relaxation",
+      "breath": "breath-led",
+      "imagery": "guided imagery",
+      "countdown": "countdown"
+    },
+    "depths": {
+      "light": "light",
+      "medium": "medium",
+      "deep": "deep"
+    },
+    "lockedPro": "Pro"
+  },
+  "tonight": {
+    "greeting": "tonight, {{name}}.",
+    "greetingAnonymous": "tonight.",
+    "subtitle": "based on your last sessions.",
+    "heroTitle": "your recommendation",
+    "heroPlay": "begin",
+    "heroEmpty": "no recommendation yet. create a session to start.",
+    "againTitle": "listen again",
+    "againEmpty": "your past sessions will appear here.",
+    "createCta": "create a new session"
+  },
+  "header": {
+    "ariaNotifications": "Notifications",
+    "ariaNotificationsUnread": "Notifications ({{count}} unread)"
+  },
+  "miniPlayer": {
+    "ariaPlay": "play",
+    "ariaPause": "pause",
+    "ariaExpand": "open full player",
+    "ariaClose": "close player"
+  },
+  "fullPlayer": {
+    "ariaCollapse": "minimize player",
+    "ariaPlay": "play",
+    "ariaPause": "pause",
+    "ariaSeekBack": "rewind 15 seconds",
+    "ariaSeekForward": "forward 15 seconds",
+    "ariaFavorite": "favorite",
+    "ariaUnfavorite": "unfavorite",
+    "ariaShare": "share",
+    "ariaSleepTimer": "sleep timer",
+    "sleepTimerLabel": "sleep timer",
+    "sleepTimerOff": "off",
+    "sleepTimer5": "5 min",
+    "sleepTimer10": "10 min",
+    "sleepTimer15": "15 min",
+    "sleepTimer30": "30 min",
+    "sleepTimerEndOfTrack": "end of track",
+    "loadingAudio": "loading audio…",
+    "audioError": "could not play audio."
+  },
+  "profile": {
+    "memberSince": "member since {{date}}",
+    "stats": {
+      "sessions": "sessions",
+      "listened": "listened",
+      "dayStreak": "day streak"
+    },
+    "menu": {
+      "preferences": "preferences",
+      "account": "account",
+      "subscription": "subscription",
+      "help": "help & support",
+      "about": "about",
+      "signOut": "sign out"
+    },
+    "subscriptionFree": "free",
+    "subscriptionPro": "pro",
+    "footerMadeIn": "made in belgium",
+    "ariaEdit": "edit profile"
+  },
+  "preferences": {
+    "title": "preferences",
+    "dailyReminder": "daily reminder",
+    "reminderTime": "reminder time",
+    "defaultLength": "default length",
+    "defaultVoice": "default voice",
+    "background": "background",
+    "language": "language",
+    "theme": "theme",
+    "themeDark": "dark",
+    "themeLight": "light"
+  },
+  "account": {
+    "title": "account",
+    "subscriptionHeader": "subscription",
+    "manageLabel": "manage",
+    "manageStripe": "manage",
+    "manageExternal": "managed externally",
+    "upgrade": "upgrade",
+    "freePlanDesc": "free plan · upgrade for unlimited generations",
+    "proExternalDesc": "pro plan · provisioned outside stripe",
+    "proTrialingDesc": "pro plan · in trial",
+    "proActiveDesc": "pro plan · active",
+    "proCancelledDesc": "pro plan · cancelled, ends at period end",
+    "proPlanDesc": "pro plan",
+    "cancel": "cancel",
+    "cancelDesc": "stop recurring billing at the end of the period",
+    "cancelConfirmTitle": "cancel subscription?",
+    "cancelConfirmBody": "you'll keep pro access until the end of the current billing period.",
+    "cancelKeep": "keep pro",
+    "cancelDoIt": "cancel",
+    "cancelling": "cancelling…",
+    "dataHeader": "data",
+    "exportLabel": "export my data",
+    "exportPreparing": "preparing…",
+    "exportDesc": "download your account data as json",
+    "deleteLabel": "delete account",
+    "deleteConfirmTitle": "delete your account permanently?",
+    "deleteConfirmBody": "all sessions, favorites, progress, and the account itself will be removed. this cannot be undone.",
+    "deleteKeep": "keep account",
+    "deleteDoIt": "yes, delete",
+    "deleting": "deleting…"
+  },
+  "help": {
+    "title": "help",
+    "questionsHeader": "questions",
+    "contactHeader": "contact",
+    "contactBody": "still stuck? email us and a human will reply within one business day.",
+    "items": {
+      "sessions": {
+        "q": "how many sessions can i create?",
+        "a": "Free accounts get a small monthly allowance to try the app. Pro removes the cap, unlocks all premium voices, and lets you generate longer sessions."
+      },
+      "audio": {
+        "q": "the audio won't play.",
+        "a": "Most playback issues come from browser autoplay policies. Tap the play button explicitly (don't rely on auto-resume), check that your device isn't muted, and make sure your network isn't blocking media CDNs."
+      },
+      "data": {
+        "q": "where is my data stored?",
+        "a": "Encrypted on our servers, tied to your account. You can export everything as JSON from Account, or delete it all with one tap."
+      },
+      "billing": {
+        "q": "i was billed unexpectedly.",
+        "a": "Email us within 30 days and we will look at your case. We are a small team and we want you happy."
+      }
+    }
+  },
+  "about": {
+    "title": "about",
+    "version": "version {{version}}",
+    "pitch1": "hypnosleep generates personalised hypnosis sessions on demand. describe what you want help with, pick a voice and a length, and we synthesise a guided recording you can listen to that same night.",
+    "pitch2": "built with care by a small team that uses the app every day.",
+    "legalHeader": "legal",
+    "legalPrivacy": "privacy policy",
+    "legalTerms": "terms of service",
+    "legalContact": "contact",
+    "ackHeader": "acknowledgements",
+    "ackBody": "voices powered by elevenlabs. background sounds are royalty-free field recordings. session scripts are generated by large language models with safety filters tuned for hypnosis content.",
+    "copyright": "© {{year}} hypnosleep"
+  },
+  "proUpgrade": {
+    "title": "unlock pro.",
+    "subtitle": "everything, unlimited, always on.",
+    "feature1": "8 sessions per month",
+    "feature2": "3 to 12 minute sessions",
+    "feature3": "all 6 voices",
+    "feature4": "all 5 background sounds",
+    "monthly": "monthly",
+    "yearly": "yearly",
+    "yearlySave": "save {{percent}}%",
+    "ctaTrial": "start 7-day free trial",
+    "ctaUpgrade": "upgrade now",
+    "disclaimer": "no charge until trial ends. cancel anytime.",
+    "loadingCheckout": "preparing checkout…",
+    "checkoutError": "could not open checkout. try again."
+  },
+  "results": {
+    "title": "your session is ready",
+    "subtitle": "{{category}} · {{duration}} min",
+    "playCta": "listen now",
+    "saveLibrary": "saved to your library",
+    "scriptHeader": "script preview",
+    "editScript": "edit script",
+    "regenerate": "regenerate",
+    "ariaClose": "close preview"
+  },
+  "sessionDetail": {
+    "ariaBack": "back",
+    "playCta": "play session",
+    "favoriteCta": "favorite",
+    "unfavoriteCta": "unfavorite",
+    "deleteCta": "delete",
+    "shareCta": "share",
+    "scriptHeader": "script",
+    "categoryLabel": "category",
+    "voiceLabel": "voice",
+    "backgroundLabel": "background",
+    "durationLabel": "duration",
+    "createdLabel": "created",
+    "playCount": "played {{count}} times",
+    "playCountOne": "played once",
+    "playCountZero": "not played yet"
+  },
+  "quiz": {
+    "stepOf": "step {{current}} of {{total}}",
+    "step1Title": "what would you like to work on?",
+    "step1Subtitle": "pick all that apply.",
+    "step2Title": "when do you prefer to listen?",
+    "step3Title": "how long should sessions be?",
+    "step3Subtitle": "you can change this later in preferences.",
+    "continue": "continue",
+    "begin": "begin",
+    "minutes": "minutes",
+    "recommended": "recommended",
+    "goals": {
+      "confidence": "confidence",
+      "sleep": "better sleep",
+      "smoking": "quit smoking",
+      "anxiety": "reduce anxiety",
+      "fears": "overcome fears",
+      "focus": "improve focus",
+      "weight": "weight loss",
+      "custom": "something else"
+    },
+    "times": {
+      "before-sleep": "before sleep",
+      "morning": "morning routine",
+      "breaks": "during breaks",
+      "anytime": "anytime"
+    }
+  },
+  "onboarding": {
+    "skip": "skip",
+    "begin": "begin",
+    "ariaPrev": "previous slide",
+    "ariaNext": "next slide",
+    "ariaBegin": "begin",
+    "ariaSlide": "go to slide {{n}}",
+    "slide1Title": "sessions written for you.",
+    "slide1Body": "tell us what you want to work on. an ai writes a fresh hypnosis script for that exact goal — no pre-recorded tracks.",
+    "slide2Title": "a calm voice, every night.",
+    "slide2Body": "pick from six voices and an ambient background. listen before sleep, on a break, or whenever you have ten minutes.",
+    "slide3Title": "small changes, repeated.",
+    "slide3Body": "hypnosis works through repetition. your library keeps every session, so you can return to the ones that resonate."
+  },
+  "sessionPreview": {
+    "eyebrow": "your session is ready",
+    "savedLibrary": "saved to your library",
+    "listenCta": "listen now",
+    "editScript": "edit script",
+    "regenerate": "regenerate",
+    "scriptHeader": "script preview"
+  },
+  "generationLoading": {
+    "writing": "writing your script…",
+    "synthesizing": "synthesising the voice…",
+    "addingBackground": "adding background sounds…",
+    "finalizing": "almost there…",
+    "ariaClose": "cancel generation"
+  },
+  "notifications": {
+    "title": "notifications",
+    "empty": "no notifications yet.",
+    "markAllRead": "mark all as read",
+    "loading": "loading…",
+    "error": "could not load notifications.",
+    "sessionReadyTitle": "your session is ready",
+    "sessionReadyBody": "tap to listen.",
+    "subscriptionRenewedTitle": "pro renewed",
+    "subscriptionRenewedBody": "thanks for staying with us.",
+    "trialEndingTitle": "trial ending soon",
+    "trialEndingBody": "your free trial ends in {{days}} days."
+  },
+  "sessionCard": {
+    "ariaPlay": "play {{title}}",
+    "minutes": "{{count}} min",
+    "statusGenerating": "generating…",
+    "statusFailed": "failed"
   }
 }

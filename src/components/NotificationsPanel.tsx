@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useRef } from 'react'
 import { Bell, CheckCircle, X } from '@phosphor-icons/react'
+import { useTranslation } from 'react-i18next'
 import type { AppNotification } from '@/lib/api-endpoints'
 
 interface NotificationsPanelProps {
@@ -31,6 +32,7 @@ export function NotificationsPanel({
   onMarkAllRead,
   onItemClick,
 }: NotificationsPanelProps) {
+  const { t } = useTranslation()
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -74,7 +76,7 @@ export function NotificationsPanel({
         >
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--ls-border)]">
             <h3 className="font-fraunces italic lowercase text-lg leading-none text-[var(--ls-text)]">
-              notifications
+              {t('notifications.title')}
             </h3>
 
             <div className="flex items-center gap-1">
@@ -84,7 +86,7 @@ export function NotificationsPanel({
                   onClick={onMarkAllRead}
                   className="px-2 py-1 rounded-md text-[11px] lowercase text-[var(--ls-sand)] hover:text-[var(--ls-text)] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ls-sand-dim)]"
                 >
-                  mark all read
+                  {t('notifications.markAllRead')}
                 </button>
               )}
 
@@ -102,13 +104,13 @@ export function NotificationsPanel({
           <div className="max-h-[60vh] overflow-y-auto divide-y divide-[var(--ls-border)]">
             {isLoading && (
               <p className="px-4 py-6 text-sm text-[var(--ls-text-muted)] text-center lowercase">
-                loading…
+                {t('notifications.loading')}
               </p>
             )}
 
             {isError && !isLoading && (
               <p className="px-4 py-6 text-sm text-[var(--ls-text-muted)] text-center lowercase">
-                could not load notifications.
+                {t('notifications.error')}
               </p>
             )}
 
@@ -120,7 +122,7 @@ export function NotificationsPanel({
                   className="mx-auto mb-2 text-[var(--ls-sand-dim)]"
                 />
                 <p className="text-sm text-[var(--ls-text-muted)] lowercase">
-                  you're all caught up.
+                  {t('notifications.empty')}
                 </p>
               </div>
             )}
