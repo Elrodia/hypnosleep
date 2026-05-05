@@ -445,7 +445,7 @@
     "toastDeleted": "account deleted. we're sorry to see you go.",
     "toastDeleteError": "could not delete account.",
     "toastBillingError": "could not open billing portal.",
-    "toastCancelSuccess": "your subscription will end at the current period.",
+    "toastCancelSuccess": "your subscription will end at the end of the current period.",
     "toastCancelError": "could not cancel subscription."
   },
   "help": {
