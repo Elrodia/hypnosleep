@@ -101,6 +101,14 @@ COPY --from=frontend-builder /app/dist ./public
 # Writable asset dir used by the TTS pipeline.
 RUN mkdir -p apps/api/assets/backgrounds
 
+# Generate the background ambient loops (rain, ocean, forest, wind,
+# white_noise, silence) deterministically from FFmpeg's `lavfi`
+# synthetic sources. The MP3s are NOT committed to the repo (their
+# output is reproducible from the script), so we render them at image
+# build time. Without this, the audio mixer falls back to voice-only
+# and users never hear the background bed they selected.
+RUN bash apps/api/scripts/generate-backgrounds.sh
+
 ENV NODE_ENV=production \
     PORT=3000 \
     STATIC_DIR=/app/public
