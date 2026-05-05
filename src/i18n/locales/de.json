@@ -606,7 +606,9 @@
     "progressLabel": "fortschritt der sitzungserstellung",
     "confirmCancel": "diese sitzung wirklich abbrechen?",
     "confirmCancelCta": "ja, abbrechen",
-    "keepGoing": "weitermachen"
+    "keepGoing": "weitermachen",
+    "estimatedRemaining": "noch etwa {{time}}",
+    "calculatingEta": "verbleibende zeit wird geschätzt …"
   },
   "notifications": {
     "title": "benachrichtigungen",

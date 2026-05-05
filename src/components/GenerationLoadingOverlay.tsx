@@ -23,6 +23,20 @@ interface GenerationLoadingOverlayProps {
   percent?: number
   /** Optional human-readable status message from the backend. */
   message?: string
+  /**
+   * Wall-clock timestamp (ms since epoch) of when the run was kicked
+   * off. When provided together with {@link estimatedTotalSec} the
+   * overlay renders a "~Xm Ys remaining" hint so users have a
+   * trustworthy upper bound on how long they need to keep the screen
+   * open.
+   */
+  startedAt?: number | null
+  /**
+   * Heuristic total expected duration in seconds for the current run,
+   * used to derive the remaining-time hint while the bar is far from
+   * 100%.
+   */
+  estimatedTotalSec?: number | null
 }
 
 // Maps each canonical backend step to the user-facing row it belongs
@@ -79,9 +93,15 @@ export function GenerationLoadingOverlay({
   step,
   percent,
   message,
+  startedAt,
+  estimatedTotalSec,
 }: GenerationLoadingOverlayProps) {
   const { t } = useTranslation()
   const [confirmingCancel, setConfirmingCancel] = useState(false)
+  // Drives the remaining-time hint. Re-rendering once per second is
+  // cheap and gives a smooth countdown without wiring a derived value
+  // through framer-motion.
+  const [now, setNow] = useState(() => Date.now())
 
   // Lock the document scroll while the overlay is open so the user
   // can't accidentally scroll the underlying page on mobile via the
@@ -120,6 +140,17 @@ export function GenerationLoadingOverlay({
     return () => window.removeEventListener('keydown', handler, { capture: true })
   }, [isOpen])
 
+  // Tick the local clock once a second while the overlay is open so
+  // the "remaining" hint counts down in real time. Using a single
+  // setInterval avoids re-running expensive derivations on every
+  // animation frame.
+  useEffect(() => {
+    if (!isOpen) return
+    setNow(Date.now())
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [isOpen])
+
   const baseSteps: Omit<GenerationStep, 'status'>[] = [
     { id: 1, label: t('generationLoading.writing'), icon: <PenNib weight="regular" /> },
     { id: 2, label: t('generationLoading.synthesizing'), icon: <Waveform weight="regular" /> },
@@ -142,6 +173,77 @@ export function GenerationLoadingOverlay({
     0,
     Math.min(100, Math.round(percent ?? 0)),
   )
+
+  /**
+   * Below this percent we don't trust live extrapolation: the worker
+   * jumps from 0 → 10% on its first emission, so a naive
+   * `elapsed * (100/percent)` projection at 10% would over-weight the
+   * fast script-ready ping and predict an unrealistically short
+   * remaining time. Once we're meaningfully into the TTS phase the
+   * extrapolation becomes useful again.
+   */
+  const EXTRAPOLATION_MIN_PERCENT = 12
+
+  /**
+   * Derive a remaining-time hint in seconds.
+   *
+   * We blend two signals:
+   *  1. A heuristic total based on the requested session length
+   *     (`estimatedTotalSec`) measured from when the run started.
+   *     This gives a stable upper bound from frame zero — even before
+   *     any progress events have arrived.
+   *  2. A live extrapolation from the current `clampedPercent` once
+   *     it climbs above ~12% (i.e. once the worker has actually
+   *     started reporting). We take the *max* of the two so the hint
+   *     never undersells how long is left and never jumps backwards
+   *     in a way that erodes user trust.
+   *
+   * Returns `null` while we still don't have enough signal to make a
+   * useful guess (e.g. percent==0 and no startedAt).
+   */
+  const remainingSec = (() => {
+    if (!isOpen || allDone) return null
+    const elapsedSec =
+      typeof startedAt === 'number' ? Math.max(0, (now - startedAt) / 1000) : null
+
+    let heuristic: number | null = null
+    if (typeof estimatedTotalSec === 'number' && elapsedSec !== null) {
+      heuristic = Math.max(5, estimatedTotalSec - elapsedSec)
+    }
+
+    let extrapolated: number | null = null
+    if (
+      elapsedSec !== null &&
+      clampedPercent >= EXTRAPOLATION_MIN_PERCENT &&
+      clampedPercent < 100
+    ) {
+      const projectedTotal = elapsedSec * (100 / clampedPercent)
+      extrapolated = Math.max(3, projectedTotal - elapsedSec)
+    }
+
+    if (heuristic === null && extrapolated === null) return null
+    if (heuristic === null) return extrapolated
+    if (extrapolated === null) return heuristic
+    // Blend conservatively: the larger of the two estimates so we
+    // never lie about "5s left" while the worker is mid-TTS.
+    return Math.max(heuristic, extrapolated)
+  })()
+
+  const formatRemaining = (sec: number): string => {
+    const total = Math.max(1, Math.round(sec))
+    const m = Math.floor(total / 60)
+    const s = total % 60
+    if (m === 0) return `${s}s`
+    if (s === 0) return `${m}m`
+    return `${m}m ${s}s`
+  }
+
+  const remainingLabel =
+    remainingSec !== null
+      ? t('generationLoading.estimatedRemaining', {
+          time: formatRemaining(remainingSec),
+        })
+      : t('generationLoading.calculatingEta')
 
   return (
     <AnimatePresence>
@@ -356,6 +458,18 @@ export function GenerationLoadingOverlay({
                 <span className="shrink-0 tabular-nums text-[var(--ls-text)]">
                   {clampedPercent}%
                 </span>
+              </div>
+
+              {/* Remaining-time hint. Sits directly under the progress
+                  bar so the user has both an absolute (percent) and a
+                  human-readable (time-left) frame of reference for how
+                  much longer to keep the screen open. */}
+              <div
+                className="flex items-center justify-end text-[11px] tabular-nums text-[var(--ls-text-muted)]"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                <span>{remainingLabel}</span>
               </div>
             </motion.div>
 

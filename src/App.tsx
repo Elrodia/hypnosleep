@@ -517,6 +517,8 @@ function GlobalGenerationOverlay() {
       step={generation.step}
       percent={generation.percent}
       message={generation.message}
+      startedAt={generation.startedAt}
+      estimatedTotalSec={generation.estimatedTotalSec}
     />
   )
 }
