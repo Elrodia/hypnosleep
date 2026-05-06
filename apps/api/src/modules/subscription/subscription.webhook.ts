@@ -129,6 +129,38 @@ async function handleCheckoutCompleted(
     return;
   }
   trackEvent(userId, 'checkout_completed', { stripeSessionId: session.id });
+
+  // Synchronously upsert the subscription so `users.plan` flips to
+  // `'pro'` *now* rather than waiting for the separate
+  // `customer.subscription.created` webhook delivery. Without this
+  // step, a user redirected back from Stripe to the app sees their
+  // first `GET /api/subscription/status` (and any Pro-gated
+  // `/api/sessions/generate` call) reject them with `'free'` /
+  // `PRO_REQUIRED` until the second webhook arrives — a race that's
+  // typically a few seconds but can stretch much longer under
+  // delivery backoff.
+  const subRef = session.subscription;
+  if (!subRef) {
+    // Non-subscription checkouts (e.g. one-off payment modes) have
+    // nothing to mirror; the analytics event above is enough.
+    return;
+  }
+  try {
+    const sub: Stripe.Subscription =
+      typeof subRef === 'string'
+        ? await stripe.subscriptions.retrieve(subRef)
+        : subRef;
+    await handleSubscriptionUpsert(sub);
+  } catch (err) {
+    // Don't fail the webhook on a retrieve hiccup — the queued
+    // `customer.subscription.created` event will still reconcile
+    // state. We just lose the synchronous-flip benefit for this
+    // delivery.
+    logger.warn(
+      { err, sessionId: session.id, userId },
+      'checkout.session.completed: synchronous subscription upsert failed; relying on customer.subscription.created',
+    );
+  }
 }
 
 async function handleSubscriptionUpsert(
