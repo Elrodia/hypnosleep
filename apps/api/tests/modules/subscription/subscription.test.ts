@@ -75,6 +75,7 @@ const state = {
   stripeSubscriptionsUpdated: [] as Array<{ id: string; params: Record<string, unknown> }>,
   stripePortalSessionsCreated: [] as Array<Record<string, unknown>>,
   emailsSent: [] as Array<{ to: string; subject: string; html: string }>,
+  stripeSubscriptionsForRetrieve: new Map<string, Record<string, unknown>>(),
 };
 
 function resetState(): void {
@@ -87,6 +88,7 @@ function resetState(): void {
   state.stripeSubscriptionsUpdated.length = 0;
   state.stripePortalSessionsCreated.length = 0;
   state.emailsSent.length = 0;
+  state.stripeSubscriptionsForRetrieve.clear();
 }
 
 // ── Tag-based where-predicate helpers, mirroring sessions.test.ts ─────
@@ -291,6 +293,13 @@ const stripeFake = {
     update: vi.fn(async (id: string, params: Record<string, unknown>) => {
       state.stripeSubscriptionsUpdated.push({ id, params });
       return { id, ...params };
+    }),
+    retrieve: vi.fn(async (id: string) => {
+      const stub = state.stripeSubscriptionsForRetrieve.get(id);
+      if (!stub) {
+        throw new Error(`No such subscription: ${id}`);
+      }
+      return stub;
     }),
   },
   webhooks: {
@@ -629,6 +638,7 @@ describe('subscription.webhook', () => {
     resetState();
     stripeFake.webhooks.constructEvent.mockClear();
     stripeFake.subscriptions.update.mockClear();
+    stripeFake.subscriptions.retrieve.mockClear();
   });
 
   it('rejects requests with a missing signature header (400)', async () => {
@@ -789,6 +799,72 @@ describe('subscription.webhook', () => {
         metadata: {},
       } as never);
       expect(state.subscriptions.size).toBe(0);
+    });
+  });
+
+  describe('handleCheckoutCompleted', () => {
+    it('synchronously upserts the subscription and flips users.plan to pro', async () => {
+      // Reproduces the post-checkout race: the user's `users.plan`
+      // must flip to `'pro'` on `checkout.session.completed`, not
+      // wait for the separate `customer.subscription.created` event.
+      seedUser({ plan: 'free' });
+      const now = Math.floor(Date.now() / 1000);
+      state.stripeSubscriptionsForRetrieve.set('sub_after_checkout', {
+        id: 'sub_after_checkout',
+        customer: 'cus_1',
+        status: 'trialing',
+        trial_end: now + 7 * 24 * 3600,
+        current_period_end: now + 30 * 24 * 3600,
+        canceled_at: null,
+        metadata: { userId: 'user-1', plan: 'monthly' },
+      });
+
+      await __test.handleCheckoutCompleted({
+        id: 'cs_test_1',
+        metadata: { userId: 'user-1' },
+        subscription: 'sub_after_checkout',
+      } as never);
+
+      expect(stripeFake.subscriptions.retrieve).toHaveBeenCalledWith(
+        'sub_after_checkout',
+      );
+      expect(state.users.get('user-1')?.plan).toBe('pro');
+      const subs = Array.from(state.subscriptions.values());
+      expect(subs).toHaveLength(1);
+      expect(subs[0]).toMatchObject({
+        userId: 'user-1',
+        stripeSubscriptionId: 'sub_after_checkout',
+        status: 'trialing',
+      });
+      expect(state.events.some((e) => e.eventType === 'checkout_completed')).toBe(true);
+    });
+
+    it('still records the analytics event when the session has no subscription', async () => {
+      seedUser({ plan: 'free' });
+
+      await __test.handleCheckoutCompleted({
+        id: 'cs_test_2',
+        metadata: { userId: 'user-1' },
+        subscription: null,
+      } as never);
+
+      expect(stripeFake.subscriptions.retrieve).not.toHaveBeenCalled();
+      expect(state.users.get('user-1')?.plan).toBe('free');
+      expect(state.events.some((e) => e.eventType === 'checkout_completed')).toBe(true);
+    });
+
+    it('does not throw when the Stripe retrieve fails — relies on subscription.created fallback', async () => {
+      seedUser({ plan: 'free' });
+
+      await expect(
+        __test.handleCheckoutCompleted({
+          id: 'cs_test_3',
+          metadata: { userId: 'user-1' },
+          // not in stripeSubscriptionsForRetrieve → retrieve throws
+          subscription: 'sub_missing',
+        } as never),
+      ).resolves.toBeUndefined();
+      expect(state.users.get('user-1')?.plan).toBe('free');
     });
   });
 
